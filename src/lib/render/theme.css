@@ -1,0 +1,111 @@
+:root {
+	/* Surfaces — dusty plum */
+	--bg: #000000;
+	--panel: #462a2a;
+	--panel-2: #563434;
+	--panel-raised: #7a5959;
+	--border: #eaac8b;
+	--border-strong: #e56b6f;
+
+	/* Text — warm cream on plum */
+	--text: #f0ece4;
+	--text-dim: #9e94b0;
+	--text-accent: #e8b84a;
+
+	/* Accents */
+	--gold: #e8b84a;
+	--gold-bright: #f5d060;
+	--coral: #f07167;
+
+	/* Character: Frosty (Water) */
+	--frost: #6ec7d6;
+	--frost-bright: #a8e0ec;
+
+	/* Character: Yara (Nature) */
+	--verdant: #5dc46e;
+	--verdant-bright: #8ce8a0;
+
+	/* Combat */
+	--blood: #dc4e47;
+	--hp: #51bb71;
+	--hp-low: #b23c36;
+	--energy: #ffcb94;
+	--unchained: #5d9bff;
+	--bloomstride: #ffd966;
+	--eclipse: #6ec7d6;	
+
+	/* Enemy */
+	--enemy-dragon: #4a9c5d;
+	--enemy-bear: #a07050;
+	--wolf: #c0c0d0;
+
+	/* Button depth (console-tactile) */
+	--btn-shadow: 0 3px 0 #1a1528, 0 4px 10px rgba(0, 0, 0, 0.35);
+	--btn-shadow: 0 3px 0 #3333338c, 0 4px 2px rgba(0, 0, 0, 0.35);
+	--btn-shadow-pressed: 0 1px 0 #3333338c, 0 1px 4px rgba(0, 0, 0, 0.25);
+	--btn-shadow-disabled: 0 2px 0 #3333338c;
+
+	--fire: #e0533d;    --fire-bright: #ff7d5c;
+	--water: #2f86d8;   --water-bright: #6cb6ef;   /* deeper ocean azure */
+	--wind: #5fd6cf;    --wind-bright: #aef2ec;    /* pale teal — airy, distinct from water */
+	--nature: #5dc46e;  --nature-bright: #8ce8a0;  /* == your --verdant */
+	--light: #f5cd4f;   --light-bright: #fff0a8;
+	--dark: #a07cf0;    --dark-bright: #c8adff;    /* luminous violet — must out-bright the plum bg */
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+	background: var(--bg);
+	color: var(--text);
+	font-family: 'JetBrains Mono', 'Courier New', monospace;
+	font-size: 14px;
+	height: 100vh;
+	overflow: hidden;
+}
+
+@keyframes hit-shake {
+	0%, 100% { transform: translate(0); }
+	25% { transform: translate(-3px, 1px); }
+	75% { transform: translate(3px, -1px); }
+}
+@keyframes stunned-pulse {
+	0%, 100% { filter: brightness(1); }
+	50% { filter: brightness(1.8) saturate(0.3); }
+}
+@keyframes pulse {
+	0%, 100% { opacity: 0.6; }
+	50% { opacity: 1; }
+}
+@keyframes float-up {
+	0% { transform: translateY(0); opacity: 1; }
+	100% { transform: translateY(-30px); opacity: 0; }
+}
+@keyframes hold-glow {
+	0%, 100% { box-shadow: var(--btn-shadow), 0 0 8px var(--gold); }
+	50% { box-shadow: var(--btn-shadow), 0 0 20px var(--gold-bright); }
+}
+
+/* ── FX keyframes ──────────────────────────────────────────────────────── */
+@keyframes fx-burst {
+	0%   { opacity: 0; transform: scale(0.35); }
+	18%  { opacity: 1; transform: scale(0.85); }
+	100% { opacity: 0; transform: scale(1.7); }
+}
+@keyframes fx-burst-ring {
+	0%   { opacity: 0.85; transform: scale(0.5); }
+	100% { opacity: 0;    transform: scale(1.5); }
+}
+@keyframes fx-proj-travel {
+	from { transform: translate(0, 0); }
+	to   { transform: translate(var(--dx), var(--dy)); }
+}
+@keyframes fx-swipe {
+	0%   { opacity: 0; transform: rotate(calc(var(--rot) - 30deg)) scaleX(0.5); }
+	40%  { opacity: 1; }
+	100% { opacity: 0; transform: rotate(calc(var(--rot) + 20deg)) scaleX(1.1); }
+}
+@keyframes fx-wave-flash {
+	0%   { opacity: 0; transform: scale(0.9); }
+	30%  { opacity: 1; transform: scale(1); }
+	100% { opacity: 0; transform: scale(1); }
+}
