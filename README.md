@@ -1,4 +1,4 @@
-content = """# Dawn's Journey v2
+# Dawn's Journey v2
 
 A fast-paced, 2D action-RPG engine built for seamless combat, dynamic team rotations, and deep mechanical expression. Inspired by modern action titles (Genshin Impact, Wuthering Waves), DJv2 prioritizes crisp game feel, precise geometry, and composable combat primitives.
 
@@ -6,14 +6,14 @@ A fast-paced, 2D action-RPG engine built for seamless combat, dynamic team rotat
 
 | Character | Description |
 | :---: | :--- |
-| <img src="static/characters/avatars/sefyra.png" width="80" alt="Sefyra"><br>**Sefyra** | **Wind DPS / Support.** An aerial combatant utilizing the *Cloudpiercer* auto-lock bow system to rain tiered, charged shots from above. |
-| <img src="static/characters/avatars/frosty.png" width="80" alt="Frosty"><br>**Frosty** | **Ice Brawler.** A close-range specialist who uses omni-directional burst blasts to punish enemies that get too close. |
-| <img src="static/characters/avatars/maria_elena2.png" width="80" alt="Maria Elena"><br>**Maria Elena** | **Shadow Summoner.** Fights in tandem with his *Revenant Wolf*, locking down priority targets with high-pressure pincer attacks. |
-| <img src="static/characters/avatars/yara.png" width="80" alt="Yara"><br>**Yara** | **Nature Healer.** Creates the *Sanctum of Verdance*, a persistent field zone that provides sustained healing and vital team buffs. |
-| <img src="static/characters/avatars/ryoma.png" width="80" alt="Ryoma"><br>**Ryoma** | **Fire Vanguard.** Wields devastating *Titanic Smash* abilities for heavy, sweeping melee finishers and large-scale crowd control. |
-| <img src="static/characters/avatars/midorima.png" width="80" alt="midorima"><br>**midorima** | **Lightning Skirmisher.** Relies on fast, single-tile skillshots and rapid dashes to weave through enemy ranks with precision. |
-| <img src="static/characters/avatars/cedric.png" width="80" alt="Cedric"><br>**Cedric** | **Earth Defender.** Controls space with inverted T-cone sweeps to punish flankers, protect allies, and hold the frontline. |
-| <img src="static/characters/avatars/marina.png" width="80" alt="Marina"><br>**Marina** | **Hydro Enchanter.** Uses wide-line beam channeling and off-field stack bonuses to enable massive elemental reactions for the party. |
+| <img src="static/characters/avatars/sefyra.png" width="80" alt="Sefyra"> | **Sefyra**<br>**Wind ranged DPS.** Long range sniper who can charge up her shots and cut through crowds to hit her target. Can also group up large crowds of enemies. (Venti from Genshin // Elsu/Shouyue from AoV/HoK) |
+| <img src="static/characters/avatars/frosty.png" width="80" alt="Frosty"> | **Frosty**<br>**Ice Summoner-Constructor.** A summoner-constructor who can call on Wolfie to fight her enemies, and raise icy pylons if enemies get too close. (Fischl/Zhongli skills from Genshin, Ishar from AoV) |
+| <img src="static/characters/avatars/maria_elena2.png" width="80" alt="Maria Elena"> |**Maria Elena** <br> **Fire Close Combat Tank.** Fights close range, dealing tons of damage over time through her creation of burning zones. (Roxie from AoV) |
+| <img src="static/characters/avatars/yara.png" width="80" alt="Yara"> | **Yara**<br>**Nature Healer.** Creates the *Sanctum of Verdance*, a persistent field zone that provides sustained healing and vital team buffs. (Verina from Wuthering Waves, Alice from AoV) |
+| <img src="static/characters/avatars/ryoma.png" width="80" alt="Ryoma"> | **Ryoma**<br>**Dark Control Master.** Undecided - Synergy with Maria Elena with zone overlap. |
+| <img src="static/characters/avatars/midorima.png" width="80" alt="midorima"> | **Midorima** <br> **Wind Ninja.** Relies on fast, AoE basic attacks and agility to move around on Constructs, dealing high damage and being elusive. Also has a strong finisher. |
+| <img src="static/characters/avatars/cedric.png" width="80" alt="Cedric"> | **Cedric**<br>**Earth Defender.** Undecided - Main DPS. Undying, will sleep for 10s before resurrecting. |
+| <img src="static/characters/avatars/marina.png" width="80" alt="Marina"> |**Marina** <br> **Hydro Enchanter.** Undecided - Summons Water fields, utilising them for damage, control, and elusiveness. |
 
 ## 🛠️ Combat Engine Architecture
 
@@ -33,8 +33,3 @@ The core of DJv2 is its **Data Contract Philosophy**: *Characters are data, neve
 
 ---
 *Built for the love of 2D action.*
-"""
-
-with open("README.md", "w") as f:
-    f.write(content)
-print("[file-tag: README.md]")
