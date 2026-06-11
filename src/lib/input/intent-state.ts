@@ -215,3 +215,43 @@ export function computeFacing(
 	if (v) return commitAim(v, now);
 	return null;
 }
+
+// ─── Game clock / pause ──────────────────────────────────────────────────────
+// gameNow() = real elapsed time minus all time spent paused, so the game clock
+// freezes while paused and resumes seamlessly (no cooldown/stun drift, no jump).
+// Feed gameNow() — NOT performance.now() — into the loop and the input layer.
+
+let _paused = false;
+let _pauseStartedAt = 0;
+let _pausedTotal = 0;
+
+export function gameNow(): number {
+	if (_paused) return _pauseStartedAt - _pausedTotal; // frozen at the pause instant
+	return performance.now() - _pausedTotal;
+}
+
+export function isPaused(): boolean {
+	return _paused;
+}
+
+export function setPaused(p: boolean): void {
+	if (p === _paused) return;
+	if (p) {
+		_pauseStartedAt = performance.now();
+		_paused = true;
+	} else {
+		_pausedTotal += performance.now() - _pauseStartedAt; // bank the elapsed pause
+		_paused = false;
+	}
+}
+
+export function togglePause(): void {
+	setPaused(!_paused);
+}
+
+/** Fresh clock for a new fight: unpause and zero the accumulated pause offset. */
+export function resetClock(): void {
+	_paused = false;
+	_pauseStartedAt = 0;
+	_pausedTotal = 0;
+}

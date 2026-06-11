@@ -19,7 +19,8 @@ export const KEYBINDS: Record<string, string[]> = {
 	swap6: ['6'],
 	lockOn: ['f', 'mouse2'],
 	autoLook: ['z', 'mouse1'],
-	manualLook: ['shift']
+	manualLook: ['shift'],
+	pause: ['p'],
 };
 
 /** Reverse map: raw key/button → intent name. Built once at init. */

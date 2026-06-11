@@ -47,15 +47,14 @@
 		margin-top: 1rem;
 		width: 100%;
 		/* width: 75%; */
-		background-color: #778da9;
+		background-color: var(--panel-raised);
 		padding: 1rem;
 		border-radius: 12px;
 		height: 100%;
 
 		box-shadow:
-		0 0 0 2px rgba(0, 0, 0, 0.4) inset,
-		0 -6px 0 6px rgba(0, 0, 0, 0.37) inset,
-		0 6px 18px rgba(0, 0, 0, 0.5);
+		0 0 0px 2px rgba(0, 0, 0, 0.6) inset,
+		0 -4px 0 6px rgba(0, 0, 0, 0.6) inset;
 		padding-bottom: 1.5rem;
 	}
 	.card {
@@ -97,10 +96,8 @@
 		position: relative;
 		flex: 1;
 		display: flex;
-		background: var(--panel);
-		background: #415a77;
+		background: var(--panel-2);
 		border: 1px solid transparent;
-		border-radius: 12px;
 		/* padding: 6px 0; */
 		cursor: pointer;
 		transition: all 0.15s;
@@ -112,7 +109,7 @@
 		transition: all 0.3s;
 		border: none;
 		/* border: 2px solid transparent; */
-		border-radius: 12px;
+		border-radius: 9px;
 		box-shadow:
 		0 0 0 2px rgba(0, 0, 0, 0.4) inset,
 		0 -5px 0 2px rgba(0, 0, 0, 0.37) inset;

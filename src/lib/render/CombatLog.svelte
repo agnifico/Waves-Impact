@@ -84,32 +84,42 @@
 	</div>
 </div>
 
+
 <style>
 	.log-panel {
 		height: 100%;
 		min-height: 0;
 		background: var(--panel);
-		border: 1px solid var(--border);
-		border-radius: 6px;
-		padding: 10px 12px;
+		/* border: 1px solid var(--border); */
+		border-radius: 12px;
 		display: flex;
 		flex-direction: column;
 		/* overflow: hidden; */
 		width: 100%;
+		padding: 10px 12px 20px 12px;
+		box-shadow:
+			0 0 0px 4px rgba(0, 0, 0, 0.4) inset,
+			0 -8px 0 8px rgba(0, 0, 0, 0.37) inset;
 	}
 	.log-header {
-		color: var(--gold);
-		font-size: 11px;
-		letter-spacing: 2px;
+		color: var(--panel-raised);
+		font-size: 1rem;
+		/* letter-spacing: 2px; */
 		text-transform: uppercase;
 		margin-bottom: 8px;
+		font-family: 'DePixel';
 	}
+
 	.log-scroll {
-		flex: 1;
+		background-color: var(--panel);
 		overflow-y: auto;
-		font-size: 11px;
+		font-size: 12px;
 		line-height: 1.5;
-		padding-right: 8px;
+		scrollbar-width: thin;
+		border-radius: 6px;
+		border: 2px solid rgb(0, 0, 0);
+		box-shadow: inset 0px 10px 20px 0 rgba(0, 0, 0, 0.7);
+		scrollbar-width: none;
 	}
 	.log-scroll::-webkit-scrollbar {
 		width: 6px;
@@ -122,8 +132,9 @@
 		border-radius: 3px;
 	}
 	.log-line {
-		padding: 1px 0;
+		padding: 4px;
 		color: var(--text-dim);
+		background-color: rgba(0, 0, 0, 0.379);
 	}
 	.log-line.frosty {
 		color: var(--frost);
@@ -152,7 +163,7 @@
 		letter-spacing: 1px;
 	}
 	.time {
-		color: var(--border);
+		color: var(--panel-raised);
 		font-size: 9px;
 		margin-right: 6px;
 	}

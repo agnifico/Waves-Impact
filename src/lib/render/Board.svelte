@@ -356,18 +356,12 @@
 	.board {
 		display: grid;
 		/* gap: 1px; */
-		/* background: #493030; */
 		/* padding: 3px; */
-		/* border: 1px solid rgb(255, 255, 255, 0.1); */
-		/* border-radius: 4px; */
+		border: 2px solid var(--panel-2);
+		box-sizing: border-box;
+		border-radius: 9px;
 		position: relative;
-		/* width: fit-content; */
-		background: radial-gradient(120% 120% at 50% 30%, #1c2230 0%, #12141b 70%);
-		box-shadow:
-			rgba(0, 0, 0, 0.45) 0px 40px 55px,
-			rgba(0, 0, 0, 0.3) 0px 12px 24px,
-			inset 0 0 60px rgba(0, 0, 0, 0.6);
-		/* scale: 1.2; */
+		background: radial-gradient(120% 120% at 50% 30%, #1c2230 0%, var(--panel) 70%);
 	}
 	.tile {
 		width: 36px;

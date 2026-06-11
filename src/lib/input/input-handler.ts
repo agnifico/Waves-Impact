@@ -11,7 +11,10 @@ import {
 	clearLockHold,
 	setLockedEnemy,
 	getLockedEnemyId,
-	wasdVec
+	wasdVec,
+	gameNow,
+	isPaused,
+	togglePause
 } from './intent-state';
 import { tryBasicAttack } from '$lib/combat/basic-attack';
 import { tryAbility } from '$lib/combat/ability-resolver';
@@ -22,28 +25,45 @@ import { chebyshev } from '$lib/combat/board';
 /**
  * Bind keyboard and mouse event listeners.
  * Returns an unbind function for cleanup.
+ *
+ * `canAct` gates gameplay input: it returns false during the select screen and
+ * while paused, so keys don't drive the engine then. The pause key itself
+ * bypasses the gate (so you can always unpause). All timestamps come from
+ * gameNow() so they stay consistent with the paused game clock.
  */
 export function bindInputEvents(
 	getState: () => EngineState | null,
-	boardEl?: HTMLElement
+	boardEl?: HTMLElement,
+	canAct: () => boolean = () => true
 ): () => void {
-
 	const BA_HOLD_MS = 200; // tap < 200ms → base; hold ≥ 200ms → enhanced (feel knob)
 	let baHolding = false;
 	let baHoldStart = 0;
 
 	function baUsesHold(state: EngineState): boolean {
 		const char = state.party[state.activeSlot];
-		return (
-			char?.def.basicStyle === 'contextual' &&
-			char.def.contextualBasic?.selectBy === 'hold'
-		);
+		return char?.def.basicStyle === 'contextual' && char.def.contextualBasic?.selectBy === 'hold';
 	}
+
 	function press(raw: string, isRepeat: boolean): void {
 		const intent = intentFor(raw);
-		const now = performance.now();
+		const now = gameNow();
 		const state = getState();
 		if (!intent || !state) return;
+
+		// Pause toggle — always available, even while paused.
+		if (intent === 'pause') {
+			if (!isRepeat) {
+				togglePause();
+				if (isPaused()) {
+					resetHoldState(); // cancel any in-progress charge/aim
+					baHolding = false;
+				}
+			}
+			return;
+		}
+
+		if (!canAct()) return; // select screen or paused → ignore gameplay input
 
 		// Lock-on: tap to lock/cycle
 		if (intent === 'lockOn' && !isRepeat) {
@@ -68,7 +88,7 @@ export function bindInputEvents(
 		if (intent === 'basicAttack') {
 			if (baUsesHold(state)) {
 				baHolding = true;
-				baHoldStart = now;          // defer: decide tap vs hold on release
+				baHoldStart = now; // defer: decide tap vs hold on release
 			} else {
 				tryBasicAttack(state, now); // legacy: fire immediately
 			}
@@ -82,12 +102,14 @@ export function bindInputEvents(
 
 	function release(raw: string): void {
 		const intent = intentFor(raw);
-		const now = performance.now();
+		const now = gameNow();
 		if (!intent) return;
 
 		const state = getState();
 
-		setUp(intent);
+		setUp(intent); // always clear the held-key set, even when gated
+		if (!canAct()) return; // don't fire anything during select / pause
+
 		if (intent === 'lockOn') {
 			if (shouldUnlockOnRelease(now)) setLockedEnemy(null);
 			clearLockHold();
@@ -173,7 +195,6 @@ export function bindInputEvents(
 			// Seed a direction so an instant tap still dashes somewhere sane.
 			holdState.aimDir = wasdVec() ?? { ...char.facing };
 		}
-
 	}
 
 	function fireHeldAbility(state: EngineState, slot: AbilitySlot, now: number): void {
@@ -261,4 +282,3 @@ export function bindInputEvents(
 		}
 	};
 }
-

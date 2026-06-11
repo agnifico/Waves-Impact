@@ -58,7 +58,6 @@ export const midorima: Character = {
 			cooldownMs: 4000, // Highly spammable, low-cooldown skirmish tool
 			energyGain: 30,
 			grantsStack: 'gale',
-			holdBehavior: null
 		},
 
 		// C — Tempest Wheel: A mid-distance circular zoning bomb thrown from her blade
@@ -113,11 +112,6 @@ export const midorima: Character = {
 	theme: {
 		primary: '#3c6e71',
 		secondary: '#f5ebe0',
-		panel: '#2a6f6d',   // Deep teal/breeze base color
-		btn: '#48cae4',     // Sky wind cyan accent
-		border: '#a8e0ec',  // Soft aero border framing
-		text: 'rgba(0,0,0,0.6)',
-		key: '#f0fbfc',
 		glow: { ready: '#6be9e3', cyclone_veil: '#ffe9a8' },
 		hp: 'linear-gradient(-90deg, #114b4f 0%, #2a6f6d 50%, #86e89a 100%);',
 		energy: 'linear-gradient(to left, #205072, #329d9c);',

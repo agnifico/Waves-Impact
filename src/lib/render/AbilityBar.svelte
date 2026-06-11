@@ -136,7 +136,6 @@
 
 <style>
 	.ability-bar {
-		margin-top: 1rem;
 		display: flex;
 		gap: 8px;
 		width: 100%;
@@ -144,10 +143,10 @@
 		background-color: var(--ab-panel);
 		border: 2px solid rgba(255, 255, 255, 0.3);
 		border-radius: 12px;
+		border: none;
 		box-shadow:
 			0 0 0 2px rgba(0, 0, 0, 0.4) inset,
-			0 -5px 0 2px rgba(0, 0, 0, 0.37) inset,
-			0 6px 18px rgba(0, 0, 0, 0.5);
+			0 -5px 0 2px rgba(0, 0, 0, 0.37) inset;
 		transition: background-color 0.3s;
 	}
 	.ability-btn {
