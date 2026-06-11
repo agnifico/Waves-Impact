@@ -97,7 +97,7 @@ export const june9: Character = {
 	theme: {
 		primary: '#2eb872',                                 // verdant green
 		secondary: '#f5c04a',                               // radiant gold — bright accent
-		glow: { ready: '#74f0a8', bloomstride: '#ffd66b' },
+		glow: { ready: '#b5e48c', bloomstride: '#ffd66b' },
 		energy: 'linear-gradient(180deg,#f5c04a 0%, #e0a020 100%);',
 		hp: 'linear-gradient(180deg,#74f0a8 0%, #2eb872 100%);',
 		skin: 'mecha' 

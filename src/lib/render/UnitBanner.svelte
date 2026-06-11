@@ -183,7 +183,7 @@
 		gap: 6px;
 		padding: 4px 30px 8px 25px;
 		clip-path: polygon(0 0, 100% 0, 90% 100%, 20px 100%);
-		background: linear-gradient(-15deg, transparent 0%, transparent 40%, var(--char-secondary) 100%);
+		background: linear-gradient(-15deg, var(--bg) 0%, var(--bg) 40%, var(--char-secondary) 100%);
 		/* background: linear-gradient(0deg,transparent 0%, color-mix(in srgb, black 20%, var(--char-secondary)) 50%, transparent 100%); */
 	}
 	.pips {

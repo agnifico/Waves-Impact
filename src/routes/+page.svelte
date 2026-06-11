@@ -319,11 +319,11 @@
 		position: relative;
 		display: flex;
 		flex-direction: column;
-		margin-top: 6rem;
+		/* margin-top: 6rem; */
 	}
 
 	.hud-col {
-		position: absolute;
+		/* position: absolute; */
 		top: -7rem;
 		display: flex;
 		align-content: flex-end;
