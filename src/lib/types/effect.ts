@@ -12,6 +12,17 @@ export interface StatMod {
 	value: number;
 }
 
+
+export interface EffectInstance {
+	id: string;
+	appliedAt: number;
+	expiresAt: number;
+	stacks: number;
+	source: string;
+	lastTickAt?: number;
+	/** Shield absorb pool — set by grantShield, drained by absorbDamage. */
+	absorbRemaining?: number;
+}
 /**
  * A hook that fires at a lifecycle point (onApply, onTick, onExpire).
  * The `type` field determines what the hook does; additional fields

@@ -3,6 +3,7 @@ import type { Position } from '$lib/types/common';
 import { chebyshev, step4Toward, step8Toward, step8Away, samePos, clamp } from '../board';
 import { publish } from '../events';
 import { canEnter } from '../spatial';
+import { absorbDamage, getStatModifier } from '../effects';
 
 /**
  * melee_rush AI: move toward the highest-threat target, attack when in range.
@@ -40,23 +41,15 @@ export function tick(state: EngineState, enemy: EnemyState, now: number): void {
 			enemy.attackCooldowns[atk.id] = now + atk.cooldownMs;
 
 			if (targetIsChar) {
-				const dmg = atk.damage;
-				active.hp = Math.max(0, active.hp - dmg);
+				const red = Math.min(1, getStatModifier(active, 'damageReduction'));
+				const dmg = Math.max(0, Math.round(atk.damage * (1 - red)));
+				const toHp = absorbDamage(active, dmg); // shields soak first
+				active.hp = Math.max(0, active.hp - toHp);
 
-				publish('damage:taken', {
-					target: active.id,
-					source: enemy.id,
-					amount: dmg,
-					abilityName: atk.name
-				});
+				publish('damage:taken', { target: active.id, source: enemy.id, amount: toHp, abilityName: atk.name });
 
-				if (atk.stunMs) {
-					active.stunnedUntil = now + atk.stunMs;
-				}
-
-				if (active.hp <= 0) {
-					// Auto-swap handled by the engine tick
-				}
+				if (atk.stunMs) active.stunnedUntil = now + atk.stunMs;
+				if (active.hp <= 0) { /* auto-swap handled by engine tick */ }
 			} else {
 				// Hit summon (absorbed — summons are currently unkillable)
 			}

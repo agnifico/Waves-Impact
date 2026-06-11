@@ -6,6 +6,7 @@ export interface ResolvedTheme {
 	hp: string;
 	energy: string;
 	glow: Record<string, string>;
+	skin: string;
 }
 
 const ELEMENT_DEFAULTS: Record<string, { primary: string; secondary: string }> = {
@@ -28,6 +29,7 @@ export function resolveTheme(def: Character): ResolvedTheme {
 		hp: t.hp ?? 'var(--hp)',
 		energy: t.energy ?? 'var(--energy)',
 		glow: { ready: primary, ...(t.glow ?? {}) },
+		skin: t.skin ?? 'default',
 	};
 }
 
@@ -37,7 +39,7 @@ export function themeVars(def: Character): string {
 	const parts = [
 		`--char-primary:${t.primary}`,
 		`--char-secondary:${t.secondary}`,
-		`--char-glow:${t.glow}`,
+		`--char-glow:${t.glow.ready}`,
 		`--char-hp:${t.hp}`,
 		`--char-energy:${t.energy}`
 	];

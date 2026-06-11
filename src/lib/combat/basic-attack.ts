@@ -1,5 +1,5 @@
-import type { EngineState, CharacterState } from '$lib/types/state';
-import { chebyshev, samePos, step8Away, clamp } from './board';
+import type { EngineState, CharacterState, EnemyState } from '$lib/types/state';
+import { chebyshev, samePos, step8Away, step8Toward, clamp } from './board';
 import { resolveTiles } from './shapes';
 import { calculateDamage } from './pipeline';
 import { grantStack, consumeStack } from './stacks';
@@ -9,14 +9,24 @@ import { coversStratum } from './spatial';
 import { grantOffFieldShare } from './energy';
 
 /**
- * Attempt a basic attack with the active character.
- * Dispatches to chain or contextual style based on character data.
+ * Basic attacks. Both styles (chain / contextual) share ONE target-acquisition
+ * path (acquireTarget) and ONE hit-application path (applyBasicHit). The style
+ * functions only own their control flow: chain owns index/advance, contextual
+ * owns base/withStack selection.
+ *
+ * Target model (single-target focus, as the engine has always done):
+ *   • omniTarget        → focus enemy within `range` (Chebyshev), facing-agnostic
+ *   • shape === 'melee'  → focus enemy within `range`; wrong stratum = whiff event
+ *   • any other shape    → focus enemy must lie inside resolveTiles(shape, …)
+ *
+ * `hold` is the tap-vs-hold signal from the input layer. It only matters for a
+ * contextual BA whose contextualBasic.selectBy === 'hold' (June 9): tap → base,
+ * hold → enhanced. Everyone else ignores it.
  */
-export function tryBasicAttack(state: EngineState, now: number): void {
+export function tryBasicAttack(state: EngineState, now: number, hold: boolean = false): void {
 	if (state.over) return;
 	const char = state.party[state.activeSlot];
 	if (char.stunnedUntil > now) return;
-
 
 	const baCd = char.def.baCooldownMs;
 	let cd: number;
@@ -30,142 +40,80 @@ export function tryBasicAttack(state: EngineState, now: number): void {
 	if (now - char.lastActionTimestamp < cd) return;
 
 	if (char.def.basicStyle === 'contextual' && char.def.contextualBasic) {
-		resolveContextual(state, char, now);
+		resolveContextual(state, char, now, hold);
 	} else if (char.def.basicStyle === 'chain' && char.def.basicChain) {
 		resolveChain(state, char, now);
 	}
 }
 
-// ─── Chain style (Frosty) ────────────────────────────────────────────────────
+// ─── Shared target acquisition ───────────────────────────────────────────────
 
-function resolveChain(state: EngineState, char: CharacterState, now: number): void {
-	const chain = char.def.basicChain!;
+type BasicAttackData = NonNullable<CharacterState['def']['basicChain']>[number];
 
-	// Reset chain if too much time has passed
-	if (now - char.lastBaTimestamp > char.def.baChainResetMs) {
-		char.baChainIndex = 0;
-	}
+type Acq =
+	| { ok: true; enemy: EnemyState }
+	| { ok: false; whiff?: { id: string; name: string } };
 
-	const ba = chain[char.baChainIndex];
+/** Resolve whether this BA has a legal focus target right now. */
+function acquireTarget(state: EngineState, char: CharacterState, ba: BasicAttackData): Acq {
 	const enemy = focusTarget(state, char.pos);
+	if (!enemy) return { ok: false };
 
-	if (ba.shape === 'pcone' || ba.shape === 'melee') {
-		// Range check
-		if (ba.omniTarget) {
-			// Omni: check Chebyshev distance directly
-			if (!enemy || !coversStratum(ba.hits, enemy.stratum) || chebyshev(char.pos, enemy.pos) > ba.range) {
-				char.lastActionTimestamp = now;
-				return;
-			}
-		} else if (ba.shape === 'melee') {
-			if (!enemy || chebyshev(char.pos, enemy.pos) > ba.range) {
-				char.lastActionTimestamp = now;
-				return;
-			}
-			if (!coversStratum(ba.hits, enemy.stratum)) {
-				// in range but wrong stratum (ground-only swing vs a flier) → whiff
-				publish('basic:missed', { target: enemy.id, abilityName: ba.name });
-				char.lastActionTimestamp = now;
-				return;
-			}
-		} else {
-			// Directional: check if enemy is in the shape tiles
-			const tiles = resolveTiles(ba.shape, char.pos, char.facing, { range: ba.range }, state.board);
-			if (!enemy || !coversStratum(ba.hits, enemy.stratum) || !tiles.some((t) => samePos(t, enemy.pos))) {
-				char.lastActionTimestamp = now;
-				return;
-			}
-		}
+	const inStratum = coversStratum(ba.hits, enemy.stratum);
 
-		// Finisher (BA3): spend a stack for bonus damage + a team heal
-		const consumed = !!ba.consumesStack && char.stacks.current > 0;
-		if (consumed) consumeStack(char, ba.consumesStack!, 1);
-
-		const finalDmg = calculateDamage(ba.damage + (consumed ? (ba.consumeBonus ?? 0) : 0), {
-			source: char,
-			target: enemy,
-			element: char.def.element,
-			state
-		});
-
-		enemy.hp = Math.max(0, enemy.hp - finalDmg);
-
-		publish('damage:dealt', {
-			source: char.id,
-			target: enemy.id,
-			amount: finalDmg,
-			abilityName: ba.name,
-			element: char.def.element
-		});
-
-		if (consumed && ba.teamHeal) {
-			for (const pc of state.party) {
-				if (pc.hp <= 0) continue;
-				const before = pc.hp;
-				pc.hp = Math.min(pc.def.maxHp, pc.hp + ba.teamHeal);
-				if (pc.hp > before) {
-					publish('heal:applied', { target: pc.id, source: char.id, amount: pc.hp - before, abilityName: ba.name });
-				}
-			}
-		}
-
-		// Energy gain
-		char.energy = Math.min(char.def.maxEnergy, char.energy + ba.energyGain);
-
-		// Off-field energy
-		grantOffFieldShare(state, ba.energyGain);
-
-		// Stack
-		if (ba.grantsStack) grantStack(state, char, ba.grantsStack, now);
-
-		// Chain advance
-		char.lastBaIndexLanded = char.baChainIndex;
-		char.lastBaTimestamp = now;
-		char.lastActionTimestamp = now;
-
-		char.lastActionTimestamp = now;
-		char.lastAction = {
-			tag: char.baChainIndex === chain.length - 1 ? 'ba_chain_end' : 'ba',
-			at: now
-		};
-
-		// Advance only if melee range (advanceOnlyIfMelee)
-		if (ba.advanceOnlyIfMelee) {
-			if (chebyshev(char.pos, enemy.pos) <= 1) {
-				char.baChainIndex = (char.baChainIndex + 1) % chain.length;
-			}
-		} else {
-			char.baChainIndex = (char.baChainIndex + 1) % chain.length;
-		}
-
-		if (enemy.hp <= 0) {
-			publish('enemy:defeated', { enemyId: enemy.id, killer: char.id });
-		}
+	if (ba.omniTarget) {
+		if (!inStratum || chebyshev(char.pos, enemy.pos) > ba.range) return { ok: false };
+		return { ok: true, enemy };
 	}
+
+	if (ba.shape === 'melee') {
+		if (chebyshev(char.pos, enemy.pos) > ba.range) return { ok: false };
+		// in range but wrong stratum (e.g. ground swing vs a flier) → whiff
+		if (!inStratum) return { ok: false, whiff: { id: enemy.id, name: ba.name } };
+		return { ok: true, enemy };
+	}
+
+	// Shaped: directional gate — focus enemy must lie inside the shape tiles.
+	const tiles = resolveTiles(ba.shape, char.pos, char.facing, { range: ba.range }, state.board);
+	if (!inStratum || !tiles.some((t) => samePos(t, enemy.pos))) return { ok: false };
+	return { ok: true, enemy };
 }
 
-// ─── Contextual style (Yara) ─────────────────────────────────────────────────
+// ─── Shared hit application ──────────────────────────────────────────────────
 
-function resolveContextual(state: EngineState, char: CharacterState, now: number): void {
-	const ctx = char.def.contextualBasic!;
-	const hasStack = char.stacks.current > 0;
-	const ba = hasStack ? ctx.withStack : ctx.base;
+/** Apply one landed BA: damage (+finisher), heal, energy, stack, dash-back, events. */
+function applyBasicHit(
+	state: EngineState,
+	char: CharacterState,
+	ba: BasicAttackData,
+	enemy: EnemyState,
+	now: number
+): void {
+	// Finisher: spend a stack for bonus damage (+ optional team heal / dash-back).
+	const consumed = !!ba.consumesStack && char.stacks.current > 0;
+	if (consumed) consumeStack(char, ba.consumesStack!, 1);
 
-	const enemy = focusTarget(state, char.pos);
-	if (!enemy || !coversStratum(ba.hits, enemy.stratum) || chebyshev(char.pos, enemy.pos) > ba.range) {
-		char.lastActionTimestamp = now;
-		return;
+	if (ba.gapClose) {
+		const from = { ...char.pos };
+		let p = char.pos;
+		for (let i = 0; i < ba.range; i++) {
+			if (chebyshev(p, enemy.pos) <= 1) break;
+			const next = clamp(state.board, step8Toward(p, enemy.pos));
+			if (samePos(next, p) || samePos(next, enemy.pos)) break;
+			p = next;
+		}
+		char.pos = p;
+		if (!samePos(from, p)) publish('movement:player', { characterId: char.id, from, to: p });
 	}
 
-	const finalDmg = calculateDamage(ba.damage, {
+	const base = ba.damage + (consumed ? (ba.consumeBonus ?? 0) : 0);
+	const finalDmg = calculateDamage(base, {
 		source: char,
 		target: enemy,
 		element: char.def.element,
 		state
 	});
-
 	enemy.hp = Math.max(0, enemy.hp - finalDmg);
-
 	publish('damage:dealt', {
 		source: char.id,
 		target: enemy.id,
@@ -174,27 +122,38 @@ function resolveContextual(state: EngineState, char: CharacterState, now: number
 		element: char.def.element
 	});
 
+	if (consumed && ba.teamHeal) {
+		for (const pc of state.party) {
+			if (pc.hp <= 0) continue;
+			const before = pc.hp;
+			pc.hp = Math.min(pc.def.maxHp, pc.hp + ba.teamHeal);
+			if (pc.hp > before) {
+				publish('heal:applied', {
+					target: pc.id,
+					source: char.id,
+					amount: pc.hp - before,
+					abilityName: ba.name
+				});
+			}
+		}
+	}
+
+	// Energy
 	char.energy = Math.min(char.def.maxEnergy, char.energy + ba.energyGain);
 	grantOffFieldShare(state, ba.energyGain);
-	char.lastActionTimestamp = now;
 
-	char.lastActionTimestamp = now;
-	char.lastAction = { tag: 'ba', at: now };
+	// Stack grant
+	if (ba.grantsStack) grantStack(state, char, ba.grantsStack, now);
 
-	// Consume stack + dash back (withStack variant)
-	if (hasStack) {
-		const ws = ctx.withStack;
-		consumeStack(char, ws.consumesStack, 1);
-
-		if (ws.dashBack) {
-			let p = char.pos;
-			for (let i = 0; i < ws.dashBack; i++) {
-				const next = clamp(state.board, step8Away(p, enemy.pos));
-				if (samePos(next, p)) break;
-				p = next;
-			}
-			char.pos = p;
+	// Dash back (withStack variant, or any BA that declares it)
+	if (ba.dashBack) {
+		let p = char.pos;
+		for (let i = 0; i < ba.dashBack; i++) {
+			const next = clamp(state.board, step8Away(p, enemy.pos));
+			if (samePos(next, p)) break;
+			p = next;
 		}
+		char.pos = p;
 	}
 
 	if (enemy.hp <= 0) {
@@ -202,3 +161,57 @@ function resolveContextual(state: EngineState, char: CharacterState, now: number
 	}
 }
 
+// ─── Chain style (Frosty / Sefyra) ───────────────────────────────────────────
+
+function resolveChain(state: EngineState, char: CharacterState, now: number): void {
+	const chain = char.def.basicChain!;
+	if (now - char.lastBaTimestamp > char.def.baChainResetMs) char.baChainIndex = 0;
+
+	const ba = chain[char.baChainIndex];
+	const acq = acquireTarget(state, char, ba);
+	if (!acq.ok) {
+		if (acq.whiff) publish('basic:missed', { target: acq.whiff.id, abilityName: acq.whiff.name });
+		char.lastActionTimestamp = now; // swing-and-miss still gates the next swing
+		return;
+	}
+
+	applyBasicHit(state, char, ba, acq.enemy, now);
+
+	char.lastBaIndexLanded = char.baChainIndex;
+	char.lastBaTimestamp = now;
+	char.lastActionTimestamp = now;
+	char.lastAction = { tag: char.baChainIndex === chain.length - 1 ? 'ba_chain_end' : 'ba', at: now };
+
+	// Advance (gated by advanceOnlyIfMelee). Note: read pos AFTER any dash-back.
+	if (!ba.advanceOnlyIfMelee || chebyshev(char.pos, acq.enemy.pos) <= 1) {
+		char.baChainIndex = (char.baChainIndex + 1) % chain.length;
+	}
+}
+
+// ─── Contextual style (June 9 / Maria Elena) ──────────────────────────────────
+
+function resolveContextual(
+	state: EngineState,
+	char: CharacterState,
+	now: number,
+	hold: boolean
+): void {
+	const cb = char.def.contextualBasic!;
+	const hasStack = char.stacks.current > 0;
+
+	// 'hold'   → player picks: tap = base, hold = enhanced (only if a stack is bankable).
+	// 'stacks' → (default/legacy) auto-enhance whenever a stack exists.
+	const useEnhanced = cb.selectBy === 'hold' ? hold && hasStack : hasStack;
+	const ba = useEnhanced ? cb.withStack : cb.base;
+
+	const acq = acquireTarget(state, char, ba);
+	if (!acq.ok) {
+		if (acq.whiff) publish('basic:missed', { target: acq.whiff.id, abilityName: acq.whiff.name });
+		char.lastActionTimestamp = now;
+		return;
+	}
+
+	applyBasicHit(state, char, ba, acq.enemy, now);
+	char.lastActionTimestamp = now;
+	char.lastAction = { tag: 'ba', at: now };
+}

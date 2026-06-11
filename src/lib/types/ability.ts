@@ -51,6 +51,26 @@ export interface ZoneBuff {
 	dmgPerTick?: number;          // ← NEW (Ryoma, Maria Elena V)
 	/** Energy drained from the zone owner per tick. Zone self-destructs at 0. */
 	ownerEnergyDrainPerTick?: number;  // ← NEW (Maria Elena V)
+	upkeepReductionPerStack?: number;
+}
+
+
+
+export interface ShapeParams {
+	// geometry
+	range?: number;
+	radius?: number;
+	width?: number;
+	// directional dash / travel (movement.ts + behaviors/dash.ts)
+	dir?: 'forward' | 'back' | 'away' | 'toward';
+	tiles?: number;
+	throughObstacles?: boolean;
+	iframesMs?: number;
+	// terminal blast (dash stop-point detonation)
+	blastDamage?: number;
+	blastRadius?: number;
+	// escape hatch so new shapes don't need a type edit each time
+	[key: string]: number | string | boolean | undefined;
 }
 
 /**
@@ -64,8 +84,8 @@ export interface Ability {
 	// The shape/behavior split (Data Contract §2)
 	behavior: BehaviorId;
 	shape?: ShapeId;
-	shapeParams?: Record<string, number>;
-
+	shapeParams?: ShapeParams;
+	description?: string;
 	// Effect parameters
 	damage?: number;
 	poiseDamage?: number;
@@ -81,6 +101,18 @@ export interface Ability {
 	unchainedBonus?: number;
 	appliesEffects?: string[];
 
+	teamHeal?: number;                            // flat whole-party heal
+	gather?: { radius: number; steps: number };   // pull enemies within radius toward caster
+
+	/** Grant a shield on cast (drained by absorbDamage). Any ability can use this. */
+	shield?: {
+		amount: number;
+		target?: 'self' | 'party';   // default 'self'
+		durationMs?: number;         // default -1 (until depleted)
+		maxTotal?: number;           // optional pool cap (for stacking re-casts)
+		effectId?: string;           // optional, for an independent named shield
+	};
+
 	// Targeting flags
 	autoTargetEnemy?: boolean;
 	allowSelfTarget?: boolean;
@@ -95,7 +127,7 @@ export interface Ability {
 
 	// Zone parameters (behavior === 'zone')
 	zoneBuff?: ZoneBuff;
-	zoneFollows?: 'caster' | 'fixed';
+	zoneFollows?: 'caster' | 'fixed' | 'active';
 
 	// Summon parameters (behavior === 'summon')
 	summonId?: string;
@@ -114,12 +146,12 @@ export interface Ability {
 	/** Strata this ability can hit. Omitted = all. */
 	hits?: import('./common').Stratum[];
 	fx?: FxSpec;
-	
+
 }
 
 export interface FxSpec {
 	strike?: 'projectile' | 'swipe';
-	shape?: 'orb' | 'arrow' | 'leaf' | 'bolt';
+	shape?: 'orb' | 'arrow' | 'leaf' | 'bolt' | 'wave';
 	size?: 's' | 'm' | 'l';
 	trail?: boolean;
 	speed?: number;     // ms per tile of travel (lower = faster; the snipe is low)

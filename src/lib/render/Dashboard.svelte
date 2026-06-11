@@ -67,7 +67,7 @@
 		color: var(--bg); font-weight: bold; font-size: 14px;
 	}
 	.portrait.frosty { background: linear-gradient(135deg, var(--frost), var(--frost-bright)); }
-	.portrait.yara { background: linear-gradient(135deg, var(--verdant), var(--verdant-bright)); }
+	.portrait.june9 { background: linear-gradient(135deg, var(--verdant), var(--verdant-bright)); }
 	.char-name { font-size: 1.2rem; letter-spacing: 1px; }
 	.char-element { font-size: 1rem; letter-spacing: 1px; text-transform: uppercase; }
 	.char-element.water { color: var(--frost); }

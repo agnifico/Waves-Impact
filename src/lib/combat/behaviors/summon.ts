@@ -3,6 +3,7 @@ import type { Ability } from '$lib/types/ability';
 import { step8Toward, samePos, clamp } from '../board';
 import { nearestEnemy } from '../query';
 import { publish } from '../events';
+import { getSummonDef } from '$lib/data/registry';
 
 /**
  * summon: spawn a summon entity adjacent to caster, biased toward
@@ -36,6 +37,7 @@ export function resolve(
 		pos = clamp(state.board, { x: caster.pos.x, y: caster.pos.y - 1 });
 	}
 
+	const def = getSummonDef(summonId);
 	state.summons.push({
 		id: `${summonId}-${now}`,
 		defId: summonId,
@@ -43,8 +45,8 @@ export function resolve(
 		pos,
 		profileImage: ability.summonImage,
 		expiresAt: now + (ability.summonDurationMs ?? 10000),
-		nextMoveAt: now + 500,
-		nextAttackAt: now + 800
+		nextMoveAt: now + (def?.moveCooldownMs ?? 500),
+		nextAttackAt: now + (def?.attackCooldownMs ?? 1000)
 	});
 
 	publish('summon:spawned', { summonId, owner: caster.id });

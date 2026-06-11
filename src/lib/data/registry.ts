@@ -4,17 +4,23 @@ import type { Effect } from '$lib/types/effect';
 import type { SummonDef } from '$lib/types/summon';
 
 import { frosty } from './characters/frosty';
-import { yara } from './characters/yara';
+import { june9 } from './characters/june9';
+import { maria_elena } from './characters/maria_elena';
+import { sefyra } from './characters/sefyra';
+import { ryoma } from './characters/ryoma';
+import { midorima } from './characters/midorima';
+
 import { bear } from './enemies/bear';
 import { dragon } from './enemies/dragon';
 import { unchained } from './effects/unchained';
 import { bloomstride } from './effects/bloomstride';
 
+import { shield } from './effects/shield';
+
 // ─── Character registry ──────────────────────────────────────────────────────
 
 const characters: Record<string, Character> = {
-	frosty,
-	yara
+	frosty, june9, maria_elena, sefyra, ryoma, midorima
 };
 
 export function getCharacter(id: string): Character | undefined {
@@ -44,7 +50,8 @@ export function getAllEnemies(): Enemy[] {
 
 const effects: Record<string, Effect> = {
 	unchained,
-	bloomstride
+	bloomstride,
+	shield
 };
 
 export function getEffectDef(id: string): Effect | undefined {

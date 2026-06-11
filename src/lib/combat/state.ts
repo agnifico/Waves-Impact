@@ -68,7 +68,7 @@ export function newEnemyState(def: Enemy, pos: Position, now: number): EnemyStat
  * Create a fresh EngineState for a new fight.
  *
  * ```ts
- * const state = newEngineState([frosty, yara], [bear], performance.now());
+ * const state = newEngineState([frosty, june9], [bear], performance.now());
  * ```
  */
 export function newEngineState(
@@ -78,7 +78,9 @@ export function newEngineState(
 	boardSize: number = DEFAULT_BOARD_SIZE
 ): EngineState {
 	const center = Math.floor(boardSize / 2);
-	const board: Board = createBoard(boardSize + Math.floor(boardSize/2), boardSize - Math.floor(boardSize/2));
+	// const board: Board = createBoard(boardSize, boardSize);
+	// const board: Board = createBoard(boardSize + Math.floor(boardSize/2), boardSize - Math.floor(boardSize/2));
+	const board: Board = createBoard(20, 10);
 
 	const party = partyDefs.map((def) => newCharacterState(def, { x: center, y: center }));
 

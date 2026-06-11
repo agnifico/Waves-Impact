@@ -1,9 +1,9 @@
 :root {
 	/* Surfaces — dusty plum */
 	--bg: #000000;
-	--panel: #462a2a;
-	--panel-2: #563434;
-	--panel-raised: #7a5959;
+	--panel: #1b263b;
+	--panel-2: #415a77;
+	--panel-raised: #778da9;
 	--border: #eaac8b;
 	--border-strong: #e56b6f;
 
@@ -21,7 +21,7 @@
 	--frost: #6ec7d6;
 	--frost-bright: #a8e0ec;
 
-	/* Character: Yara (Nature) */
+	/* Character: June9 (Nature) */
 	--verdant: #5dc46e;
 	--verdant-bright: #8ce8a0;
 
@@ -83,29 +83,4 @@ html, body {
 @keyframes hold-glow {
 	0%, 100% { box-shadow: var(--btn-shadow), 0 0 8px var(--gold); }
 	50% { box-shadow: var(--btn-shadow), 0 0 20px var(--gold-bright); }
-}
-
-/* ── FX keyframes ──────────────────────────────────────────────────────── */
-@keyframes fx-burst {
-	0%   { opacity: 0; transform: scale(0.35); }
-	18%  { opacity: 1; transform: scale(0.85); }
-	100% { opacity: 0; transform: scale(1.7); }
-}
-@keyframes fx-burst-ring {
-	0%   { opacity: 0.85; transform: scale(0.5); }
-	100% { opacity: 0;    transform: scale(1.5); }
-}
-@keyframes fx-proj-travel {
-	from { transform: translate(0, 0); }
-	to   { transform: translate(var(--dx), var(--dy)); }
-}
-@keyframes fx-swipe {
-	0%   { opacity: 0; transform: rotate(calc(var(--rot) - 30deg)) scaleX(0.5); }
-	40%  { opacity: 1; }
-	100% { opacity: 0; transform: rotate(calc(var(--rot) + 20deg)) scaleX(1.1); }
-}
-@keyframes fx-wave-flash {
-	0%   { opacity: 0; transform: scale(0.9); }
-	30%  { opacity: 1; transform: scale(1); }
-	100% { opacity: 0; transform: scale(1); }
 }

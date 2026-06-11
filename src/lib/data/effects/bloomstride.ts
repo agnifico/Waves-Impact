@@ -1,7 +1,7 @@
 import type { Effect } from '$lib/types/effect';
 
 /**
- * Bloomstride: Yara's stack-full buff, applied to entire party.
+ * Bloomstride: June9's stack-full buff, applied to entire party.
  * +50% damage, heals active character 10/sec for 10 seconds.
  */
 export const bloomstride: Effect = {

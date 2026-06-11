@@ -97,5 +97,24 @@ export function resolve(
 		}
 	}
 
+	// Whole-party heal — position-independent (June 9's Greenshackle). The ghost
+	// stays intact; we just stop letting position gate the heal.
+	if (ability.teamHeal) {
+		for (const pc of state.party) {
+			if (pc.hp <= 0) continue;
+			const before = pc.hp;
+			pc.hp = Math.min(pc.def.maxHp, pc.hp + ability.teamHeal);
+			const healed = pc.hp - before;
+			if (healed > 0) {
+				publish('heal:applied', {
+					target: pc.id,
+					source: caster.id,
+					amount: healed,
+					abilityName: ability.name
+				});
+			}
+		}
+	}
+
 	return true;
 }

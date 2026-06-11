@@ -27,6 +27,18 @@ export function bindInputEvents(
 	getState: () => EngineState | null,
 	boardEl?: HTMLElement
 ): () => void {
+
+	const BA_HOLD_MS = 200; // tap < 200ms → base; hold ≥ 200ms → enhanced (feel knob)
+	let baHolding = false;
+	let baHoldStart = 0;
+
+	function baUsesHold(state: EngineState): boolean {
+		const char = state.party[state.activeSlot];
+		return (
+			char?.def.basicStyle === 'contextual' &&
+			char.def.contextualBasic?.selectBy === 'hold'
+		);
+	}
 	function press(raw: string, isRepeat: boolean): void {
 		const intent = intentFor(raw);
 		const now = performance.now();
@@ -53,7 +65,14 @@ export function bindInputEvents(
 		if (intent === 'swap6') trySwap(state, 5, now);
 
 		// Basic attack
-		if (intent === 'basicAttack') tryBasicAttack(state, now);
+		if (intent === 'basicAttack') {
+			if (baUsesHold(state)) {
+				baHolding = true;
+				baHoldStart = now;          // defer: decide tap vs hold on release
+			} else {
+				tryBasicAttack(state, now); // legacy: fire immediately
+			}
+		}
 
 		// Abilities: V is tap-fire, X and C support hold
 		if (intent === 'abilityV') tryAbility(state, 'V', now);
@@ -72,6 +91,13 @@ export function bindInputEvents(
 		if (intent === 'lockOn') {
 			if (shouldUnlockOnRelease(now)) setLockedEnemy(null);
 			clearLockHold();
+			return;
+		}
+
+		// Basic attack (tap vs hold) — fire on release for hold-select characters
+		if (intent === 'basicAttack' && baHolding) {
+			baHolding = false;
+			if (state) tryBasicAttack(state, now, now - baHoldStart >= BA_HOLD_MS);
 			return;
 		}
 

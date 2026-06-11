@@ -16,7 +16,7 @@ export const bear: Enemy = {
 			id: 'body_slam',
 			name: 'Body Slam',
 			range: 1,
-			damage: 60,
+			damage: 6,
 			cooldownMs: 10000,
 			priority: 2,
 			stunMs: 1000
@@ -25,7 +25,7 @@ export const bear: Enemy = {
 			id: 'fury_claws',
 			name: 'Fury Claws',
 			range: 1,
-			damage: 25,
+			damage: 3,
 			cooldownMs: 1500,
 			priority: 1
 		}

@@ -9,6 +9,7 @@
 	import Gem from './Gem.svelte';
 	import type { Ability } from '$lib/types/ability';
 	import FxLayer from './FxLayer.svelte';
+	import { resolveTheme } from './char-theme';
 
 	let { gs, now = 0 }: { gs: EngineState; now: number } = $props();
 
@@ -30,10 +31,7 @@
 		if (!ability) return null;
 		const tiles = computePreviewTiles(active, ability);
 		if (tiles.length === 0) return null;
-		return {
-			keys: new Set(tiles.map((t) => `${t.x},${t.y}`)),
-			cls: active.def.element === 'wind' ? 'verdant' : 'frost'
-		};
+		return { keys: new Set(tiles.map((t) => `${t.x},${t.y}`)) }; // cls removed — themed via --ba-tint
 	});
 	function pickTarget(from: Position) {
 		if (gs.focusTargetId) {
@@ -53,38 +51,9 @@
 		return best;
 	}
 
-	// Frosty's omni opener (BA1): a line caster → target instead of a range ring
-	let baLine = $derived.by(() => {
-		void now;
+	let baTint = $derived.by(() => {
 		const active = gs.party[gs.activeSlot];
-		if (!active || gs.over || !active.def.basicChain) return null;
-		const ba = active.def.basicChain[active.baChainIndex];
-		if (!ba?.omniTarget) return null;
-		const target = pickTarget(active.pos);
-		if (!target) return null;
-		const dist = chebyshev(active.pos, target.pos);
-		if (dist <= 1 || dist > (ba.range ?? 5)) return null; // adjacent → melee ring; out of range → nothing
-		const keys = new Set<string>();
-		let p = { ...active.pos };
-		let guard = 0;
-		while (!samePos(p, target.pos) && guard++ < 32) {
-			p = step8Toward(p, target.pos);
-			keys.add(`${p.x},${p.y}`);
-		}
-		return keys;
-	});
-
-	// Yara's contextual BA (omni, range 3): a vision cone in her facing direction
-	let baCone = $derived.by(() => {
-		void now;
-		const active = gs.party[gs.activeSlot];
-		if (!active || gs.over || !active.def.contextualBasic) return null;
-		const range = active.def.contextualBasic.base.range ?? 3;
-		const tiles = resolveTiles('pcone', active.pos, active.facing, { range }, gs.board);
-		const keys = new Set<string>();
-		keys.add(`${active.pos.x},${active.pos.y}`); // seamless from under the caster
-		for (const t of tiles) keys.add(`${t.x},${t.y}`);
-		return keys;
+		return active ? resolveTheme(active.def).primary : 'var(--gold)';
 	});
 
 	// Sefyra X (track): red crosshair on the designated / locked enemy
@@ -165,7 +134,7 @@
 					}
 				}
 			} else {
-				// Legacy gap-closer (Yara C): filled disk of the dash range — unchanged.
+				// Legacy gap-closer (June9 C): filled disk of the dash range — unchanged.
 				const effRange =
 					holdState.holdBehavior === 'charge' ? holdState.chargedRange : (sp.range ?? 3);
 				for (let dx = -effRange; dx <= effRange; dx++) {
@@ -190,15 +159,44 @@
 		return tiles;
 	}
 
-	function tileEdges(x: number, y: number): string {
-		if (!preview || !preview.keys.has(`${x},${y}`)) return '';
-		const k = preview.keys;
-		const c = preview.cls === 'verdant' ? 'var(--verdant-bright)' : 'var(--frost-bright)';
+	// Unified BA range: the LIVE basic's reach as a Chebyshev disk, themed + faint.
+	// Hidden while aiming an ability so the preview owns the board.
+	let baRange = $derived.by(() => {
+		void now;
+		const active = gs.party[gs.activeSlot];
+		if (!active || gs.over || holdState.holdingSlot) return null;
+
+		let ba: { range?: number } | null = null;
+		if (active.def.basicChain) {
+			ba = active.def.basicChain[active.baChainIndex] ?? null;
+		} else if (active.def.contextualBasic) {
+			const cb = active.def.contextualBasic;
+			ba = active.stacks.current > 0 ? cb.withStack : cb.base;
+		}
+		if (!ba) return null;
+
+		const range = ba.range ?? 1;
+		const keys = new Set<string>();
+		for (let dy = -range; dy <= range; dy++) {
+			for (let dx = -range; dx <= range; dx++) {
+				if (Math.max(Math.abs(dx), Math.abs(dy)) > range) continue;
+				const tx = active.pos.x + dx,
+					ty = active.pos.y + dy;
+				if (tx < 0 || tx >= gs.board.size.width || ty < 0 || ty >= gs.board.size.height) continue;
+				keys.add(`${tx},${ty}`);
+			}
+		}
+		return keys;
+	});
+
+	/** Perimeter outline for a tile set, in the active char's tint. pct = outline strength. */
+	function edgeBorders(keys: Set<string>, x: number, y: number, pct = 70): string {
+		const c = `color-mix(in srgb, var(--ba-tint) ${pct}%, transparent)`;
 		let s = '';
-		if (!k.has(`${x},${y - 1}`)) s += `border-top:1px solid ${c};`;
-		if (!k.has(`${x + 1},${y}`)) s += `border-right:1px solid ${c};`;
-		if (!k.has(`${x},${y + 1}`)) s += `border-bottom:1px solid ${c};`;
-		if (!k.has(`${x - 1},${y}`)) s += `border-left:1px solid ${c};`;
+		if (!keys.has(`${x},${y - 1}`)) s += `border-top:1px solid ${c};`;
+		if (!keys.has(`${x + 1},${y}`)) s += `border-right:1px solid ${c};`;
+		if (!keys.has(`${x},${y + 1}`)) s += `border-bottom:1px solid ${c};`;
+		if (!keys.has(`${x - 1},${y}`)) s += `border-left:1px solid ${c};`;
 		return s;
 	}
 
@@ -219,19 +217,6 @@
 		setTimeout(() => {
 			floats = floats.filter((f) => f.id !== id);
 		}, 900);
-	}
-
-	// ─── Tile impacts ────────────────────────────────────────────────────────
-	type ImpactEntry = { id: number; x: number; y: number; cls: string };
-	let impacts: ImpactEntry[] = $state([]);
-	let impactId = 0;
-
-	function flashTile(pos: Position, cls: string = 'impact') {
-		const id = impactId++;
-		impacts.push({ id, x: pos.x, y: pos.y, cls });
-		setTimeout(() => {
-			impacts = impacts.filter((i) => i.id !== id);
-		}, 200);
 	}
 
 	// ─── Event bus subscribers ───────────────────────────────────────────────
@@ -267,24 +252,6 @@
 		const classes: string[] = [];
 		const active = gs.party[gs.activeSlot];
 		if (!active || gs.over) return '';
-
-		// Zone rendering
-		for (const zone of gs.zones) {
-			if (chebyshev(pos, zone.center) <= zone.radius && now < zone.expiresAt) {
-				classes.push('sanctum');
-			}
-		}
-
-		// BA indicator (Frosty chain): melee ring when adjacent, line to target when ranged
-		if (active.def.basicChain) {
-			const target = pickTarget(active.pos);
-			if (target && chebyshev(active.pos, target.pos) <= 1 && chebyshev(pos, active.pos) === 1) {
-				classes.push('range-ring-melee');
-			}
-		}
-		if (baLine && baLine.has(`${x},${y}`)) classes.push('ba-line');
-		if (baCone && baCone.has(`${x},${y}`)) classes.push('ba-cone');
-
 		return classes.join(' ');
 	}
 
@@ -305,31 +272,41 @@
 		return null;
 	}
 
-	function hasImpact(x: number, y: number): string | null {
-		const imp = impacts.find((i) => i.x === x && i.y === y);
-		return imp ? imp.cls : null;
+	// owner is a party member (zones are player-cast); party holds all defs, on- or off-field
+	function zoneTintAt(x: number, y: number): string | null {
+		for (const zone of gs.zones) {
+			if (now >= zone.expiresAt) continue;
+			if (chebyshev({ x, y }, zone.center) > zone.radius) continue;
+			const ownerDef = gs.party.find((p) => p.id === zone.ownerId)?.def;
+			return ownerDef ? resolveTheme(ownerDef).primary : 'var(--verdant)';
+		}
+		return null;
 	}
 </script>
 
 <div
 	class="board"
 	bind:this={boardEl}
-	style="grid-template-columns: repeat({gs.board.size.width}, 36px);"
+	style="grid-template-columns: repeat({gs.board.size.width}, 36px); --ba-tint: {baTint};"
 >
 	{#each { length: gs.board.size.height } as _, y}
 		{#each { length: gs.board.size.width } as _, x}
-			{@const extra = tileClass(x, y, now)}
-			{@const impact = hasImpact(x, y)}
+			<!-- {@const extra = tileClass(x, y, now)} -->
 			{@const entity = entityAt(x, y)}
 			{@const pv = !!preview && preview.keys.has(`${x},${y}`)}
+			{@const inRange = !pv && !!baRange && baRange.has(`${x},${y}`)}
+			{@const edge = pv
+				? edgeBorders(preview!.keys, x, y, 70)
+				: inRange
+					? edgeBorders(baRange!, x, y, 55)
+					: ''}
+			{@const zoneTint = zoneTintAt(x, y)}
 			<div
-				class="tile {extra}"
-				class:impact={impact === 'impact'}
-				class:impact-fire={impact === 'impact-fire'}
-				class:impact-verdant={impact === 'impact-verdant'}
-				class:cone-preview={pv && preview?.cls === 'frost'}
-				class:cone-preview-verdant={pv && preview?.cls === 'verdant'}
-				style={pv ? tileEdges(x, y) : ''}
+				// class="tile {extra}"
+				class="tile"
+				class:cone-preview={pv}
+				class:ba-range={inRange}
+				style="{edge}{zoneTint ? `--zone-tint:${zoneTint};` : ''}"
 			>
 				{#if reticle && reticle.x === x && reticle.y === y}
 					<div class="reticle-cursor"></div>
@@ -390,6 +367,7 @@
 			rgba(0, 0, 0, 0.45) 0px 40px 55px,
 			rgba(0, 0, 0, 0.3) 0px 12px 24px,
 			inset 0 0 60px rgba(0, 0, 0, 0.6);
+		/* scale: 1.2; */
 	}
 	.tile {
 		width: 36px;
@@ -402,47 +380,17 @@
 			1px 1px rgba(94, 94, 94, 0.3) inset,
 			-1px -1px rgba(94, 94, 94, 0.3) inset;
 	}
-	.tile.impact {
-		background: var(--frost) !important;
-		box-shadow: 0 0 12px var(--frost-bright);
+
+	.tile.ba-range {
+		background: color-mix(in srgb, var(--ba-tint) 2%, transparent);
 	}
-	.tile.impact-fire {
-		background: var(--blood) !important;
-		box-shadow: 0 0 12px #ff6040;
-	}
-	.tile.impact-verdant {
-		background: var(--verdant) !important;
-		box-shadow: 0 0 12px var(--verdant-bright);
+	.tile.cone-preview {
+		background: color-mix(in srgb, var(--ba-tint) 14%, transparent);
 	}
 
-	/* .tile :global(.cone-preview) {
-		background: rgba(110, 199, 214, 0.15);
-	} */
-	.tile.cone-preview {
-		background: rgba(45, 88, 95, 0.18);
-	}
-	.tile.cone-preview-verdant {
-		background: rgba(93, 196, 110, 0.2);
-	}
 	.tile.range-ring-far {
 		background: rgba(14, 37, 41, 0.5);
 		/* box-shadow: inset 0 0 0 1px rgba(110, 199, 214, 0.45); */
-	}
-	.tile.ba-line {
-		/* background: rgba(110, 199, 214, 0.16); */
-		box-shadow: inset 0 0 6px rgba(106, 238, 247, 0.28);
-	}
-	.tile.ba-cone {
-		background: rgba(167, 196, 93, 0.16);
-		box-shadow: inset 0 0 6px rgba(93, 196, 110, 0.18);
-	}
-	.tile.range-ring-melee {
-		background: rgba(240, 192, 64, 0.18);
-		/* box-shadow: inset 0 0 0 1px rgba(240, 192, 64, 0.55); */
-	}
-	.tile.sanctum {
-		background: rgba(73, 165, 75, 0.18);
-		/* box-shadow: inset 0 0 0 1px rgba(140, 232, 160, 0.4); */
 	}
 	.reticle-cursor {
 		position: absolute;

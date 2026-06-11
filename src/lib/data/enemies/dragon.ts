@@ -4,7 +4,7 @@ export const dragon: Enemy = {
 	id: 'dragon',
 	name: 'Green Dragon',
 	element: 'wind',
-	maxHp: 1000,
+	maxHp: 10000,
 	canMoveDiagonal: true,
 	moveTickMs: 1000,
 	moveResumeAfterPlayerFleeMs: 100,
@@ -15,17 +15,17 @@ export const dragon: Enemy = {
 			id: 'dragonbreath',
 			name: 'Dragonbreath',
 			range: 4,
-			damage: 25,
+			damage: 3,
 			cooldownMs: 3000,
-			priority: 2
+			priority: 1
 		},
 		{
 			id: 'tail_swipe',
 			name: 'Tail Swipe',
 			range: 1,
-			damage: 50,
+			damage: 5,
 			cooldownMs: 10000,
-			priority: 1
+			priority: 2
 		}
 	],
 	stratum: 'flying'

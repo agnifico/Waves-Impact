@@ -128,7 +128,7 @@
 	.log-line.frosty {
 		color: var(--frost);
 	}
-	.log-line.yara {
+	.log-line.june9 {
 		color: var(--verdant);
 	}
 	.log-line.enemy {

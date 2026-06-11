@@ -13,7 +13,7 @@ import { query, nearestEnemy } from '$lib/combat/query';
 import { subscribe, publish, clear } from '$lib/combat/events';
 import { newEngineState } from '$lib/combat/state';
 import { frosty } from '$lib/data/characters/frosty';
-import { yara } from '$lib/data/characters/yara';
+import { june9 } from '$lib/data/characters/june9';
 import { bear } from '$lib/data/enemies/bear';
 import { dragon } from '$lib/data/enemies/dragon';
 
@@ -190,7 +190,7 @@ describe('effects', () => {
 	it('timed effects expire', () => {
 		const state = newEngineState([frosty], [bear], 0);
 		const char = state.party[0];
-		applyEffect(char, 'bloomstride', 'yara', 5000, 1000);
+		applyEffect(char, 'bloomstride', 'june9', 5000, 1000);
 		expect(hasEffect(char, 'bloomstride')).toBe(true);
 		tickEffects(char, 5999);
 		expect(hasEffect(char, 'bloomstride')).toBe(true);
@@ -265,7 +265,7 @@ describe('query', () => {
 	});
 
 	it('query with side=ally returns party', () => {
-		const state = newEngineState([frosty, yara], [bear], 0);
+		const state = newEngineState([frosty, june9], [bear], 0);
 		const results = query(state, { side: 'ally', take: 'all' });
 		expect(results).toHaveLength(2);
 	});
@@ -283,7 +283,7 @@ describe('query', () => {
 
 describe('state factory', () => {
 	it('creates valid engine state', () => {
-		const state = newEngineState([frosty, yara], [bear], 0);
+		const state = newEngineState([frosty, june9], [bear], 0);
 		expect(state.party).toHaveLength(2);
 		expect(state.enemies).toHaveLength(1);
 		expect(state.summons).toHaveLength(0);

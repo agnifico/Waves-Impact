@@ -19,7 +19,7 @@ export const frosty: Character = {
 			shape: 'melee',
 			omniTarget: true,
 			advanceOnlyIfMelee: true,
-			fx: { strike: 'projectile', shape: 'orb', colors: ['#eaf6ff', 'var(--frost)'] }
+			fx: { strike: 'projectile', shape: 'wave', colors: ['#00b4d8', 'var(--frost)'] }
 		},
 		{
 			name: 'Claws of Ice (2)',
@@ -28,7 +28,7 @@ export const frosty: Character = {
 			energyGain: 10,
 			shape: 'melee',
 			hits: ['ground'],
-			fx: { strike: 'swipe', colors: ['var(--frost-bright)', 'var(--frost)'] }
+			fx: { strike: 'swipe', colors: ['#ede7e3', 'var(--frost)'] }
 		},
 		{
 			name: 'Claws of Ice (3)',
@@ -38,7 +38,7 @@ export const frosty: Character = {
 			shape: 'melee',
 			grantsStack: 'eclipse',
 			hits: ['ground'],
-			fx: { strike: 'swipe', colors: ['var(--frost-bright)', 'var(--frost)'] }
+			fx: { strike: 'swipe', colors: ['#ede7e3', 'var(--frost)'] }
 		}
 	],
 
@@ -54,7 +54,6 @@ export const frosty: Character = {
 			energyGain: 15,
 			grantsStack: 'eclipse',
 			unchainedBonus: 10,
-			impactClass: 'impact-fire'
 		},
 
 		// ── C: Glacial Pylon ───────────────────────────────────────────────────────
@@ -83,7 +82,7 @@ export const frosty: Character = {
 			charges: 2,
 			rechargeMs: 12_000,
 			energyGain: 10,
-
+			grantsStack: 'eclipse',
 			constructPulseDmg:    15,
 			constructPulseMs:   2_000,
 			constructPulseRadius:   2,
@@ -106,18 +105,18 @@ export const frosty: Character = {
 	},
 
 	stackType: 'eclipse',
-	stackName: 'Total Eclipse',
+	stackName: 'Eclipse',
 	stackMax: 2,
 	onStackFull: 'unchained',
 	onStackFullTarget: 'self',
 	art: {
 		gem: '/characters/frosty_gem.png',
 		profile: '/characters/avatars/frosty.png',
-		poster: '/characters/frosty_poster1.png'
+		poster: '/characters/frosty_poster2.png'
 	},
 	theme: {
-		primary: 'var(--frost)',
-		secondary: '#00b4d8',
+		primary: '#00b4d8',
+		secondary: '#023e8a',
 		glow: { ready: 'var(--frost-bright)', unchained: 'var(--unchained)' },
 		hp: 'linear-gradient( -90deg,  rgba(75,228,255,1) 11.2%, rgba(188,204,251,1) 100.6% );',
 		energy: 'linear-gradient(to left, #26a0da, #314755);',

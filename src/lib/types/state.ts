@@ -66,7 +66,7 @@ export interface EnemyState {
 export interface ZoneState {
 	id: string;
 	center: Position;
-	follows: 'caster' | 'fixed';
+	follows: 'caster' | 'fixed' | 'active';
 	ownerId: EntityId;
 	radius: number;
 	expiresAt: number;

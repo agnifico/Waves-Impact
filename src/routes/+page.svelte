@@ -16,7 +16,7 @@
 	} from '$lib/input/intent-state';
 	import { focusTarget, nearestEnemy } from '$lib/combat/query';
 	import { frosty } from '$lib/data/characters/frosty';
-	import { yara } from '$lib/data/characters/yara';
+	import { june9 } from '$lib/data/characters/june9';
 	import { sefyra } from '$lib/data/characters/sefyra';
 	import { maria_elena } from '$lib/data/characters/maria_elena';
 	import { bear } from '$lib/data/enemies/bear';
@@ -37,11 +37,14 @@
 	import { tryAbility } from '$lib/combat/ability-resolver';
 	import { ryoma } from '$lib/data/characters/ryoma';
 	import { midorima } from '$lib/data/characters/midorima';
+	import CharacterCodex from '$lib/render/CharacterCodex.svelte';
+
+	let isCodexOpen = $state(false);
 
 	const PARTY_OPTIONS: Record<string, Character[]> = {
-		'full_team': [maria_elena, frosty, yara, sefyra, ryoma, midorima],
+		full_team: [maria_elena, frosty, june9, sefyra, ryoma, midorima],
 		frosty: [frosty],
-		yara: [yara],
+		june9: [june9],
 		sefyra: [sefyra]
 	};
 	const ENEMY_OPTIONS: Record<string, Enemy[]> = {
@@ -137,9 +140,15 @@
 </script>
 
 <div class="page">
+	{#if isCodexOpen}
+		<CharacterCodex onclose={() => (isCodexOpen = false)} />
+	{/if}
 	<div class="arena" style={activeThemeVars}>
 		<!-- LEFT: board + abilities -->
-		<!-- <ActivePortrait {state} /> -->
+		<!-- <ActivePortrait state={gs} /> -->
+		<div class="party-row">
+			<PartyRow state={gs} {now} />
+		</div>
 
 		<div class="center">
 			<div class="hud-col">
@@ -161,15 +170,16 @@
 				</div>
 				<AbilityBar state={gs} {now} />
 			</div>
-			<div class="party-row">
-				<PartyRow state={gs} {now} />
-			</div>
+
 		</div>
 
 		<!-- RIGHT: party, char info, log, keys -->
 		<div class="sidebar">
 			<!-- <Dashboard state={gs} {now} /> -->
 			<div class="log-wrap">
+				<button class="codex-btn" onclick={() => (isCodexOpen = true)}>
+					Open Character Archive
+				</button>
 				<CombatLog bind:this={logComponent} />
 			</div>
 			<div class="keys-area">
@@ -183,7 +193,7 @@
 					>
 						<option value="full_team">Full Team</option>
 						<option value="frosty">Frosty</option>
-						<option value="yara">Yara</option>
+						<option value="june9">June9</option>
 						<option value="sefyra">Sefyra</option>
 					</select>
 					<select
@@ -225,7 +235,7 @@
 		background-position: center 60%;
 		background-repeat: no-repeat; */
 	}
-	
+
 	.arena {
 		width: fit-content;
 		/* height: 100%; */
@@ -237,7 +247,9 @@
 		column-gap: 24px;
 		align-items: stretch;
 		justify-content: center;
-		backdrop-filter: blur(2px) grayscale(1) brightness(.25);
+		backdrop-filter: blur(2px) grayscale(1) brightness(0.25);
+		padding: 2rem;
+		background-color: transparent;
 	}
 
 	.center {
@@ -263,8 +275,38 @@
 	}
 
 	.party-row {
+		margin-top: auto;
 		display: flex;
-		justify-content: space-between;
+		height: 100%;
+		/* flex-direction: column; */
+		/* justify-content: space-between; */
+	}
+
+	.codex-btn {
+		box-sizing: border-box;
+		flex: 1;
+		width: 100%;
+		gap: 8px;
+		padding: 8px 10px;
+		background-color: #8f2d2d;
+		border: 2px solid #d76363;
+		border-radius: 8px;
+		cursor: pointer;
+		font-family: inherit;
+		color: var(--text);
+		text-align: center;
+		position: relative;
+		overflow: hidden;
+		margin-bottom: 1rem;
+		text-transform: uppercase;
+		box-shadow: 0px -2px 0 2px rgba(0, 0, 0, 0.564) inset;
+		font-family: "DePixel";
+		/* transform: translateY(0); */
+		transition:
+			transform 0.08s,
+			box-shadow 0.08s,
+			background-color 0.3s,
+			border-color 0.15s;
 	}
 
 	/* ─── Left column: board + abilities ─────────────── */
@@ -304,7 +346,7 @@
 		border: 3px solid var(--panel-raised);
 		border-radius: 8px;
 		padding: 8px;
-		margin-top: 8px;
+		margin-top: 4rem;
 	}
 	.top-controls {
 		display: flex;
@@ -313,7 +355,7 @@
 	}
 	.top-controls select,
 	.top-controls button {
-		background: var(--panel-2);
+		background: var(--panel-raised);
 		border: 1px solid var(--border);
 		border: 1px solid #000000a0;
 		color: var(--text);
@@ -324,7 +366,7 @@
 		border-radius: 4px;
 		font-size: 12px;
 		font-weight: 600;
-		font-family: "Andale Mono";
+		font-family: 'Andale Mono';
 	}
 	.top-controls button:hover {
 		border-color: var(--gold);
@@ -346,20 +388,20 @@
 		font-size: 12px;
 		font-weight: 600;
 		font-family: inherit;
-		font-family: "Andale Mono";
+		font-family: 'Andale Mono';
 		text-align: center;
 		box-shadow: 0 1px 1px 1px #00000056;
 	}
 	.keys-grid span {
 		color: var(--text-dim);
 		font-size: 10px;
-		font-family: "Andale Mono";
+		font-family: 'Andale Mono';
 	}
 
 	/* ─── Overlays ────────────────────────────────────── */
 	.overlay {
 		position: absolute;
-		inset: 0;
+		inset: 40%;
 		display: flex;
 		align-items: center;
 		justify-content: center;

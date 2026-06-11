@@ -1,6 +1,7 @@
 import type { EngineState, CharacterState, EnemyState } from '$lib/types/state';
 import type { Ability } from '$lib/types/ability';
 import { getStatModifier } from './effects';
+import { chebyshev } from './board';
 
 /**
  * Context passed through every pipeline stage.
@@ -24,8 +25,17 @@ function applySourceEffects(amount: number, ctx: DamageContext): number {
 
 // ─── Stage 3: zone bonuses ───────────────────────────────────────────────────
 function applyZoneBonuses(amount: number, ctx: DamageContext): number {
-	// TODO: check if source is in any friendly zone with damageBonus
-	return amount;
+	const { source, state } = ctx;
+	let bonus = 0;
+	for (const zone of state.zones) {
+		if (!zone.buff?.damageBonus) continue;
+		// friendly zones only (owned by a party member)
+		if (!state.party.some((p) => p.id === zone.ownerId)) continue;
+		// the attacker must be standing inside the zone
+		if (chebyshev(source.pos, zone.center) > zone.radius) continue;
+		bonus += zone.buff.damageBonus; // additive across overlaps (tunable)
+	}
+	return bonus > 0 ? Math.round(amount * (1 + bonus)) : amount;
 }
 
 // ─── Stage 4: elemental matrix ───────────────────────────────────────────────

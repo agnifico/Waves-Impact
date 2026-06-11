@@ -6,6 +6,7 @@ import { hasEffect, removeEffect } from './effects';
 import { publish, subscribe } from './events';
 import { grantOffFieldShare, WHIFF_SELF_RATIO } from './energy';
 import type { Vector } from '$lib/types';
+import { grantShield } from './effects';
 
 export interface AbilityOpts {
 	reticle?: { x: number; y: number } | null;
@@ -65,6 +66,21 @@ export function tryAbility(
 	// Energy cost check
 	if (ability.energyCost && char.energy < ability.energyCost) return;
 
+	// Shield grant — declarative, behavior-agnostic
+	if (ability.shield) {
+		const s = ability.shield;
+		const targets = s.target === 'party' ? state.party : [char];
+		for (const t of targets) {
+			if (t.hp > 0) {
+				grantShield(t, s.amount, char.id, now, {
+					durationMs: s.durationMs,
+					maxTotal: s.maxTotal,
+					effectId: s.effectId
+				});
+			}
+		}
+	}
+
 	// Reset BA chain on any ability use
 	char.baChainIndex = 0;
 
@@ -100,9 +116,7 @@ export function tryAbility(
 		if (connected) grantOffFieldShare(state, ability.energyGain);
 	}
 
-	// Cooldowns and Chrages
-
-	char.cooldowns[slot] = now + (ability.cooldownMs ?? 0);
+	// Cooldowns and charges
 	if (isCharge) {
 		const entry = char.charges[slot]!;
 		const wasFull = entry.count === maxCharges;

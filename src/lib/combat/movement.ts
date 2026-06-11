@@ -9,7 +9,7 @@ type Vec = { x: number; y: number };
  * One walker that every dash / leap / reposition routes through. It steps tile
  * by tile in a direction, honouring board edges, obstacles, and (optionally) a
  * terrain predicate — unless told to pass through. Consumers: Sefyra's C
- * (forward, through-obstacles), Yara's dashBack (back), Amber's BA forward/back,
+ * (forward, through-obstacles), June9's dashBack (back), Amber's BA forward/back,
  * the ranged-omni "step forward every basic", etc. Adding a consumer = pass a spec.
  */
 

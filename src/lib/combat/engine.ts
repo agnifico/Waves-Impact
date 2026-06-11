@@ -7,13 +7,12 @@ import { publish } from './events';
 import { nearestEnemy } from './query';
 import { canEnter } from './spatial';
 import { OFF_FIELD_REGEN_MS, regenOffField } from './energy';
+import { getSummonDef } from '$lib/data/registry';
 
-/** Player movement speed (ms between steps). */
-const PLAYER_MOVE_MS = 150;
-
+/** Fallback movement step interval (ms) when a character omits moveMs. */
+const DEFAULT_MOVE_MS = 150;
 
 let lastEnergyRegenAt = 0;
-
 
 /** Last player movement timestamp (module-level, reset on new fight). */
 let lastMoveAt = 0;
@@ -44,7 +43,8 @@ export function tick(
 	const active = state.party[state.activeSlot];
 
 	// 1. Player movement
-	if (active.stunnedUntil <= now && moveDir && now - lastMoveAt >= PLAYER_MOVE_MS) {
+	const moveMs = active.def.moveMs ?? DEFAULT_MOVE_MS;
+	if (active.stunnedUntil <= now && moveDir && now - lastMoveAt >= moveMs) {
 		const next = clamp(state.board, {
 			x: active.pos.x + Math.sign(moveDir.x),
 			y: active.pos.y + Math.sign(moveDir.y)
@@ -84,8 +84,8 @@ export function tick(
 	}
 
 	// 5. Effect expiry / tick hooks for all entities
-	for (const pc of state.party) tickEffects(pc, now);
-	for (const enemy of state.enemies) tickEffects(enemy, now);
+	for (const pc of state.party) tickEffects(state, pc, now);
+	for (const enemy of state.enemies) tickEffects(state, enemy, now);
 
 	// 6. Death checks
 	if (!checkAutoSwap(state)) {
@@ -142,35 +142,38 @@ function tickSummons(state: EngineState, now: number): void {
 			continue;
 		}
 
-		// ── Mobile summons only (wolf, etc.) ─────────────────────────────
-		if (summon) {
-			const enemy = nearestEnemy(state, summon.pos);
-			if (enemy && now >= summon.nextMoveAt) {
-				if (chebyshev(summon.pos, enemy.pos) > 1) {
-					summon.pos = clamp(state.board, step8Toward(summon.pos, enemy.pos));
-				}
-				summon.nextMoveAt = now + 500;
-			}
+		const def = getSummonDef(summon.defId);
+		const moveMs = def?.moveCooldownMs ?? 500;
+		const attackMs = def?.attackCooldownMs ?? 1000;
 
-			if (enemy && now >= summon.nextAttackAt && chebyshev(summon.pos, enemy.pos) <= 1) {
+		const enemy = nearestEnemy(state, summon.pos);
+		if (enemy && now >= summon.nextMoveAt) {
+			if (chebyshev(summon.pos, enemy.pos) > 1) {
+				summon.pos = clamp(state.board, step8Toward(summon.pos, enemy.pos));
+			}
+			summon.nextMoveAt = now + moveMs;
+		}
+
+		if (enemy && now >= summon.nextAttackAt && chebyshev(summon.pos, enemy.pos) <= 1) {
+			let dmg = def?.attackDamage ?? 0;
+			if (def?.mirrorsOwnerBA) {
 				const owner = state.party.find((p) => p.id === summon.ownerId);
-				let dmg = 5;
 				if (owner?.def.basicChain) {
 					const idx = Math.max(0, owner.lastBaIndexLanded);
-					dmg = owner.def.basicChain[idx]?.damage ?? 5;
+					dmg = owner.def.basicChain[idx]?.damage ?? dmg;
 				}
-				enemy.hp = Math.max(0, enemy.hp - dmg);
-				publish('damage:dealt', {
-					source: summon.ownerId,
-					target: enemy.id,
-					amount: dmg,
-					abilityName: 'Summon attack'
-				});
-				if (enemy.hp <= 0) {
-					publish('enemy:defeated', { enemyId: enemy.id, killer: summon.ownerId });
-				}
-				summon.nextAttackAt = now + 1000;
 			}
+			enemy.hp = Math.max(0, enemy.hp - dmg);
+			publish('damage:dealt', {
+				source: summon.ownerId,
+				target: enemy.id,
+				amount: dmg,
+				abilityName: 'Summon attack'
+			});
+			if (enemy.hp <= 0) {
+				publish('enemy:defeated', { enemyId: enemy.id, killer: summon.ownerId });
+			}
+			summon.nextAttackAt = now + attackMs;
 		}
 
 	}
@@ -228,10 +231,12 @@ function tickZones(state: EngineState, now: number): void {
 	for (let i = state.zones.length - 1; i >= 0; i--) {
 		const zone = state.zones[i];
 
-		// Update center if zone follows caster
+		// Update center if zone follows caster or active unit
 		if (zone.follows === 'caster') {
 			const owner = state.party.find((p) => p.id === zone.ownerId);
 			if (owner) zone.center = { ...owner.pos };
+		} else if (zone.follows === 'active') {
+			zone.center = { ...state.party[state.activeSlot].pos };
 		}
 
 		// Expire
@@ -241,59 +246,58 @@ function tickZones(state: EngineState, now: number): void {
 			continue;
 		}
 
-		// Tick: heal allies inside the zone
+
+		// Tick: periodic heal / damage / drain
 		if (zone.buff.tickMs && now - zone.lastTickAt >= zone.buff.tickMs) {
 			zone.lastTickAt = now;
 
+			// Heal allies inside the zone
 			for (const pc of state.party) {
-				if (chebyshev(pc.pos, zone.center) <= zone.radius) {
-					let heal = zone.buff.healPerTick ?? 0;
-					if (pc.id === state.party[state.activeSlot].id) {
-						heal += zone.buff.activeBonusHeal ?? 0;
+				if (chebyshev(pc.pos, zone.center) > zone.radius) continue;
+				let heal = zone.buff.healPerTick ?? 0;
+				if (pc.id === state.party[state.activeSlot].id) {
+					heal += zone.buff.activeBonusHeal ?? 0;
+				}
+				if (heal > 0) {
+					const before = pc.hp;
+					pc.hp = Math.min(pc.def.maxHp, pc.hp + heal);
+					const healed = pc.hp - before;
+					if (healed > 0) {
+						publish('heal:applied', { target: pc.id, source: zone.ownerId, amount: healed });
 					}
+				}
+			}
 
-					if (heal > 0) {
-						const before = pc.hp;
-						pc.hp = Math.min(pc.def.maxHp, pc.hp + heal);
-						const healed = pc.hp - before;
-						if (healed > 0) {
-							publish('heal:applied', {
-								target: pc.id,
-								source: zone.ownerId,
-								amount: healed
-							});
-						}
+			// Damage enemies inside the zone — once per tick, party-independent
+			if (zone.buff.dmgPerTick && zone.buff.dmgPerTick > 0) {
+				for (const enemy of state.enemies) {
+					if (enemy.hp <= 0) continue;
+					if (chebyshev(enemy.pos, zone.center) > zone.radius) continue;
+					enemy.hp = Math.max(0, enemy.hp - zone.buff.dmgPerTick);
+					publish('damage:dealt', {
+						source: zone.ownerId,
+						target: enemy.id,
+						amount: zone.buff.dmgPerTick,
+						abilityName: 'Zone tick'
+					});
+					if (enemy.hp <= 0) {
+						publish('enemy:defeated', { enemyId: enemy.id, killer: zone.ownerId });
 					}
+				}
+			}
 
-					// Zone damage to enemies (Ryoma, Maria Elena V, etc.)
-					if (zone.buff.dmgPerTick && zone.buff.dmgPerTick > 0) {
-						for (const enemy of state.enemies) {
-							if (enemy.hp <= 0) continue;
-							if (chebyshev(enemy.pos, zone.center) > zone.radius) continue;
-							enemy.hp = Math.max(0, enemy.hp - zone.buff.dmgPerTick);
-							publish('damage:dealt', {
-								source: zone.ownerId,
-								target: enemy.id,
-								amount: zone.buff.dmgPerTick,
-								abilityName: 'Zone tick'
-							});
-							if (enemy.hp <= 0) {
-								publish('enemy:defeated', { enemyId: enemy.id, killer: zone.ownerId });
-							}
-						}
-					}
-
-					// Owner energy drain — zone self-destructs when owner runs dry
-					if (zone.buff.ownerEnergyDrainPerTick && zone.buff.ownerEnergyDrainPerTick > 0) {
-						const owner = state.party.find((p) => p.id === zone.ownerId);
-						if (owner) {
-							owner.energy -= zone.buff.ownerEnergyDrainPerTick;
-							if (owner.energy <= 0) {
-								owner.energy = 0;
-								// Force-expire the zone — splice handled next frame by the loop guard
-								zone.expiresAt = now;
-							}
-						}
+			// Owner upkeep drain — reduced per owner stack (Ascension). ceil() keeps
+			// it integer; at reductionPerStack 0.15, 7 stacks → free upkeep.
+			if (zone.buff.ownerEnergyDrainPerTick && zone.buff.ownerEnergyDrainPerTick > 0) {
+				const owner = state.party.find((p) => p.id === zone.ownerId);
+				if (owner) {
+					const base = zone.buff.ownerEnergyDrainPerTick;
+					const red = zone.buff.upkeepReductionPerStack ?? 0;
+					const stacks = owner.stacks?.current ?? 0;
+					const drain = red > 0 ? Math.max(0, Math.ceil(base * (1 - red * stacks))) : base;
+					if (drain > 0) {
+						owner.energy = Math.max(0, owner.energy - drain);
+						if (owner.energy <= 0) zone.expiresAt = now; // ran dry → ring collapses
 					}
 				}
 			}

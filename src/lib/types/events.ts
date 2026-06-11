@@ -14,6 +14,17 @@ export type CombatEventMap = {
 		abilityName: string;
 		element?: string;
 	};
+	'shield:gained': {
+		target: string;
+		source: string;
+		amount: number;
+		total: number
+	};
+	'shield:absorbed': {
+		target: string;
+		effectId: string;
+		remaining: number
+	};
 	'damage:taken': {
 		target: EntityId;
 		source: EntityId;

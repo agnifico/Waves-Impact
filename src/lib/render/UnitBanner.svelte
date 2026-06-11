@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { EngineState, CharacterState, EnemyState } from '$lib/types/state';
+	import HPBar from './HPBar.svelte';
 
 	let {
 		state,
@@ -52,21 +53,17 @@
 				<div class="nameplate"><span class="name">{unit.def.name}</span></div>
 
 				<div class="vitals">
-					<div class="bar-set">
-						<div class="bar-track hp">
-							<div class="bar-fill" class:low style="width:{hpPct}%"></div>
-						</div>
-						<span>{unit.hp}</span>
-					</div>
+					<HPBar current={unit.hp} max={unit.def.maxHp} type={ally ? 'hp' : 'enemy'}/>
 					{#if ally}
-						<div class="bar-set">
-							<!-- <span>
+					<HPBar current={ally.energy} max={ally.def.maxEnergy} type='energy'/>
+						<!-- <div class="bar-set">
+							<span>
 								{ally.energy}
-							</span> -->
+							</span>
 							<div class="bar-track">
 								<div class="bar-fill energy" style="width:{enPct}%"></div>
 							</div>
-						</div>
+						</div> -->
 					{/if}
 				</div>
 
@@ -98,7 +95,7 @@
 	.unit-banner {
 		position: relative;
 		width: 250px;
-		height: 100px;
+		height: 120px;
 		display: flex;
 		gap: 0.5rem;
 		top: 8px;
@@ -173,30 +170,6 @@
 		justify-content: stretch;
 		align-items: flex-end;
 	}
-	.bar-track {
-		flex: 1;
-		display: unset;
-		height: 8px;
-		background: var(--bg);
-		border-radius: 2px;
-		overflow: hidden;
-		box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.45);
-	}
-	.bar-track.hp {
-		height: 15px;
-	}
-	.bar-fill {
-		height: 100%;
-		background: var(--char-hp, var(--hp));
-		transition: width 0.2s;
-		box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
-	}
-	.bar-fill.energy {
-		background: var(--char-energy, var(--energy));
-	}
-	.bar-fill.low {
-		background: var(--hp-low);
-	}
 
 	/* z0 — resource strip */
 	.resource {
@@ -210,7 +183,7 @@
 		gap: 6px;
 		padding: 4px 30px 8px 25px;
 		clip-path: polygon(0 0, 100% 0, 90% 100%, 20px 100%);
-		background: linear-gradient(-15deg, var(--bg) 0%, var(--bg) 40%, var(--char-secondary) 100%);
+		background: linear-gradient(-15deg, transparent 0%, transparent 40%, var(--char-secondary) 100%);
 		/* background: linear-gradient(0deg,transparent 0%, color-mix(in srgb, black 20%, var(--char-secondary)) 50%, transparent 100%); */
 	}
 	.pips {
@@ -222,14 +195,14 @@
 		width: 10px;
 		height: 10px;
 		transform: rotate(45deg);
-		border: 1px solid var(--char-primary, var(--gold));
+		border: 1px solid var(--char-secondary, var(--gold));
 		border-radius: 25%;
 		background: transparent;
 		transition: all 0.2s;
 	}
 	.pip.filled {
-		background: var(--char-primary, var(--gold));
-		box-shadow: 0 0 6px var(--char-glow, var(--gold));
+		background: var(--char-glow, var(--gold));
+		box-shadow: 0 0 6px var(--char-secondary, var(--gold));
 	}
 
 	.buff {
@@ -251,6 +224,10 @@
 
 	.unit-banner.enemy .bar-fill {
 		background: var(--coral, #e97973);
+	}
+	.unit-banner.enemy .bar-set span {
+		transform: rotateY(180deg);
+		font-weight: 600;
 	}
 	.unit-banner.enemy {
 		transform: rotateY(180deg);

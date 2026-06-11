@@ -21,7 +21,7 @@ export interface DashOpts {
  *
  * Two shapes of dash, chosen by `shapeParams.dir`:
  *   • 'toward' (default) — legacy gap-closer: teleport adjacent to the nearest
- *     enemy in range, optional knockback + damage.  (Yara's C — unchanged.)
+ *     enemy in range, optional knockback + damage.  (June9's C — unchanged.)
  *   • 'forward' | 'back' | 'away' — aim-directional travel via the shared walker
  *     (movement.ts). Hits the first enemy along the line for `damage`, then an
  *     optional radius blast at the stop point.  (Sefyra's C — Photonic Transfiguration.)
@@ -88,7 +88,7 @@ export function resolve(
 		return true; // movement / utility ability — always "connects" (Data Contract §11.5)
 	}
 
-	// ── Legacy gap-closer (dir: 'toward') — Yara's C, unchanged ──────────────────
+	// ── Legacy gap-closer (dir: 'toward') — June9's C, unchanged ──────────────────
 	const effRange = opts.chargedRange ?? (ability.shapeParams?.range as number | undefined) ?? 3;
 
 	const enemy = nearestEnemy(state, caster.pos, effRange);
@@ -115,6 +115,29 @@ export function resolve(
 		}
 		enemy.pos = ep;
 		publish('movement:enemy', { enemyId: enemy.id, from: enemyFrom, to: ep });
+	}
+
+	// Gather: pull enemies within `radius` of the landing toward the caster.
+	// radius = catch reach (Chebyshev); steps = tiles pulled in. Net effect: a tight
+	// cluster in the 3×3 ring around her. (Sefyra scales this up later.)
+	const gather = ability.gather;
+	if (gather) {
+		for (const e of state.enemies) {
+			if (e.hp <= 0) continue;
+			if (chebyshev(e.pos, caster.pos) > gather.radius) continue;
+			const efrom = { ...e.pos };
+			let ep = e.pos;
+			for (let i = 0; i < gather.steps; i++) {
+				if (chebyshev(ep, caster.pos) <= 1) break;
+				const next = clamp(state.board, step8Toward(ep, caster.pos));
+				if (samePos(next, ep) || samePos(next, caster.pos)) break;
+				ep = next;
+			}
+			if (!samePos(efrom, ep)) {
+				e.pos = ep;
+				publish('movement:enemy', { enemyId: e.id, from: efrom, to: ep });
+			}
+		}
 	}
 
 	if (ability.damage && ability.damage > 0) {

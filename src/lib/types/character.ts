@@ -7,6 +7,7 @@ import type { Ability, AbilitySlot, FxSpec, ShapeId } from './ability';
 export interface BasicAttack {
 	name: string;
 	damage: number;
+	description?: string;
 	shape: ShapeId;
 	shapeParams?: Record<string, number>;
 	range: number;
@@ -22,6 +23,8 @@ export interface BasicAttack {
 	consumeBonus?: number;    // bonus damage when a stack is consumed
 	teamHeal?: number;        // heal applied to the whole party when consumed
 	fx?: FxSpec;
+	dashBack?: number;
+	gapClose?: boolean;
 }
 
 /**
@@ -35,6 +38,7 @@ export interface ContextualBasic {
 		dashBack?: number;
 	};
 	fx?: FxSpec;
+	selectBy?: 'stacks' | 'hold';
 }
 
 /**
@@ -48,6 +52,10 @@ export interface Character {
 
 	maxHp: number;
 	maxEnergy: number;
+	moveMs?: number;
+
+	description?: string;
+	hints?: string[];
 
 	baCooldownMs: number | number[]; // single, or per-chain-step (gates firing step i)
 	baChainResetMs: number;
@@ -88,7 +96,7 @@ export interface Character {
 	traversal?: Terrain[];  // terrain override; default derived from stratum
 	guard?: Guard;          // default 'front'
 	footprint?: Position[]; // tile offsets for multi-tile; default 1×1
-	
+
 }
 
 export interface CharacterTheme {
@@ -102,4 +110,5 @@ export interface CharacterTheme {
 	resources?: { id: string; fill: string; label?: string }[];
 	/** Named glow colors for ability-button states. */
 	glow?: Record<string, string>;
+	skin?: string;
 }

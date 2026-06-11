@@ -61,7 +61,7 @@ export const sefyra: Character = {
             // hits: [<strata>]          // add to stratum-gate the hit + blast; omit = hits all
         },
         // PROVISIONAL (chunk 5 = gather + whirlwind + 3-stack VV buff)
-        V: { id: 'goddess', name: 'Goddess of the Divine Gale', behavior: 'zone', shape: 'circle', shapeParams: { radius: 8 }, durationMs: 16000, cooldownMs: 20000, energyCost: 40, zoneBuff: { damageBonus: 0.5, tickMs: 1500 } }
+        V: { id: 'goddess', name: 'Goddess of the Divine Gale', behavior: 'zone', shape: 'circle', shapeParams: { radius: 8 }, durationMs: 16000, cooldownMs: 20000, energyCost: 40, zoneBuff: { damageBonus: .5, tickMs: 1500 } }
     },
 
     stackType: 'divinity',
@@ -77,13 +77,14 @@ export const sefyra: Character = {
     art: {
         gem: '/characters/sefyra_profile2.png',
         profile: '/characters/avatars/sefyra.png',
-        poster: '/characters/sefyra_poster1.png'
+        poster: '/characters/sefyra_poster.png'
     },
     theme: {
         primary: '#fcbf49',
         secondary: '#48cae4',
         glow: { ready: '#eddd53' },
         hp: 'linear-gradient(-90deg,#3586c4 0%, #4896b8 28%, #b1b68a 62%, #eddd53 100%);',
-        energy: 'linear-gradient(to right, #e1f5c4, #ede574);'
+        energy: 'linear-gradient(to right, #e1f5c4, #ede574);',
+        skin: 'wind'
     }
 };

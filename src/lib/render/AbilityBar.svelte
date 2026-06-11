@@ -209,6 +209,7 @@
 		color: var(--ab-text);
 		white-space: nowrap;
 		overflow: hidden;
+		width: 13ch;
 		text-overflow: ellipsis;
 	}
 	.ability-meta {

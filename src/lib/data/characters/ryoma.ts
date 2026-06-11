@@ -6,21 +6,21 @@ export const ryoma: Character = {
     element: 'dark', // Using the dark element classification
     maxHp: 200,       // High-precision glass cannon profile
     maxEnergy: 100,
-    baCooldownMs: [180, 180, 450], // Extremely swift, calculated execution pacing
-    baChainResetMs: 1800,
+    baCooldownMs: [100, 100, 100], // Extremely swift, calculated execution pacing
+    baChainResetMs: 1000,
 
     basicStyle: 'chain',
     basicChain: [
         {
             name: 'Tactical Draw (1)',
             damage: 6,
-            range: 2, // Slight reach due to his blade profile
+            range: 1, // Slight reach due to his blade profile
             energyGain: 12,
             poiseDamage: 10,
-            shape: 'line', // Crisp, straight-line thrust geometry
+            shape: 'melee', // Crisp, straight-line thrust geometry
             omniTarget: true,
-            advanceOnlyIfMelee: true,
-            fx: { strike: 'swipe', colors: ['#7c3aed', '#c084fc'] }
+            dashBack: 1,
+            fx: { strike: 'swipe', colors: ['#f35b04', '#c084fc'] }
         },
         {
             name: 'Crimson Sheath (2)',
@@ -28,19 +28,21 @@ export const ryoma: Character = {
             range: 2,
             energyGain: 12,
             poiseDamage: 12,
-            shape: 'line',
-            fx: { strike: 'swipe', colors: ['#7c3aed', 'var(--gold-bright)'] }
+            shape: 'melee',
+            dashBack: 3,
+            fx: { strike: 'swipe', colors: ['#f7b801', 'var(--gold-bright)'] }
         },
         {
             name: 'Glint of Execution (3)',
             damage: 18,
-            range: 3, // Extended lunge step
+            range: 5, // Extended lunge step
             energyGain: 15,
             poiseDamage: 25,
-            shape: 'line',
+            shape: 'melee',
+            gapClose: true,
             grantsStack: 'discipline', // Strategic collection of tactical insight
             appliesEffects: ['tactical_mark'], // Places an assassination mark on hit via the status engine
-            fx: { strike: 'impact', colors: ['#4c1d95', '#ff003c'] }
+            fx: { strike: 'swipe', colors: ['#7678ed', '#ff003c'] }
         }
     ],
 
@@ -59,7 +61,7 @@ export const ryoma: Character = {
             energyGain: 10,
             grantsStack: 'discipline',
             appliesEffects: ['tactical_mark'], // Marks targets cut along his dash path
-            holdBehavior: null, // Rapid tap-cast asset[cite: 5]
+            holdBehavior: 'aim',
             impactClass: 'impact-shadow-edge'
         },
 
@@ -67,15 +69,18 @@ export const ryoma: Character = {
         C: {
             id: 'ominous_sweep',
             name: 'Command: Ominous Sweep',
-            behavior: 'damage_aoe',
-            shape: 'pcone', // Widening fan projecting directly from his stance
-            shapeParams: { range: 4 },
-            damage: 22,
-            poiseDamage: 20,
-            cooldownMs: 9000,
+            shape: 'circle',
+            shapeParams: { radius: 1, range: 4 },
+            damage: 10,
+            stunMs: 2000,
+            cooldownMs: 6000,
             energyGain: 15,
+            charges: 2,
+            poiseDamage: 20,
             grantsStack: 'discipline',
-            holdBehavior: 'aim' // Can hold and pivot to perfectly choose his angle of sweep[cite: 5]
+            holdBehavior: 'aim',
+            autoTargetEnemy: true,
+            behavior: 'damage_aoe'
         },
 
         // V — Absolute Midnight: Multi-stage tracking array that executes marked targets anywhere on board
@@ -115,11 +120,11 @@ export const ryoma: Character = {
     art: {
         gem: '/characters/ryoma3.png',
         profile: '/characters/avatars/ryoma.png',
-        poster: '/characters/ryoma_poster1.png'
+        poster: '/characters/ryoma_poster.png'
     },
     theme: {
-        primary: '#4c1d95', // Deep Obsidian Purple matching the new dark palette matrix
-        secondary: '#7c3aed', // Royal Violet
+        primary: '#9b5de5', // Deep Obsidian Purple matching the new dark palette matrix
+        secondary: '#e26d5c', // Royal Violet
         glow: { ready: '#c084fc' }, // Vivid Lavender glow
         hp: 'linear-gradient(-90deg, #1f1135 0%, #4c1d95 50%, #ff003c 100%);', // Infused with deep violet and eye-crimson
         energy: 'linear-gradient(to right, #2e1065, #7c3aed);'

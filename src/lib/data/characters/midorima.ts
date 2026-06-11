@@ -8,37 +8,38 @@ export const midorima: Character = {
 	maxEnergy: 100,
 	baCooldownMs: [160, 160, 350], // Extremely fast, low-frame recovery sword draws
 	baChainResetMs: 1600,
-    stratum: 'swimming',
 
 	// Basic-Attack Style: Rapid directional slashes that generate Gale stacks
 	basicStyle: 'chain',
 	basicChain: [
 		{
 			name: 'Gale Draw (1)',
-			damage: 5,
-			range: 2,
-			energyGain: 8,
+			damage: 15,
+			range: 3,
+			energyGain: 10,
 			shape: 'line', // Linear forward katana thrust
-			omniTarget: false, // Strongly directionally manual
-			advanceOnlyIfMelee: true,
+			omniTarget: true, // Strongly directionally manual
+			// advanceOnlyIfMelee: true,
 			fx: { strike: 'swipe', colors: ['#48cae4', '#a8e0ec'] }
 		},
 		{
 			name: 'Whirlwind Cut (2)',
-			damage: 8,
-			range: 2,
-			energyGain: 8,
+			damage: 25,
+			range: 3,
+			energyGain: 15,
+			omniTarget: true, // Strongly directionally manual
 			shape: 'pcone', // A wide, short frontal sweep
 			fx: { strike: 'swipe', colors: ['#48cae4', '#6be9e3'] }
 		},
 		{
 			name: 'Zephyr Dash-Strike (3)',
-			damage: 14,
+			damage: 30,
 			range: 3,
-			energyGain: 12,
+			energyGain: 15,
 			shape: 'line', // Lunges forward through the enemy
+			omniTarget: true, // Strongly directionally manual
 			grantsStack: 'gale',
-			fx: { strike: 'impact', colors: ['#6be9e3', '#fff8ec'] }
+			fx: { strike: 'projectile', shape: 'wave', colors: ['#6be9e3', '#fff8ec'] }
 		}
 	],
 
@@ -55,7 +56,7 @@ export const midorima: Character = {
 			},
 			damage: 12,
 			cooldownMs: 4000, // Highly spammable, low-cooldown skirmish tool
-			energyGain: 10,
+			energyGain: 30,
 			grantsStack: 'gale',
 			holdBehavior: null
 		},
@@ -70,7 +71,7 @@ export const midorima: Character = {
 			damage: 20,
 			poiseDamage: 15,
 			cooldownMs: 8000,
-			energyGain: 15,
+			energyGain: 25,
 			grantsStack: 'gale',
 			autoTargetEnemy: true,
 			holdBehavior: 'aim' // Can be manually thrown via directional reticle steering
@@ -83,14 +84,15 @@ export const midorima: Character = {
 			behavior: 'zone',
 			shape: 'circle', // Generates a personal protective hurricane
 			shapeParams: { radius: 2 },
-			durationMs: 8000,
-			cooldownMs: 20000,
-			energyCost: 50,
-			zoneFollows: 'caster', // The storm actively tracks her as she dashes around
+			durationMs: 3000,
+			cooldownMs: 10000,
+			energyCost: 75,
+			zoneFollows: 'active', // The storm actively tracks her as she dashes around
 			zoneBuff: {
-				damageBonus: 0.3,
-				tickMs: 1000
-			}
+                damageBonus: 0.15,
+                dmgPerTick: 100,
+                tickMs: 250
+            },
 		}
 	},
 
@@ -106,9 +108,11 @@ export const midorima: Character = {
 	art: {
 		gem: '/characters/midorima1.png',
 		profile: '/characters/avatars/midorima.png',
-		poster: '/characters/midorima3.png' // Utilizing full action file
+		poster: '/characters/midorima_poster.png' // Utilizing full action file
 	},
 	theme: {
+		primary: '#3c6e71',
+		secondary: '#f5ebe0',
 		panel: '#2a6f6d',   // Deep teal/breeze base color
 		btn: '#48cae4',     // Sky wind cyan accent
 		border: '#a8e0ec',  // Soft aero border framing
@@ -116,6 +120,7 @@ export const midorima: Character = {
 		key: '#f0fbfc',
 		glow: { ready: '#6be9e3', cyclone_veil: '#ffe9a8' },
 		hp: 'linear-gradient(-90deg, #114b4f 0%, #2a6f6d 50%, #86e89a 100%);',
-		energy: 'linear-gradient(to left, #205072, #329d9c);'
+		energy: 'linear-gradient(to left, #205072, #329d9c);',
+		skin: 'slashes'
 	}
 };
