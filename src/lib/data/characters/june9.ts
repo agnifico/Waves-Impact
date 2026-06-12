@@ -14,17 +14,18 @@ export const june9: Character = {
 	contextualBasic: {
 		selectBy: 'hold',
 		base: {
-			name: 'Verdant Arc',
+			name: 'Solarfuel Blasters',
 			damage: 12,
 			range: 2,
 			energyGain: 10,
 			shape: 'melee',
 			omniTarget: true,
 			grantsStack: 'verdance',
-			fx: { strike: 'swipe', colors: ['#2A9D8F', '#E9C46A'] }
+			// fx: { strike: 'swipe', colors: ['#2A9D8F', '#E9C46A'] }
+			fx: { strike: 'flurry', hits:6, colors: ['#E9C46A'] }
 		},
 		withStack: {
-			name: 'Lifebloom',
+			name: 'Solar Beam',
 			damage: 12,
 			range: 2,
 			energyGain: 10,
@@ -32,14 +33,14 @@ export const june9: Character = {
 			omniTarget: true,
 			consumesStack: 'verdance',
 			teamHeal: 35,
-			fx: { strike: 'projectile', shape: 'bolt', colors: ['#E9C46A', '#E9C46A'] }
+			fx: { strike: 'projectile', shape: 'bolt', speed: 22, colors: ['#2eb872'] }
 		}
 	},
 
 	abilities: {
 		X: {
-			id: 'greenshackle',          // internal id kept; display rebranded
-			name: 'Stillpoint',
+			id: 'spatial_recovery',          // internal id kept; display rebranded
+			name: 'Spatial Recovery',
 			behavior: 'damage_aoe',
 			shape: 'circle',
 			shapeParams: { radius: 1, range: 4 },
@@ -54,8 +55,8 @@ export const june9: Character = {
 			holdBehavior: 'aim'
 		},
 		C: {
-			id: 'bramble_snare',         // internal id kept
-			name: 'Worldroot',
+			id: 'thruster_bash',         // internal id kept
+			name: 'Thruster Bash',
 			behavior: 'dash',
 			shapeParams: { range: 3 },
 			damage: 10,
@@ -69,7 +70,7 @@ export const june9: Character = {
 			chargeMsPerTile: 200
 		},
 		V: {
-			id: 'sanctum',               // internal id kept
+			id: 'genesis_garden',               // internal id kept
 			name: 'Garden of Genesis',
 			behavior: 'zone',
 			shape: 'circle',
@@ -78,7 +79,9 @@ export const june9: Character = {
 			cooldownMs: 16000,
 			energyCost: 50,
 			grantsStack: 'verdance',
-			zoneBuff: { damageBonus: .5, healPerTick: 10, activeBonusHeal: 10, tickMs: 1500,}
+			zoneFollows: 'active',
+			zoneBuff: { damageBonus: .5, healPerTick: 10, activeBonusHeal: 10, tickMs: 1500,},
+			fx: { zone: 'mecha' }
 		}
 	},
 
@@ -100,6 +103,5 @@ export const june9: Character = {
 		glow: { ready: '#b5e48c', bloomstride: '#ffd66b' },
 		energy: 'linear-gradient(180deg,#f5c04a 0%, #e0a020 100%);',
 		hp: 'linear-gradient(180deg,#74f0a8 0%, #2eb872 100%);',
-		skin: 'mecha' 
 	}
 };

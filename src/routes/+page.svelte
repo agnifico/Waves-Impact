@@ -48,7 +48,7 @@
 		dragon: [dragon],
 		both: [bear, dragon]
 	};
-	const DEFAULT_PARTY = [frosty.id, june9.id, sefyra.id];
+	const DEFAULT_PARTY = [ryoma.id, maria_elena.id, midorima.id, frosty.id, june9.id, sefyra.id];
 
 	let phase = $state<'select' | 'combat'>('select');
 	let paused = $state(false);
@@ -208,6 +208,7 @@
 					<div class="banner banner-enemy"><UnitBanner side="enemy" state={gs} {now} /></div>
 				</div>
 				<div class="board-wrap">
+				<div class="console-name">Chessboard Battlefield</div>
 					<Board bind:this={boardComponent} {gs} {now} />
 					{#if gs.over && gs.outcome === 'victory'}
 						<div class="overlay victory"><h1>VICTORY</h1></div>
@@ -324,7 +325,7 @@
 
 	.hud-col {
 		/* position: absolute; */
-		top: -7rem;
+		/* top: -3.5rem; */
 		display: flex;
 		align-content: flex-end;
 		align-items: flex-end;
@@ -340,6 +341,19 @@
 		margin-top: auto;
 		display: flex;
 		height: 100%;
+	}
+
+	.console-name {
+		text-align: center;
+		font-family: "Jersey 10";
+		text-transform: uppercase;
+		font-weight: 600;
+		font-style: italic;
+		font-size: 2rem;
+		letter-spacing: 2px;
+		margin: 0; padding: 0;
+		margin-bottom: .25rem;
+		color: var(--panel-2);
 	}
 
 	.codex-btn {
@@ -380,8 +394,8 @@
 	.board-wrap {
 		padding: 0;
 		background-color: var(--panel-raised);
-		padding: 1rem 1.5rem 2rem 1.5rem;
-		padding-top: 2rem;
+		padding: .5rem 1.5rem 2rem 1.5rem;
+		/* padding-top: 1rem; */
 		border-radius: 18px;
 		box-shadow:
 			0 0 0px 4px rgba(0, 0, 0, 0.4) inset,

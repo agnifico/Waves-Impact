@@ -19,7 +19,7 @@ export const frosty: Character = {
 			shape: 'melee',
 			omniTarget: true,
 			advanceOnlyIfMelee: true,
-			fx: { strike: 'projectile', shape: 'wave', colors: ['#00b4d8', 'var(--frost)'] }
+			fx: { strike: 'projectile', shape: 'bolt', colors: ['#00b4d8', '#ffffff'] }
 		},
 		{
 			name: 'Claws of Ice (2)',
@@ -54,6 +54,7 @@ export const frosty: Character = {
 			energyGain: 15,
 			grantsStack: 'eclipse',
 			unchainedBonus: 10,
+			fx: { strike: 'projectile', shape: 'wave', size: "l", colors: ['#219ebc', '#ffffff'] },
 		},
 
 		// ── C: Glacial Pylon ───────────────────────────────────────────────────────
@@ -100,7 +101,7 @@ export const frosty: Character = {
 			grantsStack: 'eclipse',
 			summonId: 'leo',
 			summonImage: '/characters/wolfie.png',
-			summonDurationMs: 16000
+			summonDurationMs: 16000,
 		}
 	},
 

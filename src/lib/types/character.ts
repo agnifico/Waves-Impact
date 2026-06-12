@@ -110,5 +110,4 @@ export interface CharacterTheme {
 	resources?: { id: string; fill: string; label?: string }[];
 	/** Named glow colors for ability-button states. */
 	glow?: Record<string, string>;
-	skin?: string;
 }

@@ -92,6 +92,7 @@ export const midorima: Character = {
                 dmgPerTick: 100,
                 tickMs: 250
             },
+			fx: {zone: 'slashes'}
 		}
 	},
 

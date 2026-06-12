@@ -6,7 +6,7 @@ export const maria_elena: Character = {
     element: 'fire',
     maxHp: 300,                     // High baseline health for a frontliner
     maxEnergy: 100,
-    baCooldownMs: [400, 400, 400],  // Deliberate, heavy swing pacing
+    baCooldownMs: [400],  // Deliberate, heavy swing pacing
     baChainResetMs: 1000,
     moveMs: 75,
 
@@ -55,7 +55,7 @@ export const maria_elena: Character = {
         selectBy: 'hold',
         base: {
             name: 'Flash Fire',
-            damage: 15,
+            damage: 25,
             range: 1,
             energyGain: 10,
             shape: 'melee',
@@ -72,7 +72,7 @@ export const maria_elena: Character = {
             omniTarget: true,               // nearest, or locked target via focusTarget
             consumesStack: 'immortal_flame',
             gapClose: true,                 // was dashBack: 3 — now closes the gap
-            fx: { strike: 'swipe', colors: ['#ee9b00', '#bb3e03'] },
+            fx: { strike: 'uppercut', colors: ['#ee9b00', '#bb3e03'] },
             description: 'When Maria Elena has <Immortal Flame>, hold <kbd>Space</kbd> to consume one stack and enhance her basic attack. She will dash to the nearest/locked-on target in a 4 tiles range, and deal enhanced damage.'
         }
     },
@@ -150,6 +150,7 @@ export const maria_elena: Character = {
                 upkeepReductionPerStack: 0.15,
                 tickMs: 1000
             },
+            fx: {zone: 'flame'},
             description: "Maria Elena summons a [Ring of the Defiant Flame]: a 1 tile circle that follows the active unit, dealing 20 DMG to all enemies in range, per second. The ring costs Maria Elena 5 energy per second to upkeep. At the time of casting this ability, she will also inflict a one-time 75 DMG to all enemies in the same range. [Defender of the Realm] : Each <Immortal Flame> stack reduces her energy upkeep for [Ring of the Defiant Flame] by 15%, up to 7 stacks. Grants one stack of <Immortal Flame>."
         }
     },
@@ -178,6 +179,5 @@ export const maria_elena: Character = {
         glow: { ready: '#e9c46a' },
         hp: 'linear-gradient(to left, #f83600 0%, #f9d423 100%);',
         energy: 'linear-gradient(to top, #ff0844 0%, #ffb199 100%);',
-        skin: 'flame'
     }
 };

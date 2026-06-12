@@ -150,10 +150,20 @@ export interface Ability {
 }
 
 export interface FxSpec {
-	strike?: 'projectile' | 'swipe';
-	shape?: 'orb' | 'arrow' | 'leaf' | 'bolt' | 'wave';
+	strike?:
+	| 'swipe' | 'claw' | 'stab' | 'flurry' | 'slam' | 'uppercut'  // melee
+	| 'projectile' | 'bullet' | 'beam' | 'chain'                    // ranged
+	| 'zone';                                                        // aura
+	zone?: string;
+	// projectile options
+	shape?: 'bolt' | 'arrow' | 'orb' | 'leaf' | 'wave';
 	size?: 's' | 'm' | 'l';
 	trail?: boolean;
-	speed?: number;     // ms per tile of travel (lower = faster; the snipe is low)
-	colors?: string[];  // ramp; defaults to the character theme
+	speed?: number;       // ms per tile (projectile/bullet travel)
+	colors?: string[];    // ramp; defaults to character theme
+	gashes?: number;      // claw: number of slashes (default 3)
+	hits?: number;        // flurry: number of ticks (default 6)
+	skin?:
+    | 'default' | 'mecha' | 'flame' | 'wind' | 'void' | 'water'
+    | 'slashes' | 'pulse' | 'earth' | 'poison' | 'frost' | 'holy' | 'storm';
 }

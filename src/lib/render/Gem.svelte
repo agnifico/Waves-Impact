@@ -74,8 +74,9 @@
 		<div class="shadow"></div>
 		<div
 			class="body"
-			// style="border-color:{rim}; transform:translateY({lift}px); background-color:{rim};"
-			style="background-image: url({enemy?.def?.profileImage})"
+			style="border-color:#ffffff56; border-style:dashed; transform:translateY({lift}px); background-color:var(--bg);"
+			// style="border-color:{rim}; transform:translateY({lift}px); background-color:var(--bg);"
+			// style="background-image: url({enemy?.def?.profileImage})"
 		>
 			<!-- <span class="glyph">◆</span> -->
 		</div>

@@ -20,7 +20,7 @@ export const ryoma: Character = {
             shape: 'melee', // Crisp, straight-line thrust geometry
             omniTarget: true,
             dashBack: 1,
-            fx: { strike: 'swipe', colors: ['#f35b04', '#c084fc'] }
+            fx: { strike: 'claw', colors: ['#f35b04', '#c084fc'] }
         },
         {
             name: 'Crimson Sheath (2)',
@@ -30,7 +30,7 @@ export const ryoma: Character = {
             poiseDamage: 12,
             shape: 'melee',
             dashBack: 3,
-            fx: { strike: 'swipe', colors: ['#f7b801', 'var(--gold-bright)'] }
+            fx: { strike: 'claw', colors: ['#f7b801', 'var(--gold-bright)'] }
         },
         {
             name: 'Glint of Execution (3)',
@@ -42,7 +42,7 @@ export const ryoma: Character = {
             gapClose: true,
             grantsStack: 'discipline', // Strategic collection of tactical insight
             appliesEffects: ['tactical_mark'], // Places an assassination mark on hit via the status engine
-            fx: { strike: 'swipe', colors: ['#7678ed', '#ff003c'] }
+            fx: { strike: 'claw', gashes:7, colors: ['#7678ed', '#ff003c'] }
         }
     ],
 

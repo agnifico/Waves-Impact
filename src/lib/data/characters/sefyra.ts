@@ -24,7 +24,7 @@ export const sefyra: Character = {
         {
             name: 'Skymark (3)',
             damage: 15, range: 7, energyGain: 10, shape: 'melee', omniTarget: true, consumesStack: 'divinity', consumeBonus: 20, teamHeal: 25,
-            fx: { strike: 'projectile', shape: 'arrow', colors: ['#ffe9a8', 'var(--gold-bright)'] }
+            fx: { strike: 'chain', shape: 'arrow', colors: ['#ffe9a8', 'var(--gold-bright)'] }
         }
     ],
 
@@ -32,7 +32,8 @@ export const sefyra: Character = {
         // X — Cloudpiercer (tiered auto-lock shot; tier from hold time in 3c, charges in 3a)
         X: {
             id: 'cloudpiercer', name: 'Cloudpiercer', behavior: 'cloudpiercer', holdBehavior: 'track', shapeParams: { range: 8 }, energyGain: 15, charges: 2, rechargeMs: 10000,
-            fx: { strike: 'projectile', shape: 'arrow', size: 'l', trail: true, speed: 22, colors: ['#fff0c4', 'var(--gold-bright)'] }
+            // fx: { strike: 'projectile', shape: 'arrow', size: 'l', trail: true, speed: 22, colors: ['#fff0c4', 'var(--gold-bright)'] }
+            fx: { strike: 'bullet', trail: true, speed: 22, colors: ['#fff0c4', 'var(--gold-bright)'] }
         },
         // PROVISIONAL (chunk 4 = directional dash + radius-2 blast)
         C: {
@@ -54,14 +55,21 @@ export const sefyra: Character = {
             cooldownMs: 10000,
             grantsStack: 'divinity',     // +1 Divinity (declarative, as your placeholder is today)
             holdBehavior: 'track',         // hold C to aim a direction; release to dash (see note)
-
             // carry over from your current C:
             // energyGain: <your value>,
             // impactClass: '<your vfx hook>',
             // hits: [<strata>]          // add to stratum-gate the hit + blast; omit = hits all
         },
         // PROVISIONAL (chunk 5 = gather + whirlwind + 3-stack VV buff)
-        V: { id: 'goddess', name: 'Goddess of the Divine Gale', behavior: 'zone', shape: 'circle', shapeParams: { radius: 8 }, durationMs: 16000, cooldownMs: 20000, energyCost: 40, zoneBuff: { damageBonus: .5, tickMs: 1500 } }
+        V: {
+            id: 'goddess',
+            name: 'Goddess of the Divine Gale',
+            behavior: 'zone', shape: 'circle',
+            shapeParams: { radius: 5 }, durationMs: 16000,
+            cooldownMs: 20000, energyCost: 40,
+            zoneBuff: { damageBonus: .5, tickMs: 1500 },
+            fx: {zone: 'holy'}
+        }
     },
 
     stackType: 'divinity',
