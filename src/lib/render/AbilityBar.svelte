@@ -1,82 +1,102 @@
 <script lang="ts">
 	import type { EngineState } from '$lib/types/state';
 	import { holdState, isDown } from '$lib/input/intent-state';
+	import { isEnhancedAvailable } from '$lib/combat/basic-attack';
 
-	let { state, now }: { state: EngineState; now: number } = $props();
+	let {
+		state,
+		now,
+		onability
+	}: {
+		state: EngineState;
+		now: number;
+		onability?: (slot: 'basic' | 'X' | 'C' | 'V') => void;
+	} = $props();
 
 	// Per-element ability-bar palette (monochrome depth stays in CSS; only hue swaps)
 	const AB: Record<
-    string,
-    { panel: string; btn: string; border: string; text: string; key: string }
-> = {
-    water: {
-        panel: '#0f4c81',   // Deep ocean blue
-        btn: '#1da1f2',     // Sky/cyan blue
-        border: '#6be9e3',  // Vibrant sky teal
-        text: 'rgba(0,0,0,0.6)',
-        key: '#f3fbff'
-    },
-    wind: {
-        panel: '#2a6f6d',   // Deep teal/breeze
-        btn: '#48cae4',     // Bright sky wind
-        border: '#a8e0ec',  // Soft aerodynamic cyan
-        text: 'rgba(0,0,0,0.6)',
-        key: '#f0fbfc'
-    },
-    fire: {
-        panel: '#9c3a1f',
-        btn: '#d8632f',
-        border: '#f0a06b',
-        text: 'rgba(0,0,0,0.6)',
-        key: '#fff3ec'
-    },
-    nature: {
-        panel: '#1f7a3a',
-        btn: '#3fb95a',
-        border: '#86e89a',
-        text: 'rgba(0,0,0,0.6)',
-        key: '#f0fff4'
-    },
-    light: {
-        panel: '#b58612',   // Rich golden amber
-        btn: '#fbbf24',     // Golden yellow
-        border: '#fef08a',  // Radiant light yellow
-        text: 'rgba(0,0,0,0.6)',
-        key: '#fefce8'
-    },
-    dark: {
-        panel: '#4c1d95',   // Deep obsidian purple
-        btn: '#7c3aed',     // Royal violet
-        border: '#c084fc',  // Vivid neon lavender
-        text: 'rgba(255,255,255,0.8)', // Lightened text for dark-mode readability
-        key: '#faf5ff'
-    }
-};
+		string,
+		{ panel: string; btn: string; border: string; text: string; key: string }
+	> = {
+		water: {
+			panel: '#0f4c81', // Deep ocean blue
+			btn: '#1da1f2', // Sky/cyan blue
+			border: '#6be9e3', // Vibrant sky teal
+			text: 'rgba(0,0,0,0.6)',
+			key: '#f3fbff'
+		},
+		wind: {
+			panel: '#2a6f6d', // Deep teal/breeze
+			btn: '#48cae4', // Bright sky wind
+			border: '#a8e0ec', // Soft aerodynamic cyan
+			text: 'rgba(0,0,0,0.6)',
+			key: '#f0fbfc'
+		},
+		fire: {
+			panel: '#9c3a1f',
+			btn: '#d8632f',
+			border: '#f0a06b',
+			text: 'rgba(0,0,0,0.6)',
+			key: '#fff3ec'
+		},
+		nature: {
+			panel: '#1f7a3a',
+			btn: '#3fb95a',
+			border: '#86e89a',
+			text: 'rgba(0,0,0,0.6)',
+			key: '#f0fff4'
+		},
+		light: {
+			panel: '#b58612', // Rich golden amber
+			btn: '#fbbf24', // Golden yellow
+			border: '#fef08a', // Radiant light yellow
+			text: 'rgba(0,0,0,0.6)',
+			key: '#fefce8'
+		},
+		dark: {
+			panel: '#4c1d95', // Deep obsidian purple
+			btn: '#7c3aed', // Royal violet
+			border: '#c084fc', // Vivid neon lavender
+			text: 'rgba(255,255,255,0.8)', // Lightened text for dark-mode readability
+			key: '#faf5ff'
+		}
+	};
 
 	let char = $derived(state.party[state.activeSlot]);
 	let pal = $derived(AB[char.def.element] ?? AB.nature);
 	let abStyle = $derived(
 		`--ab-panel:${pal.panel};--ab-btn:${pal.btn};--ab-btn-border:${pal.border};--ab-text:${pal.text};--ab-key:${pal.key};`
 	);
-	let basicName = $derived(
-		char.def.contextualBasic?.base.name ?? char.def.basicChain?.[0]?.name ?? 'Basic'
-	);
+	let basicName = $derived.by(() => {
+		if (char.def.basicChain) {
+			const reset = now - char.lastBaTimestamp > char.def.baChainResetMs;
+			const idx = reset ? 0 : char.baChainIndex;
+			return char.def.basicChain[idx]?.name ?? 'Basic';
+		}
+		return char.def.contextualBasic?.base.name ?? 'Basic';
+	});
 	let chainActive = $derived(
 		char.def.basicChain &&
 			char.baChainIndex > 0 &&
 			now - char.lastBaTimestamp < char.def.baChainResetMs
 	);
+	let enhancedReady = $derived(isEnhancedAvailable(char, now));
 </script>
 
 <div class="ability-bar" style={abStyle}>
 	<button
 		class="ability-btn basic"
 		class:chain-ready={chainActive}
+		class:enhanced-ready={enhancedReady}
 		class:pressed={isDown('basicAttack')}
+		onclick={() => onability?.('basic')}
 	>
 		<span class="ability-info">
 			<span class="ability-name">{basicName}</span>
-			<span class="ability-meta"><span class="tag basic">Basic</span></span>
+			<span class="ability-meta">
+				<span class="tag basic">Basic</span>
+				{#if enhancedReady}<span class="tag enh">ENH</span>{/if}
+			</span>
 		</span>
 		<span class="key-badge">Spc</span>
 	</button>
@@ -109,6 +129,9 @@
 				class:ult={isUlt}
 				class:on-cooldown={onCd || noEnergy}
 				class:pressed={isPressed}
+				onclick={() => {
+					if (!onCd && !noEnergy) onability?.(slot as 'X' | 'C' | 'V');
+				}}
 			>
 				<span class="ability-info">
 					<span class="ability-name">{ability.name}</span>
@@ -290,5 +313,30 @@
 	.charge-pips .pip.filled {
 		background: var(--ab-key, #fff);
 		box-shadow: 0 0 5px var(--ab-btn-border);
+	}
+
+	.ability-btn.enhanced-ready {
+		border-color: var(--gold-bright);
+		animation: enhanced-pulse 1.4s ease-in-out infinite;
+	}
+
+	@keyframes enhanced-pulse {
+		0%,
+		100% {
+			box-shadow:
+				var(--btn-shadow),
+				0 0 7px rgba(245, 208, 96, 0.35);
+		}
+		50% {
+			box-shadow:
+				var(--btn-shadow),
+				0 0 18px rgba(245, 208, 96, 0.75);
+		}
+	}
+
+	.tag.enh {
+		background: rgba(245, 208, 96, 0.9);
+		color: #111;
+		animation: pulse 1.4s infinite;
 	}
 </style>

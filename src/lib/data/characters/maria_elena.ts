@@ -6,8 +6,6 @@ export const maria_elena: Character = {
     element: 'fire',
     maxHp: 300,                     // High baseline health for a frontliner
     maxEnergy: 100,
-    baCooldownMs: [400],  // Deliberate, heavy swing pacing
-    baChainResetMs: 1000,
     moveMs: 75,
 
     description: 'The Goddess of Fire, Maria Elena is a gap-closing, sustained main damage dealer, with strong off-field DMG capabilities.',
@@ -16,7 +14,7 @@ export const maria_elena: Character = {
     // basicStyle: 'chain',
     // basicChain: [
     //     {
-    //         name: 'Shield Batter (1)',
+    //         name: 'Flash Fire (1)',
     //         damage: 8,
     //         range: 1,
     //         energyGain: 10,
@@ -27,7 +25,7 @@ export const maria_elena: Character = {
     //         fx: { strike: 'swipe', colors: ['#9a7b56', '#d4af37'] }
     //     },
     //     {
-    //         name: 'Iron Sweep (2)',
+    //         name: 'Flash Fire (2)',
     //         damage: 12,
     //         range: 1,
     //         energyGain: 10,
@@ -38,7 +36,7 @@ export const maria_elena: Character = {
     //         fx: { strike: 'swipe', colors: ['#b58953', '#896032'] }
     //     },
     //     {
-    //         name: 'Tectonic Finisher (3)',
+    //         name: 'Flash Fire (3)',
     //         damage: 22,
     //         range: 2,
     //         energyGain: 20,
@@ -50,31 +48,68 @@ export const maria_elena: Character = {
     //         fx: { strike: 'swipe', colors: ['#ffe9a8', '#654321'] }
     //     }
     // ],
-    basicStyle: 'contextual',
-    contextualBasic: {
-        selectBy: 'hold',
-        base: {
-            name: 'Flash Fire',
-            damage: 25,
+    baCooldownMs: [350, 350, 350, 250],
+    baChainResetMs: 2000,
+
+    basicStyle: 'chain',
+    basicChain: [
+        {
+            name: 'Flash Fire (1)',
+            damage: 18,
             range: 1,
+            energyGain: 8,
+            shape: 'melee',
+            omniTarget: true,
+            advanceOnlyIfMelee: true,
+            fx: { strike: 'swipe', colors: ['#f83600', '#ff4422'] }
+        },
+        {
+            name: 'Flash Fire (2)',
+            damage: 22,
+            range: 1,
+            energyGain: 8,
+            shape: 'melee',
+            omniTarget: true,
+            advanceOnlyIfMelee: true,
+            fx: { strike: 'reverseswipe', colors: ['#e9c46a', '#f5d88a'] }
+        },
+        {
+            name: 'Flash Fire (3)',
+            damage: 22,
+            range: 1,
+            energyGain: 8,
+            shape: 'melee',
+            omniTarget: true,
+            advanceOnlyIfMelee: true,
+            fx: { strike: 'swipe', colors: ['#e9c46a', '#f5d88a'] }
+        },
+        {
+            name: 'Flash Fire (4)',
+            damage: 45,
+            range: 1,
+            energyGain: 14,
+            shape: 'melee',
+            omniTarget: true,
+            grantsStack: 'immortal_flame',
+            fx: { strike: 'uppercut', colors: ['#f83600', '#ff1a00'] }
+        }
+    ],
+
+    enhancedBasic: {
+        ba: {
+            name: 'Furious Flames',
+            damage: 50,
+            range: 4,
             energyGain: 10,
             shape: 'melee',
             omniTarget: true,
-            fx: { strike: 'swipe', colors: ['#f83600', '#f9d423'] },
-            description: 'Maria Elena swings her fiery sword at the nearest enemy in 1 tile range.'
-        },
-        withStack: {
-            name: 'Furious Flames',
-            damage: 50,
-            range: 4,                       // was 1 — acquires up to 3 tiles
-            energyGain: 10,
-            shape: 'melee',
-            omniTarget: true,               // nearest, or locked target via focusTarget
             consumesStack: 'immortal_flame',
-            gapClose: true,                 // was dashBack: 3 — now closes the gap
-            fx: { strike: 'uppercut', colors: ['#ee9b00', '#bb3e03'] },
-            description: 'When Maria Elena has <Immortal Flame>, hold <kbd>Space</kbd> to consume one stack and enhance her basic attack. She will dash to the nearest/locked-on target in a 4 tiles range, and deal enhanced damage.'
-        }
+            gapClose: true,
+            fx: { strike: 'uppercut', colors: ['#ee9b00', '#bb3e03'] }
+        },
+        conditions: [{ type: 'stacks_min', n: 1 }],
+        requireHold: true,
+        interruptsChain: true
     },
 
     abilities: {
@@ -137,10 +172,10 @@ export const maria_elena: Character = {
             behavior: 'zone',
             shape: 'circle',
             shapeParams: { radius: 1 },
-            durationMs: 60_000,
+            durationMs: 20_000,
             cooldownMs: 1_000,
             energyCost: 0,
-            damage: 75,
+            damage: 50,
             grantsStack: 'immortal_flame',
             zoneFollows: 'active',
             zoneBuff: {
@@ -150,7 +185,8 @@ export const maria_elena: Character = {
                 upkeepReductionPerStack: 0.15,
                 tickMs: 1000
             },
-            fx: {zone: 'flame'},
+            persistsAfterDeath: false,
+            fx: { zone: 'flame' },
             description: "Maria Elena summons a [Ring of the Defiant Flame]: a 1 tile circle that follows the active unit, dealing 20 DMG to all enemies in range, per second. The ring costs Maria Elena 5 energy per second to upkeep. At the time of casting this ability, she will also inflict a one-time 75 DMG to all enemies in the same range. [Defender of the Realm] : Each <Immortal Flame> stack reduces her energy upkeep for [Ring of the Defiant Flame] by 15%, up to 7 stacks. Grants one stack of <Immortal Flame>."
         }
     },
@@ -170,8 +206,8 @@ export const maria_elena: Character = {
 
     art: {
         gem: '/characters/maria_elena6.png',
-        profile: '/characters/avatars/maria_elena.png',
-        poster: '/characters/maria_elena_poster.png',
+        profile: '/characters/avatars/maria_elena2.png',
+        poster: '/characters/maria_poster.png',
     },
     theme: {
         primary: '#f83600',

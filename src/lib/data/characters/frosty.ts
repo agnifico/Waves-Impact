@@ -12,33 +12,30 @@ export const frosty: Character = {
 	basicStyle: 'chain',
 	basicChain: [
 		{
-			name: 'Claws of Ice (1)',
+			name: 'Snowball (1)',
 			damage: 5,
 			range: 5,
 			energyGain: 10,
 			shape: 'melee',
 			omniTarget: true,
-			advanceOnlyIfMelee: true,
-			fx: { strike: 'projectile', shape: 'bolt', colors: ['#00b4d8', '#ffffff'] }
+			fx: { strike: 'projectile', shape: 'orb', colors: ['#ade8f4', '#ffffff'] }
 		},
 		{
-			name: 'Claws of Ice (2)',
-			damage: 8,
-			range: 1,
+			name: 'Snowball (2)',
+			damage: 10,
+			range: 5,
 			energyGain: 10,
 			shape: 'melee',
-			hits: ['ground'],
-			fx: { strike: 'swipe', colors: ['#ede7e3', 'var(--frost)'] }
+			fx: { strike: 'projectile', shape: 'orb', colors: ['#ade8f4', '#ffffff'] }
 		},
 		{
-			name: 'Claws of Ice (3)',
-			damage: 17,
-			range: 1,
+			name: 'Giant Snowball',
+			damage: 15,
+			range: 5,
 			energyGain: 10,
 			shape: 'melee',
 			grantsStack: 'eclipse',
-			hits: ['ground'],
-			fx: { strike: 'swipe', colors: ['#ede7e3', 'var(--frost)'] }
+			fx: { strike: 'projectile', shape: 'orb', size: 'l', colors: ['#00b4d8', '#ffffff'] }
 		}
 	],
 
@@ -73,35 +70,21 @@ export const frosty: Character = {
 		// pylon's range, take damage and a brief stun, then continue to the player.
 		// Two pylons across the enemy's path create a meaningful gauntlet.
 		C: {
-			id: 'glacial_pylon',
-			name: 'Glacial Pylon',
+			id: 'glacial_pylon', name: 'Glacial Pylon',
 			behavior: 'construct',
-
-			summonId: 'glacial_pylon',
-			summonImage: '/characters/glacial_pylon.png',
-			summonDurationMs: 12_000,
-			charges: 2,
-			rechargeMs: 12_000,
-			energyGain: 10,
-			grantsStack: 'eclipse',
-			constructPulseDmg:    15,
-			constructPulseMs:   2_000,
-			constructPulseRadius:   2,
-			constructStunMs:      800,   // 800ms stun, 1200ms escape window per pylon
-
+			creationId: 'glacial_pylon',
+			charges: 2, rechargeMs: 12_000, energyGain: 10, grantsStack: 'eclipse',
+			shapeParams: { radius: 1, range: 5 },
+			holdBehavior: 'aim',
+			damage: 10,
 			fx: { shape: 'orb', colors: ['#eaf6ff', 'var(--frost)', '#00b4d8'] }
 		},
 
 		V: {
-			id: 'revenant_wolf',
-			name: 'The Revenant Wolf',
+			id: 'revenant_wolf', name: 'The Revenant Wolf',
 			behavior: 'summon',
-			cooldownMs: 20000,
-			energyCost: 70,
-			grantsStack: 'eclipse',
-			summonId: 'leo',
-			summonImage: '/characters/wolfie.png',
-			summonDurationMs: 16000,
+			creationId: 'test_ranged',          // ← replaces the entire summon:{} block
+			cooldownMs: 20_000, energyCost: 10, grantsStack: 'eclipse',
 		}
 	},
 
@@ -113,7 +96,7 @@ export const frosty: Character = {
 	art: {
 		gem: '/characters/frosty_gem.png',
 		profile: '/characters/avatars/frosty.png',
-		poster: '/characters/frosty_poster2.png'
+		poster: '/characters/frosty_poster100.png'
 	},
 	theme: {
 		primary: '#00b4d8',

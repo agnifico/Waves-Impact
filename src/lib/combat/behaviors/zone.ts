@@ -30,7 +30,8 @@ export function resolve(
 		radius,
 		expiresAt: now + (ability.durationMs ?? 8000),
 		lastTickAt: now,
-		buff: ability.zoneBuff
+		buff: ability.zoneBuff,
+		persistsAfterDeath: ability.persistsAfterDeath ?? false
 	});
 	publish('zone:created', { zoneId, ownerId: caster.id });
 

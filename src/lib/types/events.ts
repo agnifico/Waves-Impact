@@ -112,6 +112,10 @@ export type CombatEventMap = {
 		constructId: string;
 		ownerId: EntityId;
 	};
+	'construct:pulse': { constructId: string; pos: Position; element?: string; radius: number; };
+	'construct:catalyst': { constructId: string; pos: Position; element?: string; radius: number; };
+	'construct:turret': { constructId: string; pos: Position; targetPos: Position; element?: string; };
+	'summon:attack': { summonId: string; ownerId: string; fromPos: Position; toPos: Position; isRanged: boolean; element?: string; };
 
 };
 

@@ -46,11 +46,11 @@
 	--btn-shadow-disabled: 0 2px 0 #3333338c;
 
 	--fire: #e0533d;    --fire-bright: #ff7d5c;
-	--water: #2f86d8;   --water-bright: #6cb6ef;   /* deeper ocean azure */
-	--wind: #5fd6cf;    --wind-bright: #aef2ec;    /* pale teal — airy, distinct from water */
-	--nature: #5dc46e;  --nature-bright: #8ce8a0;  /* == your --verdant */
+	--water: #2f86d8;   --water-bright: #6cb6ef;   
+	--wind: #5fd6cf;    --wind-bright: #aef2ec;   
+	--nature: #5dc46e;  --nature-bright: #8ce8a0;
 	--light: #f5cd4f;   --light-bright: #fff0a8;
-	--dark: #a07cf0;    --dark-bright: #c8adff;    /* luminous violet — must out-bright the plum bg */
+	--dark: #a07cf0;    --dark-bright: #c8adff;    
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

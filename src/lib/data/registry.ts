@@ -16,6 +16,11 @@ import { unchained } from './effects/unchained';
 import { bloomstride } from './effects/bloomstride';
 
 import { shield } from './effects/shield';
+import { forest_prowler } from './enemies/forest-prowler';
+import { punching_tortoise } from './enemies/punching-tortoise';
+import { vanguard_siren } from './enemies/vanguard-siren';
+import { solis_sentinel } from './enemies/solis-sentinel';
+import { bob } from './enemies/bob';
 
 // ─── Character registry ──────────────────────────────────────────────────────
 
@@ -35,7 +40,12 @@ export function getAllCharacters(): Character[] {
 
 const enemies: Record<string, Enemy> = {
 	bear,
-	dragon
+	dragon,
+	bob,
+	forest_prowler,
+	punching_tortoise,
+	vanguard_siren,
+	solis_sentinel,
 };
 
 export function getEnemy(id: string): Enemy | undefined {
@@ -62,19 +72,3 @@ export function getAllEffects(): Effect[] {
 	return Object.values(effects);
 }
 
-// ─── Summon registry ─────────────────────────────────────────────────────────
-
-const summons: Record<string, SummonDef> = {
-	leo: {
-		id: 'leo',
-		name: 'Leo (The Revenant Wolf)',
-		attackDamage: 15,
-		attackCooldownMs: 1000,
-		moveCooldownMs: 500,
-		mirrorsOwnerBA: true
-	}
-};
-
-export function getSummonDef(id: string): SummonDef | undefined {
-	return summons[id];
-}

@@ -1,4 +1,4 @@
-import type { CharacterState, EngineState } from '$lib/types/state';
+import type { CharacterState, EnemyState, EngineState, SummonState } from '$lib/types/state';
 import { tickEffects } from './effects';
 import { tickEnemyAi } from './ai';
 import { chebyshev, samePos, clamp, step8Toward } from './board';
@@ -7,7 +7,8 @@ import { publish } from './events';
 import { nearestEnemy } from './query';
 import { canEnter } from './spatial';
 import { OFF_FIELD_REGEN_MS, regenOffField } from './energy';
-import { getSummonDef } from '$lib/data/registry';
+import { calculateDamage } from './pipeline';
+import { getCreationDef } from '$lib/data/creations';
 
 /** Fallback movement step interval (ms) when a character omits moveMs. */
 const DEFAULT_MOVE_MS = 150;
@@ -131,51 +132,146 @@ function offFieldEnergyMultiplier(_pc: CharacterState): number {
 
 // ─── Summon tick ──────────────────────────────────────────────────────────────
 
+function selectSummonTarget(state: EngineState, summon: SummonState, now: number): EnemyState | undefined {
+	const alive = state.enemies.filter((e) => e.hp > 0);
+	if (!alive.length) return undefined;
+
+	// Sticky: stay on current target until window expires
+	if (summon.stickyTargetId && summon.stickyUntil && now < summon.stickyUntil) {
+		const sticky = alive.find((e) => e.id === summon.stickyTargetId);
+		if (sticky) return sticky;
+	}
+
+	const def = getCreationDef(summon.defId);
+	const targeting = def?.targeting ?? 'nearest';
+
+	switch (targeting) {
+		case 'highest_hp':
+			return alive.reduce((a, b) => (a.hp >= b.hp ? a : b));
+		case 'lowest_hp':
+			return alive.reduce((a, b) => (a.hp <= b.hp ? a : b));
+		case 'guardian': {
+			const owner = state.party.find((p) => p.id === summon.ownerId);
+			const radius = def?.guardianRadius ?? 3;
+			if (owner) {
+				const threats = alive
+					.filter((e) => chebyshev(e.pos, owner.pos) <= radius)
+					.sort((a, b) => chebyshev(a.pos, summon.pos) - chebyshev(b.pos, summon.pos));
+				if (threats.length) return threats[0];
+			}
+			return nearestEnemy(state, summon.pos) ?? undefined;
+		}
+		case 'stationary': {
+			const def2 = getCreationDef(summon.defId);
+			return alive.find((e) => chebyshev(e.pos, summon.pos) <= (def2?.attackRange ?? 1));
+		}
+		case 'nearest':
+		default:
+			return nearestEnemy(state, summon.pos) ?? undefined;
+	}
+}
+
 function tickSummons(state: EngineState, now: number): void {
 	for (let i = state.summons.length - 1; i >= 0; i--) {
 		const summon = state.summons[i];
 
-		// Expire
 		if (now >= summon.expiresAt) {
 			publish('summon:expired', { summonId: summon.id });
 			state.summons.splice(i, 1);
 			continue;
 		}
 
-		const def = getSummonDef(summon.defId);
+		const def = getCreationDef(summon.defId);
 		const moveMs = def?.moveCooldownMs ?? 500;
 		const attackMs = def?.attackCooldownMs ?? 1000;
+		const attackRange = def?.attackRange ?? 1;
+		const targeting = def?.targeting ?? 'nearest';
 
-		const enemy = nearestEnemy(state, summon.pos);
-		if (enemy && now >= summon.nextMoveAt) {
-			if (chebyshev(summon.pos, enemy.pos) > 1) {
-				summon.pos = clamp(state.board, step8Toward(summon.pos, enemy.pos));
+		const target = selectSummonTarget(state, summon, now);
+
+		// Commit sticky target
+		if (target && target.id !== summon.stickyTargetId) {
+			summon.stickyTargetId = target.id;
+			summon.stickyUntil = now + (def?.stickyTargetMs ?? 1500);
+		}
+
+		// Movement
+		if (now >= summon.nextMoveAt) {
+			if (targeting === 'guardian') {
+				const owner = state.party.find((p) => p.id === summon.ownerId);
+				const distToOwner = owner ? chebyshev(summon.pos, owner.pos) : 999;
+				const guardRadius = def?.guardianRadius ?? 3;
+				const threatNear = owner
+					? state.enemies.some((e) => e.hp > 0 && chebyshev(e.pos, owner.pos) <= guardRadius)
+					: false;
+				if (distToOwner > 2) {
+					summon.pos = clamp(state.board, step8Toward(summon.pos, owner!.pos));
+				} else if (!threatNear && target && chebyshev(summon.pos, target.pos) > attackRange) {
+					summon.pos = clamp(state.board, step8Toward(summon.pos, target.pos));
+				}
+			} else if (targeting !== 'stationary' && target) {
+				if (chebyshev(summon.pos, target.pos) > attackRange) {
+					summon.pos = clamp(state.board, step8Toward(summon.pos, target.pos));
+				}
 			}
 			summon.nextMoveAt = now + moveMs;
 		}
 
-		if (enemy && now >= summon.nextAttackAt && chebyshev(summon.pos, enemy.pos) <= 1) {
-			let dmg = def?.attackDamage ?? 0;
+		// Attack
+		const inRange = target && chebyshev(summon.pos, target.pos) <= attackRange;
+		if (inRange && now >= summon.nextAttackAt) {
+			let baseDmg = def?.attackDamage ?? 0;
 			if (def?.mirrorsOwnerBA) {
 				const owner = state.party.find((p) => p.id === summon.ownerId);
 				if (owner?.def.basicChain) {
 					const idx = Math.max(0, owner.lastBaIndexLanded);
-					dmg = owner.def.basicChain[idx]?.damage ?? dmg;
+					baseDmg = owner.def.basicChain[idx]?.damage ?? baseDmg;
 				}
 			}
-			enemy.hp = Math.max(0, enemy.hp - dmg);
-			publish('damage:dealt', {
-				source: summon.ownerId,
-				target: enemy.id,
-				amount: dmg,
-				abilityName: 'Summon attack'
-			});
-			if (enemy.hp <= 0) {
-				publish('enemy:defeated', { enemyId: enemy.id, killer: summon.ownerId });
-			}
-			summon.nextAttackAt = now + attackMs;
-		}
 
+			const owner = summon.receiveBuffs
+				? state.party.find((p) => p.id === summon.ownerId)
+				: undefined;
+
+			const dmg = owner
+				? calculateDamage(baseDmg, { source: owner, target: target!, state, sourcePos: summon.pos })
+				: baseDmg;
+
+			target!.hp = Math.max(0, target!.hp - dmg);
+			publish('damage:dealt', { source: summon.ownerId, target: target!.id, amount: dmg, abilityName: 'Summon attack' });
+
+			if (def?.stunMs && def.stunMs > 0) {
+				target!.stunnedUntil = Math.max(target!.stunnedUntil, now + def.stunMs);
+			}
+			if (target!.hp <= 0) {
+				publish('enemy:defeated', { enemyId: target!.id, killer: summon.ownerId });
+			}
+
+			// AoE splash
+			if (def?.aoeRadius && def.aoeRadius > 0) {
+				for (const enemy of state.enemies) {
+					if (enemy.hp <= 0 || enemy.id === target!.id) continue;
+					if (chebyshev(enemy.pos, target!.pos) > def.aoeRadius) continue;
+					const splash = owner
+						? calculateDamage(baseDmg, { source: owner, target: enemy, state, sourcePos: summon.pos })
+						: baseDmg;
+					enemy.hp = Math.max(0, enemy.hp - splash);
+					publish('damage:dealt', { source: summon.ownerId, target: enemy.id, amount: splash, abilityName: 'Summon attack' });
+					if (enemy.hp <= 0) publish('enemy:defeated', { enemyId: enemy.id, killer: summon.ownerId });
+				}
+			}
+
+			summon.nextAttackAt = now + attackMs;
+			publish('summon:attack', { summonId: summon.id, ownerId: summon.ownerId, fromPos: { ...summon.pos }, toPos: { ...target!.pos }, isRanged: attackRange > 1, element: summon.element });
+			publish('summon:attack', {
+				summonId: summon.id,
+				ownerId: summon.ownerId,
+				fromPos: { ...summon.pos },
+				toPos: { ...target!.pos },
+				isRanged: attackRange > 1,
+				element: summon.element
+			});
+		}
 	}
 }
 
@@ -187,39 +283,108 @@ function tickConstructs(state: EngineState, now: number): void {
 	for (let i = state.constructs.length - 1; i >= 0; i--) {
 		const construct = state.constructs[i];
 
-		// Expire
 		if (now >= construct.expiresAt) {
 			publish('construct:expired', { constructId: construct.id, ownerId: construct.ownerId });
 			state.constructs.splice(i, 1);
 			continue;
 		}
 
-		// Pulse
 		if (now < construct.nextPulseAt) continue;
+		const owner = construct.receiveBuffs
+			? state.party.find((p) => p.id === construct.ownerId)
+			: undefined;
 		construct.nextPulseAt = now + construct.pulseMs;
+		// Ring FX — once per tick, before the damage loop
+		if (construct.pulseDmg > 0 && construct.targetingType !== 'turret') {
+			publish('construct:pulse', { constructId: construct.id, pos: { ...construct.pos }, element: construct.element, radius: construct.pulseRadius });
+		}
 
-		for (const enemy of state.enemies) {
-			if (enemy.hp <= 0) continue;
-			if (chebyshev(enemy.pos, construct.pos) > construct.pulseRadius) continue;
-
-			if (construct.pulseDmg > 0) {
-				enemy.hp = Math.max(0, enemy.hp - construct.pulseDmg);
-				publish('damage:dealt', {
-					source: construct.ownerId,
-					target: enemy.id,
-					amount: construct.pulseDmg,
-					abilityName: 'Construct pulse'
-				});
-				if (enemy.hp <= 0) {
-					publish('enemy:defeated', { enemyId: enemy.id, killer: construct.ownerId });
+		// Own pulse — all types
+		// Own pulse — branches on targetingType
+		if (construct.pulseDmg > 0) {
+			if (construct.targetingType === 'turret') {
+				// Scan: find nearest enemy in range, hit only them
+				const target = state.enemies
+					.filter((e) => e.hp > 0 && chebyshev(e.pos, construct.pos) <= construct.pulseRadius)
+					.sort((a, b) => chebyshev(a.pos, construct.pos) - chebyshev(b.pos, construct.pos))[0];
+				if (target) {
+					const dmg = owner
+						? calculateDamage(construct.pulseDmg, { source: owner, target: target, state, sourcePos: construct.pos, element: construct.element })
+						: construct.pulseDmg;
+					target.hp = Math.max(0, target.hp - dmg);
+					publish('construct:turret', { constructId: construct.id, pos: { ...construct.pos }, targetPos: { ...target.pos }, element: construct.element });
+					publish('damage:dealt', {
+						source: construct.ownerId,
+						target: target.id,
+						amount: dmg,
+						abilityName: 'Construct turret',
+						element: construct.element
+					});
+					if (target.hp <= 0) publish('enemy:defeated', { enemyId: target.id, killer: construct.ownerId });
+				}
+			} else {
+				// Pulse (default): hit all enemies in radius
+				for (const enemy of state.enemies) {
+					if (enemy.hp <= 0) continue;
+					if (chebyshev(enemy.pos, construct.pos) > construct.pulseRadius) continue;
+					const dmg = owner
+						? calculateDamage(construct.pulseDmg, { source: owner, target: enemy, state, sourcePos: construct.pos, element: construct.element })
+						: construct.pulseDmg;
+					enemy.hp = Math.max(0, enemy.hp - dmg);
+					publish('damage:dealt', {
+						source: construct.ownerId,
+						target: enemy.id,
+						amount: dmg,
+						abilityName: 'Construct pulse',
+						element: construct.element
+					});
+					if (enemy.hp <= 0) publish('enemy:defeated', { enemyId: enemy.id, killer: construct.ownerId });
 				}
 			}
+		}
 
-			// Stun: only extend if the new deadline is later than what's already set.
-			// One pylon (stunMs 800, pulseMs 2000) leaves a 1200ms escape window.
-			// Two pylons with offset schedules can cover that gap for a soft lock.
-			if (construct.stunMs > 0) {
-				enemy.stunnedUntil = Math.max(enemy.stunnedUntil, now + construct.stunMs);
+		// Stun still applies to all enemies in range regardless of targeting type
+		for (const enemy of state.enemies) {
+			if (enemy.hp <= 0 || construct.stunMs <= 0) continue;
+			if (chebyshev(enemy.pos, construct.pos) > construct.pulseRadius) continue;
+			enemy.stunnedUntil = Math.max(enemy.stunnedUntil, now + construct.stunMs);
+		}
+
+		// Catalyst: one extra pulse per allied source in range, skipping same element
+		if (construct.constructType === 'catalyst' && construct.pulseDmg > 0) {
+			const sources = state.constructs.filter(c =>
+				c.id !== construct.id &&
+				c.constructType === 'source' &&
+				c.element &&
+				c.element !== construct.element &&
+				state.party.some(p => p.id === c.ownerId) &&
+				chebyshev(c.pos, construct.pos) <= construct.pulseRadius
+			);
+			for (const source of sources) {
+				publish('construct:catalyst', { constructId: construct.id, pos: { ...construct.pos }, element: source.element, radius: construct.pulseRadius });
+				for (const enemy of state.enemies) {
+					if (enemy.hp <= 0) continue;
+					if (chebyshev(enemy.pos, construct.pos) > construct.pulseRadius) continue;
+					const dmg = owner
+						? calculateDamage(construct.pulseDmg, { source: owner, target: enemy, state, sourcePos: construct.pos, element: construct.element })
+						: construct.pulseDmg;
+					enemy.hp = Math.max(0, enemy.hp - dmg);
+					publish('damage:dealt', {
+						source: construct.ownerId,
+						target: enemy.id,
+						amount: dmg,
+						abilityName: 'Catalyst pulse',
+						element: source.element       // carries the source's element
+					});
+					// publish('construct:catalyst', {
+					// 	constructId: construct.id,
+					// 	pos: { ...construct.pos },
+					// 	element: source.element,     // source's element, not catalyst's
+					// 	radius: construct.pulseRadius,
+					// 	isCatalyst: true
+					// });
+					if (enemy.hp <= 0) publish('enemy:defeated', { enemyId: enemy.id, killer: construct.ownerId });
+				}
 			}
 		}
 	}
@@ -270,18 +435,44 @@ function tickZones(state: EngineState, now: number): void {
 
 			// Damage enemies inside the zone — once per tick, party-independent
 			if (zone.buff.dmgPerTick && zone.buff.dmgPerTick > 0) {
-				for (const enemy of state.enemies) {
-					if (enemy.hp <= 0) continue;
-					if (chebyshev(enemy.pos, zone.center) > zone.radius) continue;
-					enemy.hp = Math.max(0, enemy.hp - zone.buff.dmgPerTick);
-					publish('damage:dealt', {
-						source: zone.ownerId,
-						target: enemy.id,
-						amount: zone.buff.dmgPerTick,
-						abilityName: 'Zone tick'
-					});
-					if (enemy.hp <= 0) {
-						publish('enemy:defeated', { enemyId: enemy.id, killer: zone.ownerId });
+				const owner = state.party.find((p) => p.id === zone.ownerId);
+				if (owner) {
+					// owner alive — full pipeline
+					for (const enemy of state.enemies) {
+						if (enemy.hp <= 0) continue;
+						if (chebyshev(enemy.pos, zone.center) > zone.radius) continue;
+						const dmg = calculateDamage(zone.buff.dmgPerTick, {
+							source: owner,
+							target: enemy,
+							originZoneId: zone.id,
+							state
+						});
+						enemy.hp = Math.max(0, enemy.hp - dmg);
+						publish('damage:dealt', {
+							source: zone.ownerId,
+							target: enemy.id,
+							amount: dmg,
+							abilityName: 'Zone tick'
+						});
+						if (enemy.hp <= 0) {
+							publish('enemy:defeated', { enemyId: enemy.id, killer: zone.ownerId });
+						}
+					}
+				} else if (zone.persistsAfterDeath) {
+					// owner dead, zone opted in — flat dmgPerTick, no pipeline
+					for (const enemy of state.enemies) {
+						if (enemy.hp <= 0) continue;
+						if (chebyshev(enemy.pos, zone.center) > zone.radius) continue;
+						enemy.hp = Math.max(0, enemy.hp - zone.buff.dmgPerTick);
+						publish('damage:dealt', {
+							source: zone.ownerId,
+							target: enemy.id,
+							amount: zone.buff.dmgPerTick,
+							abilityName: 'Zone tick'
+						});
+						if (enemy.hp <= 0) {
+							publish('enemy:defeated', { enemyId: enemy.id, killer: zone.ownerId });
+						}
 					}
 				}
 			}
@@ -304,3 +495,4 @@ function tickZones(state: EngineState, now: number): void {
 		}
 	}
 }
+

@@ -51,7 +51,7 @@ export const june9: Character = {
 			grantsStack: 'verdance',
 			teamHeal: 40,
 			autoTargetEnemy: true,
-			allowSelfTarget: true,
+			// allowSelfTarget: true,
 			holdBehavior: 'aim'
 		},
 		C: {
@@ -81,7 +81,8 @@ export const june9: Character = {
 			grantsStack: 'verdance',
 			zoneFollows: 'active',
 			zoneBuff: { damageBonus: .5, healPerTick: 10, activeBonusHeal: 10, tickMs: 1500,},
-			fx: { zone: 'mecha' }
+			fx: { zone: 'mecha' },
+			persistsAfterDeath: true,
 		}
 	},
 

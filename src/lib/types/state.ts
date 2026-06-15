@@ -39,6 +39,7 @@ export interface CharacterState {
 	stratum: Stratum;
 	lastAction?: { tag: string; at: number };
 	charges: Partial<Record<AbilitySlot, { count: number; rechargeAt: number }>>;
+	lastHitAt?: number;
 }
 
 /**
@@ -72,6 +73,7 @@ export interface ZoneState {
 	expiresAt: number;
 	lastTickAt: number;
 	buff: ZoneBuff;
+	persistsAfterDeath?: boolean;
 }
 
 /**
@@ -79,14 +81,19 @@ export interface ZoneState {
  */
 export interface SummonState {
 	id: string;
+	name?: string;
 	defId: string;
+	profileImage?: string;
 	ownerId: EntityId;
 	pos: Position;
 	hp?: number;
 	expiresAt: number;
 	nextMoveAt: number;
 	nextAttackAt: number;
-	profileImage?: string;
+	receiveBuffs?: boolean;
+	stickyTargetId?: string;   // current locked target
+	stickyUntil?: number;      // timestamp; don't switch before this
+	element?: string;
 }
 
 /**
@@ -98,19 +105,20 @@ export interface SummonState {
 export interface ConstructState {
 	id: string;
 	defId: string;
-	ownerId: EntityId;   // import EntityId from './common'
-	pos: Position;       // import Position from './common'
+	ownerId: EntityId;
+	pos: Position;
 	profileImage?: string;
- 
 	expiresAt: number;
- 
-	// Pulse definition — self-contained so multiple constructs on the field
-	// each run independently.
 	pulseDmg: number;
 	pulseMs: number;
 	pulseRadius: number;
-	stunMs: number;       // 0 = no stun
+	stunMs: number;
 	nextPulseAt: number;
+	constructType: 'inert' | 'source' | 'catalyst';
+	element?: string;
+	targetingType: 'pulse' | 'turret';
+	name?: string;
+	receiveBuffs?: boolean;
 }
 
 

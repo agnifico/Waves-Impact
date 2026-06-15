@@ -18,6 +18,8 @@ export interface EnemyAttack {
 	stunMs?: number;
 	telegraphMs?: number;
 	hits?: Stratum[];
+	knockback?: number;         // tiles to push the active character on hit
+	knockbackSmart?: boolean;   // push toward nearest other enemy instead of away
 }
 
 /**
@@ -33,11 +35,16 @@ export interface Enemy {
 	canMoveDiagonal: boolean;
 	moveTickMs: number;
 	moveResumeAfterPlayerFleeMs: number;
-	aiPattern: string;
+	aiPattern:
+	| 'melee_rush'
+	| 'flanker'
+	| 'ranged_kiter'
+	| 'tank_blocker';
 	attacks: EnemyAttack[];
 	stratum?: Stratum;      // default 'ground'
 	traversal?: Terrain[];  // terrain override; default derived from stratum
 	guard?: Guard;          // default 'front'
 	footprint?: Position[]; // tile offsets for multi-tile; default 1×1
-	profileImage? : string;
+	profileImage?: string;
+	ignoresSummons?: boolean;
 }

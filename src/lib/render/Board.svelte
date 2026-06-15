@@ -191,7 +191,7 @@
 
 	/** Perimeter outline for a tile set, in the active char's tint. pct = outline strength. */
 	function edgeBorders(keys: Set<string>, x: number, y: number, pct = 70): string {
-		const c = `color-mix(in srgb, var(--ba-tint) ${pct}%, transparent)`;
+		const c = `color-mix(in srgb, var(--ba-tint) 30%, transparent);`;
 		let s = '';
 		if (!keys.has(`${x},${y - 1}`)) s += `border-top:1px solid ${c};`;
 		if (!keys.has(`${x + 1},${y}`)) s += `border-right:1px solid ${c};`;
@@ -207,27 +207,105 @@
 	}
 
 	// ─── Floating text ───────────────────────────────────────────────────────
-	type FloatEntry = { id: number; x: number; y: number; text: string; kind: string };
+	type FloatEntry = {
+		id: number;
+		x: number;
+		y: number;
+		text: string;
+		kind: string;
+		color: string;
+		big: boolean;
+	};
 	let floats: FloatEntry[] = $state([]);
 	let floatId = 0;
 
-	function addFloat(pos: Position, text: string, kind: string) {
+	// ─── Element → damage colour ─────────────────────────────────────────────────
+	const ELEMENT_DMG_COLOR: Record<string, string> = {
+		fire: 'var(--fire-bright)',
+		water: 'var(--water-bright)',
+		wind: 'var(--wind-bright)',
+		nature: 'var(--nature-bright)',
+		light: 'var(--light-bright)',
+		dark: 'var(--dark-bright)',
+		normal: 'var(--gold)'
+	};
+	function dmgColor(element: string | undefined): string {
+		return ELEMENT_DMG_COLOR[element ?? ''] ?? '#ff8060';
+	}
+
+	// ─── Rolling DPS + combat stats ──────────────────────────────────────────────
+	const DPS_WINDOW_MS = 5000;
+	let damageLog: { t: number; amount: number }[] = [];
+	let rollingDps = $state(0);
+	let totalDamage = $state(0);
+	let charDamage = $state<Record<string, number>>({});
+	let combatStartedAt = $state<number | null>(null);
+	let combatEndedAt = $state<number | null>(null);
+
+	// Freeze elapsed on fight end; reset everything when a new fight begins.
+	$effect(() => {
+		if (gs.over) {
+			if (combatStartedAt !== null && combatEndedAt === null) combatEndedAt = now;
+		} else if (combatEndedAt !== null) {
+			combatStartedAt = null;
+			combatEndedAt = null;
+			totalDamage = 0;
+			charDamage = {};
+			damageLog = [];
+			rollingDps = 0;
+		}
+	});
+
+	let elapsedMs = $derived(combatStartedAt !== null ? (combatEndedAt ?? now) - combatStartedAt : 0);
+
+	function fmtTime(ms: number): string {
+		const s = Math.floor(ms / 1000);
+		const m = Math.floor(s / 60);
+		return m > 0 ? `${m}:${String(s % 60).padStart(2, '0')}` : `${s}s`;
+	}
+
+	function recordPlayerDmg(amount: number, sourceId: string) {
+		const t = performance.now();
+		if (combatStartedAt === null) combatStartedAt = t;
+		totalDamage += amount;
+		charDamage[sourceId] = (charDamage[sourceId] ?? 0) + amount;
+		damageLog.push({ t, amount });
+		const cutoff = t - DPS_WINDOW_MS;
+		damageLog = damageLog.filter((d) => d.t >= cutoff);
+		const windowTotal = damageLog.reduce((s, d) => s + d.amount, 0);
+		const span = damageLog.length > 1 ? t - damageLog[0].t : DPS_WINDOW_MS;
+		rollingDps = Math.round((windowTotal / span) * 1000);
+	}
+	function isBig(amount: number): boolean {
+		// return amount > Math.max(rollingDps * 2, 40);
+		return amount > 49;
+	}
+	function isPlayerSource(sourceId: string): boolean {
+		return gs.party.some((p) => p.id === sourceId);
+	}
+
+	function addFloat(pos: Position, text: string, kind: string, color = '', big = false) {
 		const id = floatId++;
-		floats.push({ id, x: pos.x, y: pos.y, text, kind });
-		setTimeout(() => {
-			floats = floats.filter((f) => f.id !== id);
-		}, 900);
+		floats.push({ id, x: pos.x, y: pos.y, text, kind, color, big });
+		setTimeout(
+			() => {
+				floats = floats.filter((f) => f.id !== id);
+			},
+			big ? 1200 : 900
+		);
 	}
 
 	// ─── Event bus subscribers ───────────────────────────────────────────────
 	onMount(() => {
 		const unsubs = [
 			subscribe('damage:dealt', (e) => {
-				// Read gs at call time — not at subscribe time — so enemy switches
-				// don't leave us searching a stale array.
 				const target = gs.enemies.find((en) => en.id === e.target);
 				if (target) {
-					addFloat(target.pos, '-' + e.amount, 'dmg');
+					const sourceChar = gs.party.find((p) => p.id === e.source);
+					const element = (e as any).element ?? sourceChar?.def.element;
+					const color = dmgColor(element);
+					if (isPlayerSource(e.source)) recordPlayerDmg(e.amount, e.source);
+					addFloat(target.pos, '-' + e.amount, 'dmg', color, isBig(e.amount));
 				}
 			}),
 			subscribe('basic:missed', (e) => {
@@ -345,11 +423,40 @@
 	{#each floats as f (f.id)}
 		{@const left = f.x * 36 + 18}
 		{@const top = f.y * 36}
-		<div class="float-text {f.kind}" style="left:{left}px;top:{top}px;">
+		<div
+			class="float-text {f.kind}"
+			class:big={f.big}
+			style="left:{left}px;top:{top}px;{f.color ? `color:${f.color};` : ''}"
+		>
 			{f.text}
 		</div>
 	{/each}
 	<FxLayer {gs} {now} />
+	{#if totalDamage > 0}
+		<div class="stats-panel">
+			<div class="stats-header">
+				<span class="elapsed">{fmtTime(elapsedMs)}</span>
+				<span class="total-dmg">{totalDamage.toLocaleString()}</span>
+				<span class="dps-val">{rollingDps}<span class="dim"> DPS</span></span>
+			</div>
+			{#each gs.party as pc}
+				{@const dmg = charDamage[pc.id] ?? 0}
+				{#if dmg > 0}
+					{@const col = resolveTheme(pc.def).primary}
+					{@const pct = Math.round((dmg / totalDamage) * 100)}
+					<div class="stats-row">
+						<span class="char-name" style="color:{col}">{pc.def.name}</span>
+						<div class="bar-and-num">
+							<div class="char-bar-track">
+								<div class="char-bar-fill" style="width:{pct}%; background:{col}"></div>
+							</div>
+							<span class="char-dmg">{dmg.toLocaleString()}</span>
+						</div>
+					</div>
+				{/if}
+			{/each}
+		</div>
+	{/if}
 </div>
 
 <style>
@@ -376,7 +483,7 @@
 	}
 
 	.tile.ba-range {
-		background: color-mix(in srgb, var(--ba-tint) 2%, transparent);
+		background: color-mix(in srgb, var(--ba-tint) 5%, transparent);
 	}
 	.tile.cone-preview {
 		background: color-mix(in srgb, var(--ba-tint) 14%, transparent);
@@ -384,7 +491,6 @@
 
 	.tile.range-ring-far {
 		background: rgba(14, 37, 41, 0.5);
-		/* box-shadow: inset 0 0 0 1px rgba(110, 199, 214, 0.45); */
 	}
 	.reticle-cursor {
 		position: absolute;
@@ -397,6 +503,7 @@
 		z-index: 40;
 		animation: pulse 0.8s infinite;
 		height: 80%;
+		margin: auto;
 		aspect-ratio: 1;
 		box-shadow: inset 0 0 0 3px rgba(140, 232, 160, 0.4);
 	}
@@ -410,7 +517,113 @@
 		animation: float-up 0.9s ease-out forwards;
 	}
 	.float-text.dmg {
-		color: #ff8060;
+		/* color: #ff8060; */
+	}
+	.float-text.big {
+		font-size: 20px;
+		font-weight: 900;
+		letter-spacing: -0.5px;
+		text-shadow:
+			0 0 10px currentColor,
+			0 2px 6px rgba(0, 0, 0, 0.7);
+		animation: float-up-big 1.2s ease-out forwards;
+		font-family: 'DePixel';
+	}
+
+	@keyframes float-up-big {
+		0% {
+			transform: translateY(0) scale(1.3);
+			opacity: 1;
+		}
+		15% {
+			transform: translateY(-6px) scale(1.15);
+			opacity: 1;
+		}
+		100% {
+			transform: translateY(-52px) scale(1);
+			opacity: 0;
+		}
+	}
+
+	.stats-panel {
+		position: absolute;
+		bottom: 8px;
+		right: 8px;
+		z-index: 50;
+		min-width: 185px;
+		padding: 6px 8px;
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+		background: rgba(8, 12, 18, 0.78);
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		border-radius: 4px;
+		backdrop-filter: blur(3px);
+		pointer-events: none;
+		user-select: none;
+		font-family: 'JetBrains Mono', monospace;
+		font-size: 9px;
+	}
+	.stats-header {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		padding-bottom: 4px;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+	}
+	.elapsed {
+		color: rgba(255, 255, 255, 0.28);
+	}
+	.total-dmg {
+		color: rgba(255, 255, 255, 0.65);
+		font-weight: 700;
+	}
+	.dps-val {
+		color: var(--gold);
+	}
+	.dim {
+		color: rgba(255, 255, 255, 0.28);
+		font-weight: 400;
+	}
+
+	.stats-row {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.char-name {
+		width: 54px;
+		font-size: 8px;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		flex-shrink: 0;
+		letter-spacing: 0.3px;
+	}
+	.bar-and-num {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		flex: 1;
+	}
+	.char-bar-track {
+		flex: 1;
+		height: 3px;
+		background: rgba(255, 255, 255, 0.07);
+		border-radius: 2px;
+		overflow: hidden;
+	}
+	.char-bar-fill {
+		height: 100%;
+		border-radius: 2px;
+		opacity: 0.75;
+		transition: width 0.25s ease;
+	}
+	.char-dmg {
+		min-width: 34px;
+		text-align: right;
+		color: rgba(255, 255, 255, 0.45);
+		font-size: 8px;
 	}
 	.float-text.heal {
 		color: var(--verdant-bright);

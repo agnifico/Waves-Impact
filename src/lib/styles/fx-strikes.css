@@ -203,6 +203,8 @@
 	z-index: 5;
 }
 
+
+
 @keyframes fx-slash {
 	0% {
 		opacity: 0;
@@ -217,6 +219,38 @@
 	100% {
 		opacity: 0;
 		transform: rotate(calc(var(--rot) + 120deg)) scale(1.4);
+	}
+}
+.fx-reverseswipe {
+	position: absolute;
+	width: 64px;
+	height: 64px;
+	margin: -32px 0 0 -32px;
+	border-radius: 50%;
+	background: transparent;
+	border: 0 solid transparent;
+	border-top: 12px solid color-mix(in srgb, #fff 20%, var(--c));
+	filter: drop-shadow(0 0 5px var(--c));
+	animation: fx-slash-reverse 0.25s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+	z-index: 5;
+}
+
+
+
+@keyframes fx-slash-reverse {
+	0% {
+		opacity: 0;
+		transform: rotate(calc(var(--rot) + 210deg)) scale(1.5);
+	}
+
+	30% {
+		opacity: 1;
+		transform: rotate(calc(var(--rot) + 105deg)) scale(1.1) scaleY(0.85);
+	}
+
+	100% {
+		opacity: 0;
+		transform: rotate(calc(var(--rot) + 40deg)) scale(0.5);
 	}
 }
 
@@ -760,4 +794,24 @@
 	100% {
 		opacity: 0;
 	}
+}
+
+/* ── Construct pulse ring ──────────────────────────────────────────────────── */
+.fx-construct-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px solid var(--c);
+    box-shadow: 0 0 8px var(--c), inset 0 0 6px color-mix(in srgb, var(--c) 35%, transparent);
+    animation: fx-construct-ring 450ms ease-out forwards;
+    pointer-events: none;
+}
+.fx-construct-ring.catalyst {
+    border-width: 1.5px;
+    animation-duration: 350ms;
+    opacity: 0.65;
+}
+@keyframes fx-construct-ring {
+    0%   { transform: scale(0.12); opacity: 0.85; }
+    60%  { opacity: 0.5; }
+    100% { transform: scale(1);    opacity: 0;    }
 }

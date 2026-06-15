@@ -7,6 +7,7 @@ import { focusTarget } from './query';
 import { publish } from './events';
 import { coversStratum } from './spatial';
 import { grantOffFieldShare } from './energy';
+import type { EnhancedCondition } from '$lib/types';
 
 /**
  * Basic attacks. Both styles (chain / contextual) share ONE target-acquisition
@@ -39,7 +40,9 @@ export function tryBasicAttack(state: EngineState, now: number, hold: boolean = 
 	}
 	if (now - char.lastActionTimestamp < cd) return;
 
-	if (char.def.basicStyle === 'contextual' && char.def.contextualBasic) {
+	if (shouldFireEnhanced(char, now, hold)) {
+		resolveEnhanced(state, char, now);
+	} else if (char.def.basicStyle === 'contextual' && char.def.contextualBasic) {
 		resolveContextual(state, char, now, hold);
 	} else if (char.def.basicStyle === 'chain' && char.def.basicChain) {
 		resolveChain(state, char, now);
@@ -49,6 +52,72 @@ export function tryBasicAttack(state: EngineState, now: number, hold: boolean = 
 // ─── Shared target acquisition ───────────────────────────────────────────────
 
 type BasicAttackData = NonNullable<CharacterState['def']['basicChain']>[number];
+
+// ─── Enhanced BA — condition checks ─────────────────────────────────────────
+
+function meetsCondition(c: EnhancedCondition, char: CharacterState, now: number): boolean {
+	switch (c.type) {
+		case 'stacks_min':
+			return char.stacks.current >= c.n;
+		case 'stacks_exact':
+			return char.stacks.current === c.n;
+		case 'post_ability':
+			return !!char.lastAction
+				&& !char.lastAction.tag.startsWith('ba')
+				&& (now - char.lastAction.at <= c.windowMs);
+		case 'post_hit':
+			return !!char.lastHitAt && (now - char.lastHitAt <= c.windowMs);
+		case 'post_dash':
+			return !!char.lastAction
+				&& char.lastAction.tag === 'dash'
+				&& (now - char.lastAction.at <= c.windowMs);
+		case 'chain_finisher': {
+			const chain = char.def.basicChain;
+			return !!chain && char.baChainIndex === chain.length - 1;
+		}
+		case 'energy_threshold':
+			return char.def.maxEnergy > 0
+				&& (char.energy / char.def.maxEnergy) >= c.pct;
+	}
+}
+
+/**
+ * Exported so the UI layer can read availability to show the BA button glow.
+ * Does NOT check requireHold — that's a trigger concern, not an availability concern.
+ */
+export function isEnhancedAvailable(char: CharacterState, now: number): boolean {
+	const enh = char.def.enhancedBasic;
+	if (!enh) return false;
+	return enh.conditions.some((c) => meetsCondition(c, char, now));
+}
+
+function shouldFireEnhanced(char: CharacterState, now: number, hold: boolean): boolean {
+	const enh = char.def.enhancedBasic;
+	if (!enh || !isEnhancedAvailable(char, now)) return false;
+	if (enh.requireHold && !hold) return false;
+	if (enh.interruptsChain === false) {
+		const chain = char.def.basicChain;
+		if (chain && char.baChainIndex !== chain.length - 1) return false;
+	}
+	return true;
+}
+
+// ─── Enhanced BA — resolution ────────────────────────────────────────────────
+
+function resolveEnhanced(state: EngineState, char: CharacterState, now: number): void {
+	const ba = char.def.enhancedBasic!.ba;
+	const acq = acquireTarget(state, char, ba);
+	if (!acq.ok) {
+		if (acq.whiff) publish('basic:missed', { target: acq.whiff.id, abilityName: acq.whiff.name });
+		char.lastActionTimestamp = now;
+		return;
+	}
+	applyBasicHit(state, char, ba, acq.enemy, now);
+	char.baChainIndex = 0;           // reset combo after enhanced hit
+	char.lastBaTimestamp = now;
+	char.lastActionTimestamp = now;
+	char.lastAction = { tag: 'ba_enhanced', at: now };
+}
 
 type Acq =
 	| { ok: true; enemy: EnemyState }

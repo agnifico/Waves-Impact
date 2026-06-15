@@ -19,14 +19,9 @@
 		resetClock
 	} from '$lib/input/intent-state';
 	import { focusTarget, nearestEnemy } from '$lib/combat/query';
-	import { frosty } from '$lib/data/characters/frosty';
-	import { june9 } from '$lib/data/characters/june9';
-	import { sefyra } from '$lib/data/characters/sefyra';
-	import { maria_elena } from '$lib/data/characters/maria_elena';
-	import { bear } from '$lib/data/enemies/bear';
-	import { dragon } from '$lib/data/enemies/dragon';
-	import type { Character } from '$lib/types/character';
-	import type { Enemy } from '$lib/types/enemy';
+	import { tryAbility } from '$lib/combat/ability-resolver';
+	import { tryBasicAttack } from '$lib/combat/basic-attack';
+	import { getAllCharacters, getEnemy } from '$lib/data/registry';
 	import type { AbilitySlot } from '$lib/types/ability';
 	import Board from '$lib/render/Board.svelte';
 	import PartyRow from '$lib/render/PartyRow.svelte';
@@ -34,42 +29,70 @@
 	import CombatLog from '$lib/render/CombatLog.svelte';
 	import { themeVars } from '$lib/render/char-theme';
 	import UnitBanner from '$lib/render/UnitBanner.svelte';
-	import { tryAbility } from '$lib/combat/ability-resolver';
-	import { ryoma } from '$lib/data/characters/ryoma';
-	import { midorima } from '$lib/data/characters/midorima';
 	import CharacterCodex from '$lib/render/CharacterCodex.svelte';
 	import PartySelect from '$lib/render/PartySelect.svelte';
 
-	let isCodexOpen = $state(false);
+	// ── Roster & encounters ───────────────────────────────────────────────────
 
-	const ROSTER: Character[] = [maria_elena, frosty, june9, sefyra, ryoma, midorima];
-	const ENEMY_OPTIONS: Record<string, Enemy[]> = {
-		bear: [bear],
-		dragon: [dragon],
-		both: [bear, dragon]
+	const ROSTER = getAllCharacters();
+
+	const DEFAULT_PARTY = ['ryoma', 'maria_elena', 'midorima', 'frosty', 'june9', 'sefyra'];
+
+	const ENEMY_OPTIONS = {
+		dragon: [getEnemy('dragon')!],
+		bob: [getEnemy('bob')!],
+		hunt: [getEnemy('forest_prowler')!, getEnemy('vanguard_siren')!],
+		wall: [getEnemy('solis_sentinel')!, getEnemy('punching_tortoise')!],
+		gauntlet: [
+			getEnemy('forest_prowler')!,
+			getEnemy('solis_sentinel')!,
+			getEnemy('vanguard_siren')!
+		],
+		old_duo: [getEnemy('bear')!, getEnemy('dragon')!],
+		all: [
+			getEnemy('bear')!,
+			getEnemy('dragon')!,
+			getEnemy('forest_prowler')!,
+			getEnemy('solis_sentinel')!,
+			getEnemy('vanguard_siren')!,
+			getEnemy('punching_tortoise')!
+		]
 	};
-	const DEFAULT_PARTY = [ryoma.id, maria_elena.id, midorima.id, frosty.id, june9.id, sefyra.id];
 
+	const ENCOUNTER_LABELS: Record<string, string> = {
+		dragon: 'Dragon',
+		bob: 'Bob',
+		hunt: 'The Hunt',
+		wall: 'The Wall',
+		gauntlet: 'The Gauntlet',
+		old_duo: 'Bear + Dragon',
+		all: 'All'
+	};
+
+	const SKINS = [
+		{ label: 'Default', url: 'none' },
+		{ label: 'Marble', url: '/skins/marble.jpg' },
+		{ label: 'Wooden', url: '/skins/wooden.jpg' },
+		{ label: 'Yellow', url: '/skins/yellow.jpg' },
+		{ label: 'Techno', url: '/skins/techno.jpg' },
+		{ label: 'Frosted', url: '/skins/frosted.jpg' },
+		{ label: "Dawn's Journey", url: '/skins/NEW_WORLD.png' }
+	];
+
+	// ── State ─────────────────────────────────────────────────────────────────
+
+	let isCodexOpen = $state(false);
 	let phase = $state<'select' | 'combat'>('select');
 	let paused = $state(false);
 	let selectedIds = $state<string[]>([...DEFAULT_PARTY]);
 	let selectedEnemy = $state('dragon');
-
-	const SKINS = [
-		{ label: 'Default', url: 'none' },
-		{ label: 'Techno', url: '/skins/techno.jpg' },
-		{ label: 'Paint', url: '/skins/paint.jpg' },
-		{ label: 'Abstract', url: '/skins/abstract.jpg' },
-		{ label: "Dawn's Journey", url: '/skins/NEW_WORLD.png' },
-		{ label: 'Group', url: '/skins/group2.png' }
-	];
-	let selectedSkin = $state('/skins/techno.jpg');
+	let selectedSkin = $state('/skins/wooden.jpg');
 	let hudHidden = $state(false);
 
 	let gs = $state(
 		newEngineState(
 			ROSTER.filter((c) => DEFAULT_PARTY.includes(c.id)),
-			ENEMY_OPTIONS[selectedEnemy],
+			ENEMY_OPTIONS[selectedEnemy as keyof typeof ENEMY_OPTIONS],
 			performance.now(),
 			15
 		)
@@ -79,7 +102,9 @@
 	let boardComponent: Board;
 	let logComponent: CombatLog;
 
-	function buildParty(): Character[] {
+	// ── Fight management ──────────────────────────────────────────────────────
+
+	function buildParty() {
 		return ROSTER.filter((c) => selectedIds.includes(c.id));
 	}
 
@@ -88,7 +113,8 @@
 		resetEngine();
 		resetLock();
 		resetClock();
-		const fresh = newEngineState(buildParty(), ENEMY_OPTIONS[selectedEnemy], gameNow(), 15);
+		const enemies = ENEMY_OPTIONS[selectedEnemy as keyof typeof ENEMY_OPTIONS];
+		const fresh = newEngineState(buildParty(), enemies, gameNow(), 15);
 		Object.assign(gs, fresh);
 	}
 
@@ -101,10 +127,11 @@
 	function resetFight() {
 		loadFight();
 	}
-
 	function toSelect() {
 		phase = 'select';
 	}
+
+	// ── Game loop ─────────────────────────────────────────────────────────────
 
 	onMount(() => {
 		const unbindInput = bindInputEvents(
@@ -119,7 +146,6 @@
 			paused = isPaused();
 			if (phase === 'combat' && !paused && !gs.over) {
 				const char = gs.party[gs.activeSlot];
-				const enemy = nearestEnemy(gs, char.pos);
 				const lockedId = getLockedEnemyId();
 				gs.focusTargetId =
 					lockedId && gs.enemies.some((e) => e.id === lockedId && e.hp > 0) ? lockedId : null;
@@ -131,6 +157,7 @@
 					gs.focusTargetId !== null
 				);
 				if (newFacing) char.facing = newFacing;
+
 				if (holdState.holdingSlot) {
 					const ability = char.def.abilities[holdState.holdingSlot as AbilitySlot];
 					if (ability) {
@@ -156,21 +183,20 @@
 						}
 					}
 				}
-				const moveDir = getMoveDir();
-				engineTick(gs, now, moveDir);
+
+				engineTick(gs, now, getMoveDir());
 			}
 			rafId = requestAnimationFrame(gameLoop);
 		}
 		rafId = requestAnimationFrame(gameLoop);
 
-		// Leaving the tab auto-pauses (RAF keeps ticking ~1fps in background otherwise).
-		// Stays paused on return — resume deliberately with P.
+		// Tab-hidden → auto-pause; stays paused on return (resume with P).
 		function onVisibility() {
 			if (document.hidden && phase === 'combat') setPaused(true);
 		}
 		document.addEventListener('visibilitychange', onVisibility);
 
-		// H toggles minimal mode (board + ability bar only). View-only, no engine effect.
+		// H toggles minimal mode (board + ability bar only).
 		function onHudKey(e: KeyboardEvent) {
 			if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
 			if (e.key.toLowerCase() === 'h') hudHidden = !hudHidden;
@@ -208,7 +234,7 @@
 					<div class="banner banner-enemy"><UnitBanner side="enemy" state={gs} {now} /></div>
 				</div>
 				<div class="board-wrap">
-				<div class="console-name">Chessboard Battlefield</div>
+					<div class="console-name">Chessboard Battlefield</div>
 					<Board bind:this={boardComponent} {gs} {now} />
 					{#if gs.over && gs.outcome === 'victory'}
 						<div class="overlay victory"><h1>VICTORY</h1></div>
@@ -223,29 +249,30 @@
 						<div class="overlay stun">STUNNED</div>
 					{/if}
 				</div>
-				<AbilityBar state={gs} {now} />
+				<AbilityBar
+					state={gs}
+					{now}
+					onability={(slot) => {
+						if (slot === 'basic') tryBasicAttack(gs, now, false);
+						else tryAbility(gs, slot, now);
+					}}
+				/>
 			</div>
 		</div>
 
 		<div class="sidebar">
 			<div class="log-wrap">
-				<button class="codex-btn" onclick={() => (isCodexOpen = true)}> Character Archive </button>
+				<button class="codex-btn" onclick={() => (isCodexOpen = true)}>Character Archive</button>
 				<CombatLog bind:this={logComponent} />
 			</div>
 			<div class="keys-area">
 				<div class="top-controls">
-					<select
-						bind:value={selectedEnemy}
-						onchange={(e) => {
-							selectedEnemy = e.currentTarget.value;
-							resetFight();
-						}}
-					>
-						<option value="bear">Bear</option>
-						<option value="dragon">Dragon</option>
-						<option value="both">Bear + Dragon</option>
+					<select bind:value={selectedEnemy} onchange={resetFight}>
+						{#each Object.keys(ENEMY_OPTIONS) as key}
+							<option value={key}>{ENCOUNTER_LABELS[key] ?? key}</option>
+						{/each}
 					</select>
-					<button onclick={() => resetFight()}>Reset</button>
+					<button onclick={resetFight}>Reset</button>
 					<button onclick={toSelect}>Team</button>
 				</div>
 				<div class="keys-grid">
@@ -261,7 +288,6 @@
 					<kbd>H</kbd><span>Hide HUD</span>
 				</div>
 			</div>
-
 			<div class="skin-area">
 				{#each SKINS as s (s.url)}
 					<button
@@ -294,6 +320,7 @@
 		height: 100vh;
 		display: grid;
 		place-items: center;
+		padding: 2rem;
 	}
 
 	.arena {
@@ -302,39 +329,33 @@
 		column-gap: 24px;
 		align-items: stretch;
 		justify-content: center;
-		padding: 1.5rem;
-		padding-bottom: 2rem;
+		padding: 2.5rem;
+		padding-bottom: 3.5rem;
 		border-radius: 24px;
 		background-color: #415a77;
-		box-shadow:
-			0 0 0px 4px rgba(0, 0, 0, 0.4) inset,
-			0 -10px 0 10px rgba(0, 0, 0, 0.6) inset;
-
 		background-image: var(--arena-bg, url('/characters/group2.png'));
 		background-size: cover;
 		background-position: center 60%;
 		background-repeat: no-repeat;
+		box-shadow:
+			0 0 0px 4px rgba(0, 0, 0, 0.4) inset,
+			0 -15px 0 10px rgba(0, 0, 0, 0.6) inset;
 	}
 
 	.center {
 		position: relative;
 		display: flex;
 		flex-direction: column;
-		/* margin-top: 6rem; */
 	}
 
 	.hud-col {
-		/* position: absolute; */
-		/* top: -3.5rem; */
+		position: relative;
 		display: flex;
-		align-content: flex-end;
 		align-items: flex-end;
-		width: 100%;
-		/* margin-bottom: 1rem; */
-		z-index: 1;
 		justify-content: space-between;
-		align-items: flex-end;
-		/* background-color: aliceblue; */
+		width: 100%;
+		z-index: 1;
+		/* top: -2rem; */
 	}
 
 	.party-row {
@@ -345,14 +366,13 @@
 
 	.console-name {
 		text-align: center;
-		font-family: "Jersey 10";
+		font-family: 'Jersey 10';
 		text-transform: uppercase;
 		font-weight: 600;
 		font-style: italic;
 		font-size: 2rem;
 		letter-spacing: 2px;
-		margin: 0; padding: 0;
-		margin-bottom: .25rem;
+		margin: 0 0 0.25rem;
 		color: var(--panel-2);
 	}
 
@@ -360,26 +380,28 @@
 		box-sizing: border-box;
 		flex: 1;
 		width: 100%;
-		gap: 8px;
 		padding: 8px 10px;
-		background-color: var(--panel-raised);
+		margin-bottom: 1rem;
+		background-color: var(--hp-low);
 		border: 2px solid var(--panel);
 		border-radius: 8px;
 		cursor: pointer;
-		font-family: inherit;
 		color: var(--text);
 		text-align: center;
+		text-transform: uppercase;
+		font-family: 'DePixel';
 		position: relative;
 		overflow: hidden;
-		margin-bottom: 1rem;
-		text-transform: uppercase;
 		box-shadow: 0px -2px 0 2px rgba(0, 0, 0, 0.564) inset;
-		font-family: 'DePixel';
 		transition:
 			transform 0.08s,
 			box-shadow 0.08s,
 			background-color 0.3s,
 			border-color 0.15s;
+		&:hover {
+			transform: translateY(2px);
+			box-shadow: 0px -2px 0 0px rgba(0, 0, 0, 0.564) inset;
+		}
 	}
 
 	/* ─── Left column: board + abilities ─────────────── */
@@ -392,17 +414,15 @@
 		gap: 8px;
 	}
 	.board-wrap {
-		padding: 0;
 		background-color: var(--panel-raised);
 		padding: .5rem 1.5rem 2rem 1.5rem;
-		/* padding-top: 1rem; */
 		border-radius: 18px;
 		box-shadow:
 			0 0 0px 4px rgba(0, 0, 0, 0.4) inset,
 			0 -8px 0 8px rgba(0, 0, 0, 0.37) inset;
 	}
 
-	/* ─── Right column: hud, stretches to match left ─── */
+	/* ─── Right column ────────────────────────────────── */
 	.sidebar {
 		grid-column: 3;
 		align-self: flex-end;
@@ -422,11 +442,11 @@
 		display: flex;
 		flex-direction: column;
 		gap: 8px;
+		padding: 8px;
+		margin-top: 4rem;
 		background: var(--panel);
 		border: 3px solid var(--panel-raised);
 		border-radius: 8px;
-		padding: 8px;
-		margin-top: 4rem;
 	}
 	.top-controls {
 		display: flex;
@@ -436,17 +456,14 @@
 	.top-controls select,
 	.top-controls button {
 		background: var(--panel-raised);
-		border: 1px solid var(--border);
 		border: 1px solid #000000a0;
 		color: var(--text);
 		padding: 3px 6px;
-		font-family: inherit;
-		font-size: 10px;
-		cursor: pointer;
-		border-radius: 4px;
 		font-size: 12px;
 		font-weight: 600;
 		font-family: 'Andale Mono';
+		cursor: pointer;
+		border-radius: 4px;
 	}
 	.top-controls button:hover {
 		border-color: var(--gold);
@@ -456,7 +473,6 @@
 		display: grid;
 		grid-template-columns: auto 1fr auto 1fr;
 		gap: 4px 8px;
-		font-size: 9px;
 		align-items: center;
 	}
 	.keys-grid kbd {
@@ -466,7 +482,6 @@
 		border-radius: 4px;
 		font-size: 12px;
 		font-weight: 600;
-		font-family: inherit;
 		font-family: 'Andale Mono';
 		text-align: center;
 		box-shadow: 0 1px 1px 1px #00000056;
@@ -496,11 +511,11 @@
 		background-position: center;
 		cursor: pointer;
 		opacity: 0.6;
+		box-shadow: 0 1px 2px 1px #00000056;
 		transition:
 			opacity 0.15s,
 			border-color 0.15s,
 			transform 0.1s;
-		box-shadow: 0 1px 2px 1px #00000056;
 	}
 	.skin:hover {
 		opacity: 0.9;
@@ -512,7 +527,7 @@
 		box-shadow: 0 0 8px -1px var(--gold);
 	}
 
-	/* ─── Minimal mode (H): board + ability bar only ──── */
+	/* ─── Minimal mode (H) ────────────────────────────── */
 	.arena.hud-hidden .hud-col,
 	.arena.hud-hidden .party-row,
 	.arena.hud-hidden .sidebar {
@@ -522,12 +537,15 @@
 	/* ─── Overlays ────────────────────────────────────── */
 	.overlay {
 		position: absolute;
-		inset: 40%;
+		inset: 0;
+		margin: auto;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		z-index: 100;
 		border-radius: 8px;
+		width: 200px;
+		height: 150px;
 	}
 	.overlay.victory,
 	.overlay.defeat {

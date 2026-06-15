@@ -1,75 +1,68 @@
-import type { EngineState } from '$lib/types/state';
-import type { CharacterState } from '$lib/types/state';
+import type { EngineState, CharacterState } from '$lib/types/state';
 import type { Ability } from '$lib/types/ability';
 import { samePos, clamp } from '../board';
 import { publish } from '../events';
+import { getCreationDef } from '$lib/data/creations';
 
 /**
- * construct: place a stationary ConstructState on the field.
- * Constructs live in state.constructs (not state.summons) and are
- * ticked by tickConstructs in engine.ts. They are invisible to enemy
- * aggro AI (melee-rush targets state.summons only).
+ * construct: place a stationary construct on the board.
  *
- * Placement priority:
- *   1. reticle opt (if aim holdBehavior is added later)
- *   2. One tile forward in caster's facing direction (default)
+ * All construct behaviour parameters live in the CreationDef in
+ * data/creations.ts. The ability only carries: creationId, charges,
+ * cooldown, energy, stack grant.
  *
- * Constraints:
- *   - Cannot place on the same tile as an existing construct of the same defId.
- *     Returns false silently — charge is not spent.
- *
- * Recognised ability fields:
- *   summonId             — defId for the construct (reused field, same concept)
- *   summonImage          — profile image path
- *   summonDurationMs     — lifetime ms (default 10 000)
- *   constructPulseDmg    — damage per pulse (default 0)
- *   constructPulseMs     — ms between pulses (default 2 000)
- *   constructPulseRadius — Chebyshev radius (default 1)
- *   constructStunMs      — stun on pulse hit in ms (default 0)
+ * Placement: one tile forward in caster's facing direction (reticle
+ * override support deferred to next pass).
+ * Duplicate guard: same defId + same tile → silently returns false,
+ * charge not spent.
+ * Element is always inherited from the caster at spawn.
  */
 export function resolve(
-	state: EngineState,
-	caster: CharacterState,
-	ability: Ability,
-	now: number,
-	opts: Record<string, unknown> = {}
+    state: EngineState,
+    caster: CharacterState,
+    ability: Ability,
+    now: number,
+    opts: Record<string, unknown> = {}
 ): boolean {
-	if (!ability.summonId) return false;
+    const creationId = ability.creationId;
+    if (!creationId) return false;
 
-	// ── Placement ─────────────────────────────────────────────────────────────
-	// Use reticle if supplied, else one tile forward in facing direction.
-	// Facing is always a unit vector so adding it steps exactly one tile.
-	const reticle = opts.reticle as { x: number; y: number } | null | undefined;
-	const pos = reticle
-		? clamp(state.board, { ...reticle })
-		: clamp(state.board, {
-				x: caster.pos.x + Math.sign(caster.facing.x || 0),
-				y: caster.pos.y + Math.sign(caster.facing.y || 0)
-		  });
+    const def = getCreationDef(creationId);
+    if (!def || def.kind !== 'construct') return false;
 
-	// ── Same-tile guard ───────────────────────────────────────────────────────
-	// Refuse placement if a construct of the same type already occupies this tile.
-	const duplicate = state.constructs.some(
-		(c) => c.defId === ability.summonId && samePos(c.pos, pos)
-	);
-	if (duplicate) return false;
+    const reticle = opts.reticle as { x: number; y: number } | null | undefined;
+    const pos = reticle
+        ? clamp(state.board, { ...reticle })
+        : clamp(state.board, {
+                x: caster.pos.x + Math.sign(caster.facing.x || 0),
+                y: caster.pos.y + Math.sign(caster.facing.y || 0)
+          });
 
-	// ── Place ─────────────────────────────────────────────────────────────────
-	state.constructs.push({
-		id: `${ability.summonId}-${now}`,
-		defId: ability.summonId!,
-		ownerId: caster.id,
-		pos,
-		profileImage: ability.summonImage,
-		expiresAt: now + (ability.summonDurationMs ?? 10_000),
-		pulseDmg:    ability.constructPulseDmg    ?? 0,
-		pulseMs:     ability.constructPulseMs     ?? 2_000,
-		pulseRadius: ability.constructPulseRadius ?? 1,
-		stunMs:      ability.constructStunMs      ?? 0,
-		// First pulse fires one full interval after placement — not immediately.
-		nextPulseAt: now + (ability.constructPulseMs ?? 2_000),
-	});
+    if (state.constructs.some((c) => c.defId === creationId && samePos(c.pos, pos))) {
+        return false;
+    }
 
-	publish('construct:placed', { constructId: `${ability.summonId}-${now}`, ownerId: caster.id });
-	return true;
+    const pulseMs = def.pulseMs ?? 2_000;
+
+    state.constructs.push({
+        id:            `${creationId}-${now}`,
+        defId:         creationId,
+        ownerId:       caster.id,
+        pos,
+        name:          def.name,
+        profileImage:  def.image,
+        element:       caster.def.element,
+        receiveBuffs:  def.receiveBuffs ?? false,
+        constructType: def.constructType ?? 'inert',
+        targetingType: def.targetingType ?? 'pulse',
+        pulseDmg:      def.pulseDmg    ?? 0,
+        pulseMs,
+        pulseRadius:   def.pulseRadius ?? 1,
+        stunMs:        def.stunMs      ?? 0,
+        nextPulseAt:   now + pulseMs,
+        expiresAt:     now + (def.durationMs ?? 10_000),
+    });
+
+    publish('construct:placed', { constructId: `${creationId}-${now}`, ownerId: caster.id });
+    return true;
 }

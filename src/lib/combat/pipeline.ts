@@ -2,6 +2,7 @@ import type { EngineState, CharacterState, EnemyState } from '$lib/types/state';
 import type { Ability } from '$lib/types/ability';
 import { getStatModifier } from './effects';
 import { chebyshev } from './board';
+import type { Position } from '$lib/types';
 
 /**
  * Context passed through every pipeline stage.
@@ -12,7 +13,9 @@ export interface DamageContext {
 	target: EnemyState | CharacterState;
 	ability?: Ability;
 	element?: string;
+	originZoneId?: string;
 	state: EngineState;
+	sourcePos?: Position;   // overrides source.pos for zone proximity checks
 }
 
 type PipelineStage = (amount: number, ctx: DamageContext) => number;
@@ -25,15 +28,19 @@ function applySourceEffects(amount: number, ctx: DamageContext): number {
 
 // ─── Stage 3: zone bonuses ───────────────────────────────────────────────────
 function applyZoneBonuses(amount: number, ctx: DamageContext): number {
-	const { source, state } = ctx;
+	const { source, state, originZoneId } = ctx;
 	let bonus = 0;
 	for (const zone of state.zones) {
 		if (!zone.buff?.damageBonus) continue;
 		// friendly zones only (owned by a party member)
 		if (!state.party.some((p) => p.id === zone.ownerId)) continue;
-		// the attacker must be standing inside the zone
-		if (chebyshev(source.pos, zone.center) > zone.radius) continue;
-		bonus += zone.buff.damageBonus; // additive across overlaps (tunable)
+		// A zone's damageBonus applies if:
+		//   (a) this hit originates from the zone itself, OR
+		//   (b) the attacker is standing inside the zone
+		const isSelf = originZoneId === zone.id;
+		const inZone = chebyshev(ctx.sourcePos ?? source.pos, zone.center) <= zone.radius;
+		if (!isSelf && !inZone) continue;
+		bonus += zone.buff.damageBonus;
 	}
 	return bonus > 0 ? Math.round(amount * (1 + bonus)) : amount;
 }

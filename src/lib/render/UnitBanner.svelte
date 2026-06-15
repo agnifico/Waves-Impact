@@ -19,6 +19,9 @@
 	};
 
 	let ally = $derived(side === 'ally' ? state.party[state.activeSlot] : null);
+	let shield = $derived(ally?.activeEffects?.['shield']);
+	let hasShield = $derived(!!shield);
+	let shieldAmt = $derived(shield?.absorbRemaining ?? 0);
 	let foe = $derived.by(() => {
 		if (side === 'ally') return null;
 		const locked = state.focusTargetId
@@ -53,17 +56,24 @@
 				<div class="nameplate"><span class="name">{unit.def.name}</span></div>
 
 				<div class="vitals">
-					<HPBar current={unit.hp} max={unit.def.maxHp} type={ally ? 'hp' : 'enemy'}/>
-					{#if ally}
-					<HPBar current={ally.energy} max={ally.def.maxEnergy} type='energy'/>
-						<!-- <div class="bar-set">
-							<span>
-								{ally.energy}
-							</span>
-							<div class="bar-track">
-								<div class="bar-fill energy" style="width:{enPct}%"></div>
+					<div class="hp-wrap" class:shielded={hasShield}>
+						{#if hasShield}
+							<div class="shield-badge">
+								<svg width="9" height="10" viewBox="0 0 10 11" fill="none">
+									<path
+										d="M5 0.5L9 2.5V5.5C9 7.5 7 9.5 5 10.5C3 9.5 1 7.5 1 5.5V2.5L5 0.5Z"
+										fill="rgba(96,210,255,0.15)"
+										stroke="rgba(96,210,255,0.75)"
+										stroke-width="1"
+									/>
+								</svg>
+								<span class="shield-amt">{shieldAmt}</span>
 							</div>
-						</div> -->
+						{/if}
+						<HPBar current={unit.hp} max={unit.def.maxHp} type={ally ? 'hp' : 'enemy'} />
+					</div>
+					{#if ally}
+						<HPBar current={ally.energy} max={ally.def.maxEnergy} type="energy" />
 					{/if}
 				</div>
 
@@ -133,7 +143,7 @@
 	.nameplate {
 		position: relative;
 		/* z-index: 2; */
-		/* top: -5px; */
+		top: -5px;
 		width: fit-content;
 		padding: 4px 20px 8px 40px;
 		background: rgb(91, 91, 91);
@@ -164,6 +174,33 @@
 			0 3px 0 rgba(0, 0, 0, 0.3),
 			0 5px 12px rgba(0, 0, 0, 0.35);
 	}
+
+	/* add to <style> */
+	.hp-wrap {
+		position: relative;
+		border-radius: 3px;
+		transition: box-shadow 0.2s;
+	}
+	.hp-wrap.shielded {
+		box-shadow:
+			0 0 0 1.5px rgba(96, 210, 255, 0.5),
+			0 0 8px rgba(96, 210, 255, 0.18);
+	}
+
+	.shield-badge {
+		display: flex;
+		align-items: center;
+		gap: 3px;
+		margin-bottom: 2px;
+		color: rgba(96, 210, 255, 0.9);
+		font-size: 9px;
+		font-family: 'JetBrains Mono', monospace;
+		letter-spacing: 0.5px;
+	}
+	.shield-amt {
+		line-height: 1;
+	}
+
 	.bar-set {
 		display: flex;
 		gap: 4px;
@@ -182,7 +219,7 @@
 		display: flex;
 		gap: 6px;
 		padding: 4px 30px 8px 25px;
-		clip-path: polygon(0 0, 100% 0, 90% 100%, 20px 100%);
+		/* clip-path: polygon(0 0, 100% 0, 90% 100%, 20px 100%); */
 		background: linear-gradient(-15deg, var(--bg) 0%, var(--bg) 40%, var(--char-secondary) 100%);
 		/* background: linear-gradient(0deg,transparent 0%, color-mix(in srgb, black 20%, var(--char-secondary)) 50%, transparent 100%); */
 	}

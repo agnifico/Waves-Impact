@@ -91,12 +91,13 @@
 	position: absolute;
 	inset: 4px;
 	border: 2px solid color-mix(in srgb, var(--c2) 80%, transparent);
-	clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+	border-radius: 50%;
+	/* clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%); */
 	animation: fx-mecha-pulse 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
 }
 @keyframes fx-mecha-pulse {
-	0%, 100% { transform: scale(0.95) rotate(-15deg); opacity: 0.5; }
-	50%      { transform: scale(1.05) rotate(0deg); opacity: 1; border-color: var(--c); }
+	0%, 100% { transform: scale(.98) rotate(-15deg); opacity: 0.5; }
+	50%      { transform: scale(1.01) rotate(0deg); opacity: 1; border-color: var(--c); }
 }
 
 /* ── Flame — a "curvy default": rotating ember ring on an organic edge ── */

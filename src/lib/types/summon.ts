@@ -10,4 +10,5 @@ export interface SummonDef {
 	moveCooldownMs: number;
 	/** If true, damage mirrors the owner's last-landed BA damage. */
 	mirrorsOwnerBA?: boolean;
+	targeting?: 'nearest' | 'highest_hp' | 'lowest_hp' | 'guardian' | 'stationary';
 }

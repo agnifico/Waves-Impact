@@ -59,6 +59,11 @@
 		}
 		return out;
 	}
+
+	const ELEMENT_COLOR: Record<string, string> = {
+    	water: 'var(--frost)', wind: 'var(--wind)', fire: 'var(--coral)',
+    	nature: 'var(--verdant)', light: 'var(--gold-bright)', dark: '#9a7bd0',
+	};
 	/** Jagged lightning path between two pixel points (chain strike). */
 	function jagged(x1: number, y1: number, x2: number, y2: number, segs: number, amp: number): string {
 		const dx = x2 - x1,
@@ -77,6 +82,18 @@
 		return d;
 	}
 
+	function elementColor(el: string | undefined): string {
+		return ELEMENT_COLOR[el ?? ''] ?? 'var(--gold)';
+	}
+
+
+	type ConstructRing = {
+		id: number; kind: 'construct_ring';
+		x: number; y: number; radius: number;
+		color: string; isCatalyst: boolean; ttl: number;
+	};
+
+
 	type Burst = { id: number; kind: 'burst'; x: number; y: number; color: string; ttl: number };
 	type WaveTile = { x: number; y: number; color: string; delay: number };
 	type Wave = { id: number; kind: 'wave'; tiles: WaveTile[]; ttl: number };
@@ -86,6 +103,7 @@
 		color: string; tail: string; ttl: number;
 	};
 	type Swipe = { id: number; kind: 'swipe'; x: number; y: number; rot: number; color: string; ttl: number };
+	type ReverseSwipe = { id: number; kind: 'reverseswipe'; x: number; y: number; rot: number; color: string; ttl: number };
 	type ZoneBurst = { id: number; kind: 'zoneburst'; x: number; y: number; radius: number; color: string; ttl: number };
 	type Claw = { id: number; kind: 'claw'; x: number; y: number; rot: number; gashes: { a: number; d: number }[]; color: string; ttl: number };
 	type Stab = { id: number; kind: 'stab'; x: number; y: number; rot: number; len: number; color: string; ttl: number };
@@ -95,8 +113,8 @@
 	type Bullet = { id: number; kind: 'bullet'; x: number; y: number; rot: number; len: number; color: string; ttl: number };
 	type Beam = { id: number; kind: 'beam'; x: number; y: number; rot: number; len: number; color: string; ttl: number };
 	type Chain = { id: number; kind: 'chain'; d: string; w: number; h: number; color: string; ttl: number };
-	type Fx = Burst | Wave | Projectile | Swipe | ZoneBurst | Claw | Stab | Flurry | Slam | Uppercut | Bullet | Beam | Chain;
-
+	type Fx = Burst | Wave | Projectile | Swipe | ReverseSwipe | ZoneBurst | Claw | Stab | Flurry | Slam | Uppercut | Bullet | Beam | Chain | ConstructRing;
+	
 	let fx = $state<Fx[]>([]);
 	let fxId = 0;
 	let layerEl: HTMLDivElement;
@@ -140,6 +158,9 @@
 					setTimeout(() => spawnBurst(tgt.pos, head), dur);
 				} else if (src && strike === 'swipe') {
 					spawn({ kind: 'swipe', x: tgt.pos.x, y: tgt.pos.y, rot: angleDeg(src.pos, tgt.pos), color: head, ttl: 240 });
+					spawnBurst(tgt.pos, head);
+				} else if (src && strike === 'reverseswipe') {
+					spawn({ kind: 'reverseswipe', x: tgt.pos.x, y: tgt.pos.y, rot: angleDeg(src.pos, tgt.pos), color: head, ttl: 240 });
 					spawnBurst(tgt.pos, head);
 				} else if (src && strike === 'claw') {
 					const n = f.gashes ?? 3, spread = 48;
@@ -201,7 +222,31 @@
 						delay: i * STEP
 					}))
 				});
-			})
+			}),
+			subscribe('construct:pulse', (e) => {
+			spawn({ kind: 'construct_ring', x: cx(e.pos), y: cy(e.pos), radius: e.radius, color: elementColor(e.element), isCatalyst: false, ttl: 480 });
+		}),
+		subscribe('construct:catalyst', (e) => {
+			spawn({ kind: 'construct_ring', x: cx(e.pos), y: cy(e.pos), radius: e.radius, color: elementColor(e.element), isCatalyst: true, ttl: 360 });
+		}),
+		subscribe('construct:turret', (e) => {
+			const color = elementColor(e.element);
+			spawn({ kind: 'bullet', x: cx(e.pos), y: cy(e.pos), rot: angleDeg(e.pos, e.targetPos), len: distPx(e.pos, e.targetPos), color, ttl: 240 });
+			setTimeout(() => spawnBurst(e.targetPos, color), 110);
+		}),
+		subscribe('summon:attack', (e) => {
+			const color = elementColor(e.element);
+			if (e.isRanged) {
+				const fromX = cx(e.fromPos), fromY = cy(e.fromPos);
+				const dx = cx(e.toPos) - fromX, dy = cy(e.toPos) - fromY;
+				const dur = Math.min(360, Math.max(90, chebyshev(e.fromPos, e.toPos) * 40));
+				spawn({ kind: 'projectile', x: fromX, y: fromY, dx, dy, rot: (Math.atan2(dy, dx) * 180) / Math.PI, dur, shape: 'orb', size: 's', trail: false, color, tail: color, ttl: dur + 40 });
+				setTimeout(() => spawnBurst(e.toPos, color), dur);
+			} else {
+				spawn({ kind: 'swipe', x: e.toPos.x, y: e.toPos.y, rot: angleDeg(e.fromPos, e.toPos), color, ttl: 220 });
+				spawnBurst(e.toPos, color);
+			}
+		}),
 		];
 		return () => unsubs.forEach((u) => u());
 	});
@@ -238,6 +283,8 @@
 			</div>
 		{:else if f.kind === 'swipe'}
 			<div class="fx-swipe" style="left:{f.x * TILE + 18}px;top:{f.y * TILE + 18}px;--rot:{f.rot}deg;--c:{f.color};"></div>
+		{:else if f.kind === 'reverseswipe'}
+			<div class="fx-reverseswipe" style="left:{f.x * TILE + 18}px;top:{f.y * TILE + 18}px;--rot:{f.rot}deg;--c:{f.color};"></div>
 		{:else if f.kind === 'claw'}
 			<div class="fx-claw" style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;">
 				{#each f.gashes as g}
@@ -285,6 +332,13 @@
 				class="fx-zoneburst"
 				style="left:{f.x * TILE + 18}px;top:{f.y * TILE + 18}px;width:{dd}px;height:{dd}px;margin:{-dd /
 					2}px 0 0 {-dd / 2}px;--c:{f.color};"
+			></div>
+			{:else if f.kind === 'construct_ring'}
+			{@const d = (f.radius * 2 + 1) * TILE}
+			<div
+				class="fx-construct-ring"
+				class:catalyst={f.isCatalyst}
+				style="left:{f.x}px;top:{f.y}px;width:{d}px;height:{d}px;margin:{-d/2}px 0 0 {-d/2}px;--c:{f.color};"
 			></div>
 		{/if}
 	{/each}

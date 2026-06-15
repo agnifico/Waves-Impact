@@ -1,7 +1,9 @@
-import type { Vector } from './common';
+import type { Stratum } from './common';
+
+// ─── Shape / Behavior / Hold ─────────────────────────────────────────────────
 
 /**
- * Shape = pure geometry. A function from (casterPos, direction, shapeParams) → tiles.
+ * Shape = pure geometry. Maps (casterPos, direction, shapeParams) → tiles.
  * Shapes know nothing about damage, effects, or resolution. (Data Contract §2, §7)
  */
 export type ShapeId =
@@ -18,8 +20,8 @@ export type ShapeId =
 	| (string & {}); // extensible
 
 /**
- * Behavior = resolution class. An engine handler that knows how to resolve
- * an ability — what gets damaged, statuses applied, state changed. (Data Contract §2, §6)
+ * Behavior = resolution class. Handles what gets damaged, statuses applied,
+ * state changed. (Data Contract §2, §6)
  */
 export type BehaviorId =
 	| 'damage_aoe'
@@ -34,86 +36,81 @@ export type BehaviorId =
 	| 'marker'
 	| (string & {}); // extensible
 
-/** Hold modifier orthogonal to behavior. (Data Contract §5.1) */
+/** Hold modifier — orthogonal to behavior. (Data Contract §5.1) */
 export type HoldBehavior = 'aim' | 'charge' | 'channel' | 'track' | 'aim_dir';
 
-
-/** Ability slot keys on a character's kit. */
+/** Ability slot keys. */
 export type AbilitySlot = 'X' | 'C' | 'V';
 
-/** Periodic buff applied by a zone. */
+// ─── Sub-interfaces ───────────────────────────────────────────────────────────
+
+/** Periodic buff / damage applied by a zone tile. (behavior === 'zone') */
 export interface ZoneBuff {
-	damageBonus?: number;
+	tickMs: number;
 	healPerTick?: number;
 	activeBonusHeal?: number;
-	tickMs: number;
-	/** Damage dealt to each enemy inside the zone per tick. */
-	dmgPerTick?: number;          // ← NEW (Ryoma, Maria Elena V)
-	/** Energy drained from the zone owner per tick. Zone self-destructs at 0. */
-	ownerEnergyDrainPerTick?: number;  // ← NEW (Maria Elena V)
+	dmgPerTick?: number;
+	damageBonus?: number;
+	ownerEnergyDrainPerTick?: number;
 	upkeepReductionPerStack?: number;
 }
 
-
-
 export interface ShapeParams {
-	// geometry
 	range?: number;
 	radius?: number;
 	width?: number;
-	// directional dash / travel (movement.ts + behaviors/dash.ts)
 	dir?: 'forward' | 'back' | 'away' | 'toward';
 	tiles?: number;
 	throughObstacles?: boolean;
 	iframesMs?: number;
-	// terminal blast (dash stop-point detonation)
 	blastDamage?: number;
 	blastRadius?: number;
-	// escape hatch so new shapes don't need a type edit each time
-	[key: string]: number | string | boolean | undefined;
+	[key: string]: number | string | boolean | undefined; // extensible
 }
 
+/** Shield granted on cast — drained by absorbDamage. */
+export interface ShieldParams {
+	amount: number;
+	target?: 'self' | 'party';  // default 'self'
+	durationMs?: number;         // default -1 (until depleted)
+	maxTotal?: number;           // pool cap for stacking re-casts
+	effectId?: string;           // named shield for independent tracking
+}
+
+// ─── Ability ─────────────────────────────────────────────────────────────────
+
 /**
- * Full ability definition. Most fields are optional — presence depends
- * on behavior. (Data Contract §5)
+ * Full ability definition. Most fields are optional — presence depends on
+ * behavior. (Data Contract §5)
  */
 export interface Ability {
 	id: string;
 	name: string;
-
-	// The shape/behavior split (Data Contract §2)
 	behavior: BehaviorId;
 	shape?: ShapeId;
 	shapeParams?: ShapeParams;
 	description?: string;
-	// Effect parameters
+
+	// Core effect params
 	damage?: number;
 	poiseDamage?: number;
 	cooldownMs?: number;
-	charges?: number;     // >1 → multi-charge ability; omitted/1 = normal single cooldown
-	rechargeMs?: number;  // per-charge regen time; defaults to cooldownMs
+	charges?: number;       // >1 → multi-charge; omit/1 = single cooldown
+	rechargeMs?: number;    // per-charge regen time; defaults to cooldownMs
 	energyCost?: number;
 	energyGain?: number;
 	stunMs?: number;
 	knockback?: number;
 	selfHeal?: number;
+	teamHeal?: number;
 	durationMs?: number;
 	unchainedBonus?: number;
 	appliesEffects?: string[];
+	persistsAfterDeath?: boolean;   // zone: keep ticking after owner dies
 
-	teamHeal?: number;                            // flat whole-party heal
-	gather?: { radius: number; steps: number };   // pull enemies within radius toward caster
+	gather?: { radius: number; steps: number }; // pull enemies toward caster
 
-	/** Grant a shield on cast (drained by absorbDamage). Any ability can use this. */
-	shield?: {
-		amount: number;
-		target?: 'self' | 'party';   // default 'self'
-		durationMs?: number;         // default -1 (until depleted)
-		maxTotal?: number;           // optional pool cap (for stacking re-casts)
-		effectId?: string;           // optional, for an independent named shield
-	};
-
-	// Targeting flags
+	// Targeting
 	autoTargetEnemy?: boolean;
 	allowSelfTarget?: boolean;
 
@@ -125,45 +122,35 @@ export interface Ability {
 	chargeMaxRange?: number;
 	chargeMsPerTile?: number;
 
-	// Zone parameters (behavior === 'zone')
+	// Sub-behaviors
+	shield?:   ShieldParams;
 	zoneBuff?: ZoneBuff;
 	zoneFollows?: 'caster' | 'fixed' | 'active';
 
-	// Summon parameters (behavior === 'summon')
-	summonId?: string;
-	summonDurationMs?: number;
-	summonImage?: string;
-
-	// Construct parameters (behavior === 'construct')
-	constructPulseDmg?: number;    // damage per pulse
-	constructPulseMs?: number;     // ms between pulses
-	constructPulseRadius?: number; // Chebyshev radius
-	constructStunMs?: number;      // stun duration on hit (ms)
+	creationId?: string;   // registry key into data/creations.ts
 
 	// Visual
 	impactClass?: string;
-
-	/** Strata this ability can hit. Omitted = all. */
-	hits?: import('./common').Stratum[];
+	hits?: Stratum[];  // strata this ability can hit; omit = all
 	fx?: FxSpec;
-
 }
+
+// ─── FX ──────────────────────────────────────────────────────────────────────
 
 export interface FxSpec {
 	strike?:
-	| 'swipe' | 'claw' | 'stab' | 'flurry' | 'slam' | 'uppercut'  // melee
-	| 'projectile' | 'bullet' | 'beam' | 'chain'                    // ranged
-	| 'zone';                                                        // aura
+		| 'swipe' | 'reverseswipe' | 'claw' | 'stab' | 'flurry' | 'slam' | 'uppercut'
+		| 'projectile' | 'bullet' | 'beam' | 'chain'
+		| 'zone';
 	zone?: string;
-	// projectile options
 	shape?: 'bolt' | 'arrow' | 'orb' | 'leaf' | 'wave';
 	size?: 's' | 'm' | 'l';
 	trail?: boolean;
-	speed?: number;       // ms per tile (projectile/bullet travel)
-	colors?: string[];    // ramp; defaults to character theme
-	gashes?: number;      // claw: number of slashes (default 3)
-	hits?: number;        // flurry: number of ticks (default 6)
+	speed?: number;
+	colors?: string[];
+	gashes?: number;
+	hits?: number;
 	skin?:
-    | 'default' | 'mecha' | 'flame' | 'wind' | 'void' | 'water'
-    | 'slashes' | 'pulse' | 'earth' | 'poison' | 'frost' | 'holy' | 'storm';
+		| 'default' | 'mecha' | 'flame' | 'wind' | 'void' | 'water'
+		| 'slashes' | 'pulse' | 'earth' | 'poison' | 'frost' | 'holy' | 'storm';
 }

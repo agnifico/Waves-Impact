@@ -25,7 +25,19 @@ export interface BasicAttack {
 	fx?: FxSpec;
 	dashBack?: number;
 	gapClose?: boolean;
+
 }
+
+export type EnhancedCondition =
+	| { type: 'stacks_min'; n: number }
+	| { type: 'stacks_exact'; n: number }
+	| { type: 'post_ability'; windowMs: number }
+	| { type: 'post_hit'; windowMs: number }
+	| { type: 'post_dash'; windowMs: number }
+	| { type: 'chain_finisher' }
+	| { type: 'energy_threshold'; pct: number };   // 0–1
+
+
 
 /**
  * Contextual basic: variant selected by character state. (Data Contract §4.2)
@@ -81,6 +93,13 @@ export interface Character {
 	// Swap-in / swap-out skills (future: Forte/Intro/Outro)
 	introSkill?: Ability;
 	outroSkill?: Ability;
+
+	enhancedBasic?: {
+		ba: BasicAttack;              // same shape as basicChain entries
+		conditions: EnhancedCondition[];  // OR logic — any one true = available
+		requireHold?: boolean;            // default false. true = must hold even when available
+		interruptsChain?: boolean;        // default true. false = only fires at last chain step
+	};
 
 	// in Character
 	offFieldStackBonus?: number; // ×multiplier on off-field energy while holding stacks - Sefyra

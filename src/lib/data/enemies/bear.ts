@@ -4,12 +4,12 @@ export const bear: Enemy = {
 	id: 'bear',
 	name: 'Brawler Bear',
 	element: 'nature',
-	maxHp: 500,
+	maxHp: 750,
 	canMoveDiagonal: false,
 	stratum: 'ground',
-	moveTickMs: 2000,
+	moveTickMs: 1200,
 	moveResumeAfterPlayerFleeMs: 200,
-	aiPattern: 'melee_rush',
+	aiPattern: 'tank_blocker',
 	profileImage: '/enemies/bear.png',
 	attacks: [
 		{

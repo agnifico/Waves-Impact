@@ -68,7 +68,7 @@ export const sefyra: Character = {
             shapeParams: { radius: 5 }, durationMs: 16000,
             cooldownMs: 20000, energyCost: 40,
             zoneBuff: { damageBonus: .5, tickMs: 1500 },
-            fx: {zone: 'holy'}
+            fx: {zone: 'holy'},
         }
     },
 
@@ -85,7 +85,7 @@ export const sefyra: Character = {
     art: {
         gem: '/characters/sefyra_profile2.png',
         profile: '/characters/avatars/sefyra.png',
-        poster: '/characters/sefyra_poster.png'
+        poster: '/characters/sefyra100.png'
     },
     theme: {
         primary: '#fcbf49',
@@ -93,6 +93,5 @@ export const sefyra: Character = {
         glow: { ready: '#eddd53' },
         hp: 'linear-gradient(-90deg,#3586c4 0%, #4896b8 28%, #b1b68a 62%, #eddd53 100%);',
         energy: 'linear-gradient(to right, #e1f5c4, #ede574);',
-        skin: 'wind'
     }
 };

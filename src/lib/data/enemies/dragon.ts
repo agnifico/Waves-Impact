@@ -4,18 +4,18 @@ export const dragon: Enemy = {
 	id: 'dragon',
 	name: 'Green Dragon',
 	element: 'wind',
-	maxHp: 10000,
+	maxHp: 1000,
 	canMoveDiagonal: true,
 	moveTickMs: 1000,
 	moveResumeAfterPlayerFleeMs: 100,
-	aiPattern: 'melee_rush',
+	aiPattern: 'flanker',
 	profileImage: '/enemies/dragon.png',
 	attacks: [
 		{
 			id: 'dragonbreath',
 			name: 'Dragonbreath',
 			range: 4,
-			damage: 3,
+			damage: 4,
 			cooldownMs: 3000,
 			priority: 1
 		},
@@ -28,5 +28,6 @@ export const dragon: Enemy = {
 			priority: 2
 		}
 	],
-	stratum: 'flying'
+	stratum: 'flying',
+	ignoresSummons: true
 };

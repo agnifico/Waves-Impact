@@ -42,9 +42,10 @@ export function bindInputEvents(
 
 	function baUsesHold(state: EngineState): boolean {
 		const char = state.party[state.activeSlot];
-		return char?.def.basicStyle === 'contextual' && char.def.contextualBasic?.selectBy === 'hold';
+		if (char?.def.basicStyle === 'contextual' && char.def.contextualBasic?.selectBy === 'hold') return true;
+		if (char?.def.enhancedBasic?.requireHold) return true;
+		return false;
 	}
-
 	function press(raw: string, isRepeat: boolean): void {
 		const intent = intentFor(raw);
 		const now = gameNow();

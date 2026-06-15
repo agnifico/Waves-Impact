@@ -50,17 +50,3 @@ export interface Effect {
 	modifies: StatMod[];
 	tickMs?: number;
 }
-
-/**
- * Runtime instance of an active effect on an entity.
- * CharacterState.activeEffects and EnemyState.activeEffects
- * are Record<string, EffectInstance>. (Data Contract §10)
- */
-export interface EffectInstance {
-	id: string;
-	appliedAt: number;
-	expiresAt: number; // -1 = permanent until consumed/removed
-	stacks: number;
-	source: string; // EntityId of who applied this
-	lastTickAt?: number;
-}

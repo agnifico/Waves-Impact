@@ -6,12 +6,11 @@
 </script>
 
 <div class="party-row">
+	<div class="heading">Team</div>
 	{#each state.party as pc, i}
 		{@const isActive = i === state.activeSlot}
 		{@const isDead = pc.hp <= 0}
 		<div class="card" class:active={isActive}>
-			<kbd class="pc-slot">&nbsp;{i + 1}&nbsp;</kbd>
-
 			<button
 				class="party-card"
 				class:active={isActive}
@@ -19,6 +18,7 @@
 				onclick={() => trySwap(state, i, performance.now())}
 				style:background-image="url({isActive ? pc.def.art?.poster : ''})"
 			>
+				<kbd class="pc-slot">&nbsp;{i + 1}&nbsp;</kbd>
 				<div class="pc-thumb" style="background-image: url({pc.def.art?.profile})"></div>
 				<div class="container">
 					<div class="details">
@@ -48,14 +48,28 @@
 		width: 100%;
 		/* width: 75%; */
 		background-color: var(--panel-raised);
-		padding: 1rem;
+		padding: 1.25rem;
+		padding-top: 0.75rem;
 		border-radius: 12px;
 		height: 100%;
 
 		box-shadow:
-		0 0 0px 2px rgba(0, 0, 0, 0.6) inset,
-		0 -4px 0 6px rgba(0, 0, 0, 0.6) inset;
+			0 0 0px 2px rgba(0, 0, 0, 0.6) inset,
+			0 -4px 0 6px rgba(0, 0, 0, 0.6) inset;
 		padding-bottom: 1.5rem;
+	}
+	.heading {
+		text-align: left;
+		font-family: 'Jersey 10';
+		text-transform: uppercase;
+		font-weight: 600;
+		font-style: italic;
+		font-size: 2rem;
+		line-height: 1.5rem;
+		letter-spacing: 2px;
+		margin: 0;
+		padding: 0;
+		color: var(--panel-2);
 	}
 	.card {
 		position: relative;
@@ -74,8 +88,8 @@
 	}
 	kbd {
 		position: absolute;
-		right: -2px;
-		top: -2px;
+		right: 0px;
+		top: 0px;
 		/* left: -4px; */
 		background: var(--panel-raised);
 		padding: 4px;
@@ -111,8 +125,8 @@
 		/* border: 2px solid transparent; */
 		border-radius: 9px;
 		box-shadow:
-		0 0 0 2px rgba(0, 0, 0, 0.4) inset,
-		0 -5px 0 2px rgba(0, 0, 0, 0.37) inset;
+			0 0 0 2px rgba(0, 0, 0, 0.4) inset,
+			0 -5px 0 2px rgba(0, 0, 0, 0.37) inset;
 		/* filter: grayscale(0.7) brightness(0.6); */
 		/* background-size: cover; */
 		/* background-position: left 80%; */
@@ -142,6 +156,9 @@
 	}
 	.party-card.dead {
 		opacity: 0.4;
+		kbd {
+			visibility: hidden;
+		}
 	}
 	.container {
 		display: flex;

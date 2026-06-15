@@ -62,18 +62,17 @@ export const midorima: Character = {
 
 		// C — Tempest Wheel: A mid-distance circular zoning bomb thrown from her blade
 		C: {
-			id: 'tempest_wheel',
-			name: 'Tempest Wheel',
-			behavior: 'damage_aoe',
-			shape: 'circle', // Places a rotating vortex on the field
-			shapeParams: { radius: 2, range: 5 },
-			damage: 20,
-			poiseDamage: 15,
-			cooldownMs: 8000,
-			energyGain: 25,
+			id: 'wind_tower',
+			name: 'Wind Tower',
+			behavior: 'construct',
+
+			charges: 2,
+			rechargeMs: 12_000,
+			energyGain: 10,
 			grantsStack: 'gale',
-			autoTargetEnemy: true,
-			holdBehavior: 'aim' // Can be manually thrown via directional reticle steering
+			creationId: 'wind_tower',
+
+			fx: { shape: 'orb', colors: ['#eaf6ff', 'var(--frost)', '#00b4d8'] }
 		},
 
 		// V — Sakura Monsoon: Unleashes her spent energy to envelope herself in a moving aura
@@ -92,7 +91,8 @@ export const midorima: Character = {
                 dmgPerTick: 100,
                 tickMs: 250
             },
-			fx: {zone: 'slashes'}
+			fx: {zone: 'slashes'},
+			persistsAfterDeath: true,
 		}
 	},
 
@@ -108,14 +108,13 @@ export const midorima: Character = {
 	art: {
 		gem: '/characters/midorima1.png',
 		profile: '/characters/avatars/midorima.png',
-		poster: '/characters/midorima_poster.png' // Utilizing full action file
+		poster: '/characters/midorima_poster3.png' // Utilizing full action file
 	},
 	theme: {
 		primary: '#3c6e71',
-		secondary: '#f5ebe0',
+		secondary: '#ffecd1',
 		glow: { ready: '#6be9e3', cyclone_veil: '#ffe9a8' },
 		hp: 'linear-gradient(-90deg, #114b4f 0%, #2a6f6d 50%, #86e89a 100%);',
 		energy: 'linear-gradient(to left, #205072, #329d9c);',
-		skin: 'slashes'
 	}
 };
