@@ -1,4 +1,5 @@
 import type { FxSpec } from './ability';
+import type { Stratum } from './common';
 
 export type CreationKind = 'summon' | 'construct';
 
@@ -18,11 +19,16 @@ export type SummonTargeting =
  * Shared fields apply to both.
  */
 export interface CreationDef {
-    id:    string;
-    name:  string;
-    kind:  CreationKind;
+    id: string;
+    name: string;
+    kind: CreationKind;
     image?: string;
     durationMs?: number;
+    energyPerHit?: number;      // energy granted to owner on each damage event
+    grantsOwnerStack?: string;  // stack type to grant owner on each damage event
+
+    stratum?: Stratum;        // physical layer; defaults 'ground'
+    hits?: Stratum[];         // strata the pulse can damage; omit = all
 
     // ── Shared ───────────────────────────────────────────────────
     receiveBuffs?: boolean;   // routes damage through calculateDamage pipeline

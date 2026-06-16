@@ -2,7 +2,7 @@ import type { EngineState, EnemyState } from '$lib/types/state';
 import { chebyshev, step8Toward, step8Away, samePos, clamp } from '../board';
 import { publish } from '../events';
 import { canEnter } from '../spatial';
-import { resolveTarget, tryAttacks } from './utils';
+import { resolveTarget, tileBlockedByConstruct, tryAttacks } from './utils';
 
 /**
  * ranged_kiter: maintain the enemy's maximum attack range.
@@ -32,8 +32,19 @@ export function tick(state: EngineState, enemy: EnemyState, now: number): void {
             // Player too close — back off
             candidate = clamp(state.board, step8Away(enemy.pos, target));
         } else if (dist > maxRange + 1) {
-            // Player too far — close in
-            candidate = clamp(state.board, step8Toward(enemy.pos, target));
+            const raw = clamp(state.board, step8Toward(enemy.pos, target));
+            if (tileBlockedByConstruct(state, raw, enemy)) {
+                const alternatives = [
+                    { x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 },
+                    { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }
+                ]
+                    .map(o => clamp(state.board, { x: enemy.pos.x + o.x, y: enemy.pos.y + o.y }))
+                    .filter(p => !tileBlockedByConstruct(state, p, enemy) && canEnter(enemy.stratum, p, state.board, def.traversal))
+                    .sort((a, b) => chebyshev(a, target) - chebyshev(b, target));
+                candidate = alternatives[0] ?? raw;
+            } else {
+                candidate = raw;
+            }
         }
         // In band [maxRange-1, maxRange+1] — hold position
 

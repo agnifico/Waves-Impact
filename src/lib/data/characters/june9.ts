@@ -16,24 +16,24 @@ export const june9: Character = {
 		base: {
 			name: 'Solarfuel Blasters',
 			damage: 12,
-			range: 2,
+			range: 3,
 			energyGain: 10,
 			shape: 'melee',
 			omniTarget: true,
 			grantsStack: 'verdance',
 			// fx: { strike: 'swipe', colors: ['#2A9D8F', '#E9C46A'] }
-			fx: { strike: 'flurry', hits:6, colors: ['#E9C46A'] }
+			fx: { strike: 'projectile', shape: 'bolt', speed: 22, colors: ['#E9C46A'] }
 		},
 		withStack: {
 			name: 'Solar Beam',
 			damage: 12,
-			range: 2,
+			range: 3,
 			energyGain: 10,
 			shape: 'melee',
 			omniTarget: true,
 			consumesStack: 'verdance',
 			teamHeal: 35,
-			fx: { strike: 'projectile', shape: 'bolt', speed: 22, colors: ['#2eb872'] }
+			fx: { strike: 'beam', hits:6, colors: ['#2eb872'] }
 		}
 	},
 
@@ -49,7 +49,7 @@ export const june9: Character = {
 			cooldownMs: 6000,
 			energyGain: 15,
 			grantsStack: 'verdance',
-			teamHeal: 40,
+			teamHeal: 100,
 			autoTargetEnemy: true,
 			// allowSelfTarget: true,
 			holdBehavior: 'aim'
@@ -64,7 +64,7 @@ export const june9: Character = {
 			energyGain: 15,
 			grantsStack: 'verdance',
 			gather: { radius: 2, steps: 1 },
-			shield: { amount: 60, target: 'party' },
+			shield: { amount: 600, target: 'party' },
 			holdBehavior: 'charge',
 			chargeMaxRange: 7,
 			chargeMsPerTile: 200
@@ -80,7 +80,7 @@ export const june9: Character = {
 			energyCost: 50,
 			grantsStack: 'verdance',
 			zoneFollows: 'active',
-			zoneBuff: { damageBonus: .5, healPerTick: 10, activeBonusHeal: 10, tickMs: 1500,},
+			zoneBuff: { damageBonus: .5, healPerTick: 40, activeBonusHeal: 30, tickMs: 1000,},
 			fx: { zone: 'mecha' },
 			persistsAfterDeath: true,
 		}
@@ -94,8 +94,9 @@ export const june9: Character = {
 
 	art: {
 		gem: '/characters/june9_gem.png',
-		profile: '/characters/avatars/june9_profile.png',
-		poster: '/characters/june9_poster.png'
+		profile: '/characters/avatars2/june9.png',
+		poster: '/characters/june9_poster4.png',
+		bannerPoster: '/characters/june9_banner_full.png'
 	},
 
 	theme: {

@@ -3,34 +3,27 @@
 		current = 0,
 		max = 100,
 		type = 'hp',
-		label = undefined,
-		selectedCharacter = undefined,
+		label = undefined
 	}: {
-		current: number;
-		max: number;
+		current?: number;
+		max?: number;
 		type?: 'hp' | 'energy' | 'enemy';
-		label?: string | undefined;
+		label?: string;
 	} = $props();
 
 	let pct = $derived(max > 0 ? Math.min(100, Math.max(0, (current / max) * 100)) : 0);
 	let low = $derived(pct < 30);
-	let textColorFlip = $derived(pct < 0);
-	let displayLabel = $derived(label ?? (type === 'hp' ? 'HP' : type === 'energy' ? 'AS' : 'HP'));
+	// HP / EN (was HP / AS). Enemy reuses the HP label.
+	let displayLabel = $derived(label ?? (type === 'energy' ? 'EN' : 'HP'));
 </script>
 
-<div class="hp-bar-row" class:textFlip={type === 'enemy'}>
+<div class="hp-bar-row" class:thin={type === 'energy'}>
 	<span class="bar-label" class:energy={type === 'energy'} class:enemy={type === 'enemy'}>
 		{displayLabel}
 	</span>
-	<div class="bar-track">
-		<div
-			class="bar-fill {type}"
-			class:low
-			style="width: {pct}%"
-		></div>
-		<span class="bar-text" class:textColorFlip
-			>{Math.max(0, Math.round(current))}/{Math.round(max)}</span
-		>
+	<div class="bar-track" class:thin={type === 'energy'}>
+		<div class="bar-fill {type}" class:low style="width: {pct}%"></div>
+		<span class="bar-text">{Math.max(0, Math.round(current))}/{Math.round(max)}</span>
 	</div>
 </div>
 
@@ -57,6 +50,11 @@
 		justify-content: center;
 		font-family: var(--font-family-pixel);
 	}
+	/* thinner label box for the energy row so it lines up with the slim track */
+	.hp-bar-row.thin .bar-label {
+		padding: 2px 4px;
+		font-size: 0.5rem;
+	}
 
 	.bar-label.energy {
 		color: #5bcbf5;
@@ -68,13 +66,19 @@
 	.bar-track {
 		position: relative;
 		flex: 1;
-		height: 18px;
+		height: 18px; /* thick HP */
 		background-color: var(--panel-2);
 		border-radius: 6px;
 		border: 2px solid #000000;
 		box-shadow: #00000056 0 -2px 0 0 inset;
 		overflow: hidden;
 		min-width: 60px;
+	}
+	/* thin energy track */
+	.bar-track.thin {
+		height: 11px;
+		border-width: 1.5px;
+		border-radius: 5px;
 	}
 
 	.bar-fill {
@@ -86,15 +90,6 @@
 	}
 
 	.bar-fill.hp {
-		background: linear-gradient(
-			225deg,
-			#166383 0%,
-			#237f7e 20%,
-			#399e80 40%,
-			#55bc88 60%,
-			#74d496 80%,
-			#94e3a8 100%
-		);
 		background: var(--char-hp, var(--hp));
 		box-shadow:
 			#00000056 0 -2px 0 0 inset,
@@ -103,12 +98,10 @@
 	}
 
 	.bar-fill.energy {
-		background: linear-gradient(90deg, #399dcd 0%, #2b7eb8 25%, #226098 50%, #214973 75%, #273d51);
+		background: var(--char-energy, var(--energy));
 		box-shadow:
 			#00000056 0 -2px 0 0 inset,
-			hsla(0, 0%, 0%, 0.2) -2px 0 2px 0 inset,
-			hsla(0, 0%, 0%, 0.4) 2px 0 3px 0;
-		background: var(--char-energy, var(--energy));
+			hsla(0, 0%, 0%, 0.2) -2px 0 2px 0 inset;
 	}
 
 	.bar-fill.enemy {
@@ -133,25 +126,12 @@
 		color: #ffffff;
 		text-shadow:
 			0 1px 2px #000,
-			0 0 4px #000;
-		text-shadow:
-			0 1px 2px #000,
 			1px 0 2px #000;
 		pointer-events: none;
 		letter-spacing: 0.02em;
 		font-family: var(--font-family-pixel);
 	}
-	.textFlip {
-		transform: rotateY(180deg);
-	}
-
-	.textColorFlip {
-		color: #000000;
-		text-shadow:
-			0 1px 2px #6d6d6d,
-			0 0 4px #6d6d6d;
-		text-shadow:
-			0 1px 2px #000,
-			1px 0 2px #6d6d6d;
+	.bar-track.thin .bar-text {
+		font-size: 0.5rem;
 	}
 </style>

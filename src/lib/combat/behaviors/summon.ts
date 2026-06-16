@@ -17,7 +17,8 @@ export function resolve(
     state: EngineState,
     caster: CharacterState,
     ability: Ability,
-    now: number
+    now: number,
+    opts: Record<string, unknown> = {}   // ← add opts param
 ): boolean {
     const creationId = ability.creationId;
     if (!creationId) return false;
@@ -30,8 +31,11 @@ export function resolve(
 
     // Place adjacent to caster, biased toward nearest enemy
     const enemy = nearestEnemy(state, caster.pos);
+    const reticle = opts.reticle as { x: number; y: number } | null | undefined;
     let pos: { x: number; y: number };
-    if (enemy) {
+    if (reticle) {
+        pos = clamp(state.board, { ...reticle });
+    } else if (enemy) {
         pos = clamp(state.board, step8Toward(caster.pos, enemy.pos));
         if (samePos(pos, enemy.pos)) {
             pos = clamp(state.board, { x: caster.pos.x, y: caster.pos.y - 1 });
@@ -41,17 +45,18 @@ export function resolve(
     }
 
     state.summons.push({
-        id:           `${creationId}-${now}`,
-        defId:        creationId,
-        ownerId:      caster.id,
+        id: `${creationId}-${now}`,
+        defId: creationId,
+        ownerId: caster.id,
         pos,
-        name:         def.name,
+        name: def.name,
         profileImage: def.image,
         receiveBuffs: def.receiveBuffs ?? false,
-        expiresAt:    now + (def.durationMs ?? 10_000),
-        nextMoveAt:   now + (def.moveCooldownMs ?? 500),
+        expiresAt: now + (def.durationMs ?? 10_000),
+        nextMoveAt: now + (def.moveCooldownMs ?? 500),
         nextAttackAt: now + (def.attackCooldownMs ?? 1000),
         element: caster.def.element,
+        stratum: def.stratum ?? 'ground',
     });
 
     publish('summon:spawned', { summonId: creationId, owner: caster.id });

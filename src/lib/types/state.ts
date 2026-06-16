@@ -94,6 +94,7 @@ export interface SummonState {
 	stickyTargetId?: string;   // current locked target
 	stickyUntil?: number;      // timestamp; don't switch before this
 	element?: string;
+	stratum: Stratum;
 }
 
 /**
@@ -119,6 +120,7 @@ export interface ConstructState {
 	targetingType: 'pulse' | 'turret';
 	name?: string;
 	receiveBuffs?: boolean;
+	stratum: Stratum;
 }
 
 

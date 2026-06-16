@@ -20,6 +20,8 @@ const CREATIONS: Record<string, CreationDef> = {
         attackDamage: 40,
         attackRange: 1,
         receiveBuffs: true,
+        energyPerHit: 5,
+        grantsOwnerStack: 'eclipse',
     },
 
     // ── Constructs ───────────────────────────────────────────────────────────
@@ -35,6 +37,8 @@ const CREATIONS: Record<string, CreationDef> = {
         pulseRadius: 3,
         stunMs: 800,
         receiveBuffs: false,
+        energyPerHit: 5,
+        grantsOwnerStack: 'eclipse',
     },
 
     wind_tower: {
@@ -47,6 +51,9 @@ const CREATIONS: Record<string, CreationDef> = {
         pulseMs: 2_000,
         pulseRadius: 2,
         receiveBuffs: false,
+        energyPerHit: 8,
+        stratum: 'ground',        // sits on ground, ground enemies path around it
+        hits: ['ground', 'flying'], // pulse damages both strata
     },
 
     // ── Test summons (cover all targeting modes + AoE + ranged) ──────────────────

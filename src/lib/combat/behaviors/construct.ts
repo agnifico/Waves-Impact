@@ -61,6 +61,7 @@ export function resolve(
         stunMs:        def.stunMs      ?? 0,
         nextPulseAt:   now + pulseMs,
         expiresAt:     now + (def.durationMs ?? 10_000),
+        stratum: def.stratum ?? 'ground',
     });
 
     publish('construct:placed', { constructId: `${creationId}-${now}`, ownerId: caster.id });

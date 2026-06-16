@@ -1,13 +1,8 @@
 <script lang="ts">
 	import { resolveTheme } from '$lib/render/char-theme';
 
-	// Roster (imported directly — registry is still partial). Order = sidebar order.
-	import { frosty } from '$lib/data/characters/frosty';
-	import { maria_elena } from '$lib/data/characters/maria_elena';
-	import { midorima } from '$lib/data/characters/midorima';
-	import { ryoma } from '$lib/data/characters/ryoma';
-	import { sefyra } from '$lib/data/characters/sefyra';
-	import { june9 } from '$lib/data/characters/june9';
+	import { getAllCharacters } from '$lib/data/registry';
+	import { getCreationDef } from '$lib/data/creations';
 	import HPBar from './HPBar.svelte';
 
 	interface Props {
@@ -15,7 +10,7 @@
 	}
 	let { onclose }: Props = $props();
 
-	const allCharacters = [frosty, maria_elena, midorima, ryoma, sefyra, june9];
+	const allCharacters = getAllCharacters();
 
 	let selectedCharacter = $state(allCharacters[0]);
 
@@ -148,9 +143,7 @@
 					<!-- Overview -->
 					<section class="overview">
 						{#if selectedCharacter.art?.poster}
-							<div class="poster">
-								<img src={selectedCharacter.art.poster} alt="{selectedCharacter.name} art" />
-							</div>
+								<img class="poster" src={selectedCharacter.art.poster} alt="{selectedCharacter.name} art" />
 						{/if}
 						<div class="overview-content">
 							<h3 class="kicker">Overview</h3>
@@ -280,7 +273,8 @@
 													>Hold: {ab.holdBehavior}</span
 												>{/if}
 											{#if ab.charges}<span class="tag tag-charge">{ab.charges} charges</span>{/if}
-											{#if ab.cooldownMs}<span class="tag tag-cooldown"
+											{#if ab.rechargeMs}<span class="tag tag-cooldown">Recharge {secs(ab.rechargeMs)}</span>{/if}
+										{#if ab.cooldownMs}<span class="tag tag-cooldown"
 													>CD {secs(ab.cooldownMs)}</span
 												>{/if}
 										</div>
@@ -314,22 +308,58 @@
 										{#if ab.grantsStack}<span class="tag tag-stack"
 												>+{selectedCharacter.stackName}</span
 											>{/if}
+										{#if ab.consumesStack}<span class="tag tag-stack">Spends {selectedCharacter.stackName}</span>{/if}
+										{#if ab.unchainedBonus}<span class="tag tag-dmg">+{ab.unchainedBonus} Unchained</span>{/if}
+										{#if ab.teamHeal}<span class="tag tag-heal">Team +{ab.teamHeal} HP</span>{/if}
+										{#if ab.gapClose}<span class="tag tag-move">Gap-close</span>{/if}
+										{#if ab.shield}<span class="tag tag-heal">{ab.shield.target === 'party' ? 'Party' : 'Self'} Shield {ab.shield.amount}</span>{/if}
+										{#if ab.gather}<span class="tag tag-move">Gather r{ab.gather.radius} ×{ab.gather.steps}</span>{/if}
+										{#if ab.durationMs}<span class="tag">Duration {secs(ab.durationMs)}</span>{/if}
+										{#if ab.zoneFollows}<span class="tag tag-move">Follows {ab.zoneFollows}</span>{/if}
 									</div>
+
+									<!-- Zone buff breakdown -->
+									{#if ab.zoneBuff}
+										{@const zb = ab.zoneBuff}
+										<div class="zone-buff">
+											<span class="tag tag-behavior">Zone · every {secs(zb.tickMs)}</span>
+											{#if zb.damageBonus}<span class="tag tag-outline">+{Math.round(zb.damageBonus * 100)}% DMG</span>{/if}
+											{#if zb.dmgPerTick}<span class="tag tag-dmg">{zb.dmgPerTick} DMG/tick</span>{/if}
+											{#if zb.healPerTick}<span class="tag tag-heal">+{zb.healPerTick} HP/tick</span>{/if}
+											{#if zb.activeBonusHeal}<span class="tag tag-heal">+{zb.activeBonusHeal} HP active</span>{/if}
+											{#if zb.ownerEnergyDrainPerTick}<span class="tag tag-energy-cost">{zb.ownerEnergyDrainPerTick} EN drain</span>{/if}
+										</div>
+									{/if}
 
 									{#if ab.description}<p class="prose small">{@render fmt(ab.description)}</p>{/if}
 
-									{#if ab.summonImage || ab.summonId}
-										<div class="summon">
-											{#if ab.summonImage}<img src={ab.summonImage} alt={ab.summonId} />{/if}
-											<div>
-												<p class="summon-title">
-													{ab.behavior === 'construct' ? 'Construct' : 'Summon'}: {ab.summonId}
-												</p>
-												{#if ab.summonDurationMs}<span class="tag"
-														>Duration {secs(ab.summonDurationMs)}</span
-													>{/if}
+									{#if ab.creationId}
+										{@const def = getCreationDef(ab.creationId)}
+										{#if def}
+											<div class="summon">
+												{#if def.image}<img src={def.image} alt={def.name} />{/if}
+												<div style="flex:1; min-width:0">
+													<p class="summon-title">
+														{def.kind === 'construct' ? 'Construct' : 'Summon'} — {def.name}
+													</p>
+													<div class="tag-row" style="margin-top: 0.35rem">
+														{#if def.constructType}<span class="tag tag-behavior">{def.constructType}</span>{/if}
+														{#if def.targetingType}<span class="tag tag-behavior">{def.targetingType}</span>{/if}
+														{#if def.targeting}<span class="tag tag-behavior">{def.targeting}</span>{/if}
+														{#if def.durationMs}<span class="tag">Lives {secs(def.durationMs)}</span>{/if}
+														{#if def.pulseDmg !== undefined}<span class="tag tag-dmg">{def.pulseDmg} pulse</span>{/if}
+														{#if def.pulseMs}<span class="tag">every {secs(def.pulseMs)}</span>{/if}
+														{#if def.pulseRadius}<span class="tag">r{def.pulseRadius}</span>{/if}
+														{#if def.stunMs}<span class="tag tag-alert">Stun {secs(def.stunMs)}</span>{/if}
+														{#if def.attackDamage !== undefined}<span class="tag tag-dmg">{def.attackDamage} DMG</span>{/if}
+														{#if def.attackRange}<span class="tag">Range {def.attackRange}</span>{/if}
+														{#if def.attackCooldownMs}<span class="tag">Atk {secs(def.attackCooldownMs)}</span>{/if}
+														{#if def.aoeRadius}<span class="tag">AoE r{def.aoeRadius}</span>{/if}
+														{#if def.receiveBuffs}<span class="tag tag-outline">Buffable</span>{/if}
+													</div>
+												</div>
 											</div>
-										</div>
+										{/if}
 									{/if}
 								</div>
 							{/each}
@@ -338,6 +368,7 @@
 
 					<!-- Hints (authored later in data: character.hints: string[]) -->
 					<section>
+					<img class="banner" src={selectedCharacter.art?.bannerPoster} alt="">
 						<h2 class="section-title">Hints</h2>
 						{#if selectedCharacter.hints?.length}
 							<ul class="hints">
@@ -391,6 +422,8 @@
 		z-index: 999;
 		padding: 1.5rem;
 	}
+
+
 
 	.codex {
 		--surface: #140d10;
@@ -581,19 +614,28 @@
 		align-items: flex-start;
 	}
 	.poster {
-		width: 150px;
-		height: 200px;
+		max-width: 250px;
+		max-height: 400px;
 		flex-shrink: 0;
 		border-radius: 8px;
 		overflow: hidden;
 		background: #000;
-		border: 1px solid color-mix(in srgb, var(--char-primary) 35%, transparent);
-		box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+		background-position: center;
+		/* border: 1px solid color-mix(in srgb, var(--char-primary) 35%, transparent); */
 	}
 	.poster img {
-		width: 100%;
 		height: 100%;
+		aspect-ratio: initial;
+		object-position: center;
+		background-color: var(--surface-2);
+		box-shadow: 0 -6px 50px 10px black inset;
+	}
+	.banner {
+		width: 100%;
+		height: 300px;
+		position: relative;
 		object-fit: cover;
+		object-position: center 20%;
 	}
 	.overview-content {
 		flex-grow: 1;
@@ -751,6 +793,18 @@
 		background: transparent;
 		border: 1px solid color-mix(in srgb, var(--char-glow) 60%, transparent);
 		color: var(--char-glow);
+	}
+
+	/* ── Zone buff ── */
+	.zone-buff {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		margin-top: 0.6rem;
+		padding: 0.45rem 0.7rem;
+		border-radius: 6px;
+		background: rgba(0, 0, 0, 0.25);
+		border: 1px dashed rgba(100, 200, 120, 0.25);
 	}
 
 	/* ── Summon asset ── */

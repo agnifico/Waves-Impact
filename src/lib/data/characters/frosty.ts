@@ -74,18 +74,21 @@ export const frosty: Character = {
 			behavior: 'construct',
 			creationId: 'glacial_pylon',
 			charges: 2, rechargeMs: 12_000, energyGain: 10, grantsStack: 'eclipse',
-			shapeParams: { radius: 1, range: 5 },
+			aimRange: 5,           // ← replaces shapeParams: { radius: 1, range: 5 }
 			holdBehavior: 'aim',
 			damage: 10,
+			autoTargetEnemy: true,
 			fx: { shape: 'orb', colors: ['#eaf6ff', 'var(--frost)', '#00b4d8'] }
 		},
 
 		V: {
 			id: 'revenant_wolf', name: 'The Revenant Wolf',
 			behavior: 'summon',
-			creationId: 'test_ranged',          // ← replaces the entire summon:{} block
+			creationId: 'wolfie',
 			cooldownMs: 20_000, energyCost: 10, grantsStack: 'eclipse',
-		}
+			aimRange: 4,           // ← wolf spawns anywhere within 4 tiles
+			holdBehavior: 'aim',
+		},
 	},
 
 	stackType: 'eclipse',
@@ -95,8 +98,9 @@ export const frosty: Character = {
 	onStackFullTarget: 'self',
 	art: {
 		gem: '/characters/frosty_gem.png',
-		profile: '/characters/avatars/frosty.png',
-		poster: '/characters/frosty_poster100.png'
+		profile: '/characters/avatars2/frosty.png',
+		poster: '/characters/frosty4.png',
+		bannerPoster: '/characters/frosty_poster101.png',
 	},
 	theme: {
 		primary: '#00b4d8',

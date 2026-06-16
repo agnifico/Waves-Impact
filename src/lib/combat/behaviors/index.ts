@@ -8,6 +8,7 @@ import * as dash from './dash';
 import * as zone from './zone';
 import * as cloudpiercer from './cloudpiercer';
 import * as construct from './construct';
+import * as multiConstruct from './multi_construct';
 
 /** Generic resolve signature every behavior handler must implement. */
 export type BehaviorResolveFn = (
@@ -28,6 +29,7 @@ const registry: Record<string, BehaviorResolveFn> = {
 	summon: summon.resolve as BehaviorResolveFn,
 	construct: construct.resolve as BehaviorResolveFn,   // ← NEW
 	dash: dash.resolve as BehaviorResolveFn,
+	multi_construct: multiConstruct.resolve as BehaviorResolveFn,
 	zone: zone.resolve as BehaviorResolveFn,
 	cloudpiercer: cloudpiercer.resolve as BehaviorResolveFn,
 };

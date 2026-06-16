@@ -64,14 +64,18 @@ export const midorima: Character = {
 		C: {
 			id: 'wind_tower',
 			name: 'Wind Tower',
-			behavior: 'construct',
-
+			behavior: 'multi_construct',
+			creationId: 'wind_tower',
+			multiConstructOffsets: [
+				{ x: -1, y: -1 },
+				{ x:  1, y: -1 },
+				{ x: -1, y:  1 },
+				{ x:  1, y:  1 },
+			],
 			charges: 2,
 			rechargeMs: 12_000,
 			energyGain: 10,
 			grantsStack: 'gale',
-			creationId: 'wind_tower',
-
 			fx: { shape: 'orb', colors: ['#eaf6ff', 'var(--frost)', '#00b4d8'] }
 		},
 
@@ -84,15 +88,16 @@ export const midorima: Character = {
 			shapeParams: { radius: 2 },
 			durationMs: 3000,
 			cooldownMs: 10000,
-			energyCost: 75,
+			energyCost: 100,
 			zoneFollows: 'active', // The storm actively tracks her as she dashes around
 			zoneBuff: {
                 damageBonus: 0.15,
-                dmgPerTick: 100,
+                dmgPerTick: 75,
                 tickMs: 250
             },
 			fx: {zone: 'slashes'},
 			persistsAfterDeath: true,
+			hits: ['ground', 'flying']
 		}
 	},
 
@@ -107,8 +112,9 @@ export const midorima: Character = {
 
 	art: {
 		gem: '/characters/midorima1.png',
-		profile: '/characters/avatars/midorima.png',
-		poster: '/characters/midorima_poster3.png' // Utilizing full action file
+		profile: '/characters/avatars2/midorima.png',
+		poster: '/characters/midorima_poster.png',
+		bannerPoster: '/characters/midorima_poster3.png'
 	},
 	theme: {
 		primary: '#3c6e71',

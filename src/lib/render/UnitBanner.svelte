@@ -1,12 +1,22 @@
 <script lang="ts">
-	import type { EngineState, CharacterState, EnemyState } from '$lib/types/state';
+	import type { EngineState, CharacterState } from '$lib/types/state';
 	import HPBar from './HPBar.svelte';
+	import EnemyBanner from './EnemyBanner.svelte';
 
 	let {
 		state,
 		now,
-		side = 'ally'
-	}: { state: EngineState; now: number; side?: 'ally' | 'enemy' } = $props();
+		side = 'ally',
+		ultPct: ultPctProp = undefined
+	}: {
+		state: EngineState;
+		now: number;
+		side?: 'ally' | 'enemy';
+		/** 0–100 charge toward the V / ultimate. If omitted, falls back to energy %. */
+		ultPct?: number;
+	} = $props();
+
+	const clamp = (v: number) => Math.max(0, Math.min(100, v));
 
 	const ELEMENT_COLOR: Record<string, string> = {
 		water: 'var(--frost)',
@@ -18,276 +28,376 @@
 		normal: 'var(--gold)'
 	};
 
-	let ally = $derived(side === 'ally' ? state.party[state.activeSlot] : null);
+	// translucent bg + border colour for an element tag
+	function tagTint(el: string) {
+		return ELEMENT_COLOR[el] ?? 'var(--gold)';
+	}
+
+	// active-effect chips (everything except shield, which renders next to HP)
+	const EFFECT_META: Record<string, { color: string; label: string }> = {
+		unchained: { color: 'var(--unchained, #f59433)', label: 'Unchained' },
+		bloomstride: { color: 'var(--bloomstride, #56c069)', label: 'Bloomstride' }
+	};
+
+	let ally = $derived(side === 'ally' ? (state.party[state.activeSlot] as CharacterState) : null);
+
 	let shield = $derived(ally?.activeEffects?.['shield']);
 	let hasShield = $derived(!!shield);
-	let shieldAmt = $derived(shield?.absorbRemaining ?? 0);
-	let foe = $derived.by(() => {
-		if (side === 'ally') return null;
-		const locked = state.focusTargetId
-			? state.enemies.find((e) => e.id === state.focusTargetId && e.hp > 0)
-			: null;
-		return locked ?? state.enemies.find((e) => e.hp > 0) ?? null;
-	});
-	let unit = $derived((ally ?? foe) as CharacterState | EnemyState | null);
+	let shieldAmt = $derived(Math.round(shield?.absorbRemaining ?? 0));
 
-	let hpPct = $derived(unit ? Math.max(0, Math.min(100, (100 * unit.hp) / unit.def.maxHp)) : 0);
+	let hpPct = $derived(ally ? clamp((100 * ally.hp) / ally.def.maxHp) : 0);
 	let low = $derived(hpPct < 30);
-	let enPct = $derived(
-		ally ? Math.max(0, Math.min(100, (100 * ally.energy) / ally.def.maxEnergy)) : 0
-	);
-	let rim = $derived(unit ? (ELEMENT_COLOR[unit.def.element] ?? 'var(--gold)') : 'var(--gold)');
+
+	let element = $derived(ally?.def.element ?? 'normal');
+	// extra type tags (e.g. FLYING) if the def carries them; primary element is always shown
+	let extraTags = $derived(((ally?.def as any)?.tags as string[] | undefined) ?? []);
+
+	// stack pip label is character-specific (e.g. FLAME for Maria); optional.
+	let stackLabel = $derived((ally?.def as any)?.stackLabel as string | undefined);
+
+	// V / ultimate ring. Prefer the prop, then any explicit charge field, else energy %.
+	let ultPct = $derived.by(() => {
+		if (ultPctProp != null) return clamp(ultPctProp);
+		if (!ally) return 0;
+		const a = ally as unknown as Record<string, number | undefined>;
+		const raw = a.ultCharge ?? a.ult ?? a.vCharge;
+		if (raw != null) return clamp(raw <= 1 ? raw * 100 : raw);
+		// fallback — swap this for your real V-charge source
+		return clamp((100 * ally.energy) / ally.def.maxEnergy);
+	});
+	let ultReady = $derived(ultPct >= 99.5);
+
+	let effectChips = $derived.by(() => {
+		if (!ally) return [];
+		return Object.entries(ally.activeEffects ?? {})
+			.filter(([k]) => k !== 'shield')
+			.map(([key, eff]) => {
+				const meta = EFFECT_META[key] ?? { color: 'var(--gold)', label: key };
+				const expiresAt = (eff as any)?.expiresAt ?? 0;
+				const rem = expiresAt > 0 ? `${Math.ceil((expiresAt - now) / 1000)}s` : '';
+				return { key, color: meta.color, label: meta.label, rem };
+			});
+	});
 </script>
 
-<div class="unit-banner">
-	{#if unit}
-		<div class="unit-banner" class:enemy={!ally} style={ally ? '' : `--char-primary:${rim}`}>
-			<div
-				class="portrait"
-				// style="background-color: var(--char-primary, var(--gold)); {ally?.def.art?.gem
-				// 	? `background-image: url(${ally.def.art.gem})`
-				// 	: ''}"
-				style="background-color: var(--char-primary, var(--gold)); {ally
-					? `background-image: url(${ally?.def?.art?.gem})`
-					: `background-image: url(${unit?.def?.profileImage})`}"
-			></div>
-
-			<div class="banner-body">
-				<div class="nameplate"><span class="name">{unit.def.name}</span></div>
-
-				<div class="vitals">
-					<div class="hp-wrap" class:shielded={hasShield}>
-						{#if hasShield}
-							<div class="shield-badge">
-								<svg width="9" height="10" viewBox="0 0 10 11" fill="none">
-									<path
-										d="M5 0.5L9 2.5V5.5C9 7.5 7 9.5 5 10.5C3 9.5 1 7.5 1 5.5V2.5L5 0.5Z"
-										fill="rgba(96,210,255,0.15)"
-										stroke="rgba(96,210,255,0.75)"
-										stroke-width="1"
-									/>
-								</svg>
-								<span class="shield-amt">{shieldAmt}</span>
-							</div>
-						{/if}
-						<HPBar current={unit.hp} max={unit.def.maxHp} type={ally ? 'hp' : 'enemy'} />
-					</div>
-					{#if ally}
-						<HPBar current={ally.energy} max={ally.def.maxEnergy} type="energy" />
-					{/if}
-				</div>
-
-				{#if ally}
-					<div class="resource">
-						<div class="pips">
-							{#each { length: ally.def.stackMax } as _, i}
-								<span class="pip" class:filled={i < ally.stacks.current}></span>
-							{/each}
-						</div>
-						{#if 'unchained' in ally.activeEffects}<span class="buff buff--unchained"
-								>UNCHAINED</span
-							>{/if}
-						{#if 'bloomstride' in ally.activeEffects}
-							{@const bs = ally.activeEffects['bloomstride']}
-							{@const rem = bs.expiresAt > 0 ? Math.ceil((bs.expiresAt - now) / 1000) : '∞'}
-							<span class="buff buff--bloomstride">BLOOMSTRIDE {rem}s</span>
-						{/if}
-					</div>
+{#if side === 'enemy'}
+	<EnemyBanner {state} {now} />
+{:else if ally}
+	<div
+		class="ally-banner"
+		class:low
+		style="--ult-deg:{(ultPct / 100) * 360}deg"
+		role="group"
+		aria-label="{ally.def.name} status"
+	>
+		<!-- portrait + V ring -->
+		<div class="portrait-wrap" class:ready={ultReady}>
+			<div class="ult-ring"></div>
+			<div class="portrait">
+				{#if ally.def.art?.gem || ally.def.profileImage}
+					<img class="ally-img" src={ally.def.art?.gem ?? ally.def.profileImage} alt="" />
 				{/if}
 			</div>
+			<span class="ult-badge">{Math.round(ultPct)}%</span>
+			<!-- <span class="ult-badge">{element.toUpperCase}</span> -->
 		</div>
-	{/if}
-</div>
+
+		<div class="body">
+			<div class="name-row">
+				<span class="name">{ally.def.name}</span>
+				<span class="tag" style="--tint:{tagTint(element)}">{element}</span>
+				{#each extraTags as t}
+					<span class="tag tag--secondary">{t}</span>
+				{/each}
+			</div>
+
+			<!-- HP + shield on one line -->
+			<div class="bar-row">
+				<HPBar current={ally.hp} max={ally.def.maxHp} type="hp" />
+				{#if hasShield}
+					<span class="shield-pill" title="Shield">
+						<svg width="9" height="10" viewBox="0 0 10 11" fill="none">
+							<path
+								d="M5 0.5L9 2.5V5.5C9 7.5 7 9.5 5 10.5C3 9.5 1 7.5 1 5.5V2.5L5 0.5Z"
+								fill="rgba(96,210,255,.2)"
+								stroke="rgba(96,210,255,.85)"
+								stroke-width="1"
+							/>
+						</svg>
+						{shieldAmt}
+					</span>
+				{/if}
+			</div>
+
+			<!-- thin energy bar -->
+			<!-- <HPBar current={ally.energy} max={ally.def.maxEnergy} type="energy" /> -->
+
+			<!-- pips (#2 diamonds) + compact effect chips -->
+			<div class="resource-row">
+				<div class="pips" title="Stacks">
+					{#if stackLabel}<span class="pip-label">{stackLabel}</span>{/if}
+					{#each { length: ally.def.stackMax } as _, i}
+						<span class="pip" class:filled={i < ally.stacks.current}></span>
+					{/each}
+					<span class="pip-count">{ally.stacks.current}/{ally.def.stackMax}</span>
+				</div>
+
+				<div class="chips">
+					{#each effectChips as fx (fx.key)}
+						<span class="fx" style="--fx:{fx.color}" title={fx.label}>
+							<svg class="fx-arrow" viewBox="0 0 8 8"
+								><path d="M4 1 L7 5 L1 5 Z" fill="currentColor" /></svg
+							>
+							{#if fx.rem}<span class="fx-time">{fx.rem}</span>{/if}
+						</span>
+					{/each}
+				</div>
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
-	/* Fixed-footprint character banner. Layered front-to-back:
-	   portrait (z3) over nameplate (z2) over vitals (z1) over resource strip (z0). */
-	.unit-banner {
+	/* Ally is bounded: a glassy pill tinted with the character's primary/secondary. */
+	.ally-banner {
 		position: relative;
-		width: 250px;
-		height: 120px;
 		display: flex;
-		gap: 0.5rem;
-		top: 8px;
-		/* padding: 10px; */
-		left: 20px;
-	}
-
-	/* z3 — portrait disc, overlaps the left edge (nudge top/left to taste) */
-	.portrait {
-		position: absolute;
-		top: -5px;
-		left: -40px;
-		z-index: 3;
-		width: 80px;
-		height: 80px;
-		border-radius: 50%;
-		border: 2px solid var(--char-primary, var(--gold));
-		background-color: var(--char-primary, var(--gold));
-		background-size: cover;
-		background-position: center;
+		align-items: center;
+		gap: 14px;
+		width: max(300px, 100%);
+		padding: 11px 11px 11px 11px;
+		border-radius: 15px;
+		background:
+			linear-gradient(
+				135deg,
+				color-mix(in srgb, var(--char-primary, var(--coral)) 86%, transparent),
+				transparent 42%
+			),
+			linear-gradient(
+				315deg,
+				color-mix(
+					in srgb,
+					var(--char-secondary, var(--char-primary, var(--coral))) 84%,
+					transparent
+				),
+				transparent 46%
+			);
+		backdrop-filter: blur(10px);
+		-webkit-backdrop-filter: blur(10px);
 		box-shadow:
-			inset 0 2px 0 rgba(255, 255, 255, 0.35),
-			inset 0 -3px 0 rgba(0, 0, 0, 0.3),
-			0 2px 6px rgba(0, 0, 0, 0.4);
+			0 6px 26px rgba(0, 0, 0, 0.45),
+			inset 0 1px 0 rgba(255, 255, 255, 0.1);
+		/* border: 4px solid #747474; */
 	}
 
-	.banner-body {
+	/* portrait disc wrapped by the V-charge ring (conic fill = how close to ult) */
+	.portrait-wrap {
 		position: relative;
+		flex-shrink: 0;
+		width: 72px;
+		height: 72px;
+	}
+	.ult-ring {
+		position: absolute;
+		inset: 0;
+		border-radius: 12px;
+		padding: 5px;
+		scale: 1.1;
+		background: conic-gradient(
+			from -90deg,
+			var(--char-primary, var(--coral)) 0deg,
+			var(--char-glow, var(--gold-bright)) var(--ult-deg),
+			rgba(255, 255, 255, 0.08) var(--ult-deg)
+		);
+		box-shadow: 0 0 12px color-mix(in srgb, var(--char-primary, var(--coral)) 45%, transparent);
+	}
+	.portrait-wrap.ready .ult-ring {
+		animation: ringPulse 1.1s ease-in-out infinite;
+	}
+	.portrait {
+		width: 100%;
+		height: 100%;
+		position: absolute;
+		/* inset: 5px; */
+		border-radius: 12px;
+		overflow: hidden;
+		border: 2px solid rgba(13, 20, 28, 0.92);
+		background: color-mix(in srgb, var(--char-primary, var(--coral)) 35%, #0c1019);
+		box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.25);
+	}
+	.portrait img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
+	}
+	.ult-badge {
+		position: absolute;
+		bottom: -4px;
+		/* left: 50%; */
+		left: 14px;
+		transform: translateX(-50%);
+		font-family: "DePixel";
+		font-size: 8px;
+		letter-spacing: 0.5px;
+		color: #1a120c;
+		background: linear-gradient(
+			180deg,
+			var(--char-glow, var(--gold-bright)),
+			var(--char-primary, var(--coral))
+		);
+		background: color-mix(in srgb, var(--char-primary) 70%, black) ;
+		/* font-weight: 600; */
+		color: var(--text);
+		border-radius: 8px;
+		padding: 3px 7px 0;
+		white-space: nowrap;
+		/* box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); */
+	}
+
+	.body {
+		flex: 1;
+		min-width: 0;
 		display: flex;
 		flex-direction: column;
-		width: 100%;
+		gap: 6px;
 	}
 
-	/* z2 — nameplate */
-	.nameplate {
-		position: relative;
-		/* z-index: 2; */
-		top: -5px;
-		width: fit-content;
-		padding: 4px 20px 8px 40px;
-		background: rgb(91, 91, 91);
-		clip-path: polygon(0 0, 90% 0, 100% 100%, 0 100%);
-		background-color: color-mix(in srgb, black 80%, var(--char-secondary));
+	.name-row {
+		display: flex;
+		align-items: center;
+		gap: 7px;
 	}
 	.name {
-		font-family: 'DePixel', 'JetBrains Mono', monospace;
+		font-family: 'DePixel';
+		font-style: italic;
+		/* font-weight: 600; */
 		font-size: 14px;
 		letter-spacing: 0.5px;
 		text-transform: uppercase;
-		color: var(--char-primary, var(--gold));
+		color: #f2f5fa;
+		white-space: nowrap;
+	}
+	.tag {
+		font-family: var(--font-family-pixel);
+		font-size: 8px;
+		letter-spacing: 1px;
+		text-transform: uppercase;
+		padding: 2px 7px;
+		border-radius: 20px;
+		white-space: nowrap;
+		color: color-mix(in srgb, var(--tint, var(--gold)) 70%, white);
+		background: color-mix(in srgb, var(--tint, var(--gold)) 16%, transparent);
+		border: 1px solid color-mix(in srgb, var(--tint, var(--gold)) 45%, transparent);
+	}
+	.tag--secondary {
+		--tint: #60a0ff;
 	}
 
-	/* z1 — vitals */
-	.vitals {
-		position: relative;
-		z-index: 1;
-		display: flex;
-		flex-direction: column;
-		gap: 6px;
-		/* left: -10px; */
-		top: -8px;
-		padding: 8px 8px 8px 50px;
-		background: rgb(49, 49, 49);
-		box-shadow:
-			inset 0 1px 0 rgba(255, 255, 255, 0.08),
-			0 3px 0 rgba(0, 0, 0, 0.3),
-			0 5px 12px rgba(0, 0, 0, 0.35);
-	}
-
-	/* add to <style> */
-	.hp-wrap {
-		position: relative;
-		border-radius: 3px;
-		transition: box-shadow 0.2s;
-	}
-	.hp-wrap.shielded {
-		box-shadow:
-			0 0 0 1.5px rgba(96, 210, 255, 0.5),
-			0 0 8px rgba(96, 210, 255, 0.18);
-	}
-
-	.shield-badge {
+	.bar-row {
 		display: flex;
 		align-items: center;
+		gap: 7px;
+	}
+	.shield-pill {
+		display: inline-flex;
+		align-items: center;
 		gap: 3px;
-		margin-bottom: 2px;
-		color: rgba(96, 210, 255, 0.9);
+		flex-shrink: 0;
+		font-family: var(--font-family-pixel);
 		font-size: 9px;
-		font-family: 'JetBrains Mono', monospace;
-		letter-spacing: 0.5px;
-	}
-	.shield-amt {
-		line-height: 1;
-	}
-
-	.bar-set {
-		display: flex;
-		gap: 4px;
-		justify-content: stretch;
-		align-items: flex-end;
+		color: #bfeeff;
+		background: rgba(96, 210, 255, 0.14);
+		border: 1px solid rgba(96, 210, 255, 0.45);
+		border-radius: 7px;
+		padding: 2px 6px;
 	}
 
-	/* z0 — resource strip */
-	.resource {
-		position: relative;
-		top: -8px;
-		left: 0px;
-		z-index: 0;
-		/* width: fit	-content; */
-		width: 100%;
+	.resource-row {
 		display: flex;
-		gap: 6px;
-		padding: 4px 30px 8px 25px;
-		/* clip-path: polygon(0 0, 100% 0, 90% 100%, 20px 100%); */
-		background: linear-gradient(-15deg, var(--bg) 0%, var(--bg) 40%, var(--char-secondary) 100%);
-		/* background: linear-gradient(0deg,transparent 0%, color-mix(in srgb, black 20%, var(--char-secondary)) 50%, transparent 100%); */
+		align-items: center;
+		gap: 10px;
+		flex-wrap: wrap;
+		min-height: 16px;
 	}
 	.pips {
 		display: flex;
-		gap: 6px;
-		margin-top: 0.25rem;
+		align-items: center;
+		gap: 5px;
+	}
+	.pip-label {
+		font-family: var(--font-family-pixel);
+		font-size: 8px;
+		letter-spacing: 1px;
+		color: color-mix(in srgb, var(--char-secondary, var(--gold)) 60%, white);
+		margin-right: 1px;
 	}
 	.pip {
-		width: 10px;
-		height: 10px;
+		width: 9px;
+		height: 9px;
 		transform: rotate(45deg);
-		border: 1px solid var(--char-secondary, var(--gold));
-		border-radius: 25%;
-		background: transparent;
+		border-radius: 2px;
+		background: rgba(255, 255, 255, 0.05);
+		box-shadow: inset 0 0 0 1px
+			color-mix(in srgb, var(--char-secondary, var(--gold)) 45%, transparent);
 		transition: all 0.2s;
 	}
 	.pip.filled {
-		background: var(--char-glow, var(--gold));
-		box-shadow: 0 0 6px var(--char-secondary, var(--gold));
+		background: linear-gradient(
+			135deg,
+			var(--char-glow, var(--gold-bright)),
+			var(--char-primary, var(--coral))
+		);
+		box-shadow: 0 0 6px color-mix(in srgb, var(--char-primary, var(--coral)) 80%, transparent);
+	}
+	.pip-count {
+		font-family: var(--font-family-pixel);
+		font-size: 8.5px;
+		color: color-mix(in srgb, var(--char-glow, var(--gold-bright)) 75%, white);
+		margin-left: 2px;
 	}
 
-	.buff {
-		align-self: flex-start;
-		padding: 2px 7px;
-		font-size: 9px;
-		letter-spacing: 1px;
-		border-radius: 3px;
-		color: var(--bg);
-		animation: pulse 1.2s infinite;
-		text-wrap: nowrap;
+	.chips {
+		display: flex;
+		align-items: center;
+		gap: 5px;
+		margin-left: auto;
 	}
-	.buff--unchained {
-		background: var(--unchained);
+	/* compact buff: arrow + colour + time remaining (no long label) */
+	.fx {
+		display: inline-flex;
+		align-items: center;
+		gap: 3px;
+		padding: 2px 6px;
+		border-radius: 20px;
+		font-family: var(--font-family-pixel);
+		font-size: 8.5px;
+		color: color-mix(in srgb, var(--fx) 55%, white);
+		background: color-mix(in srgb, var(--fx) 22%, transparent);
+		border: 1px solid color-mix(in srgb, var(--fx) 50%, transparent);
 	}
-	.buff--bloomstride {
-		background: var(--bloomstride);
+	.fx-arrow {
+		width: 7px;
+		height: 7px;
+		color: var(--fx);
+	}
+	.fx-time {
+		font-feature-settings: 'tnum';
 	}
 
-	.unit-banner.enemy .bar-fill {
-		background: var(--coral, #e97973);
-	}
-	.unit-banner.enemy .bar-set span {
-		transform: rotateY(180deg);
-		font-weight: 600;
-	}
-	.unit-banner.enemy {
-		transform: rotateY(180deg);
-		left: -60px;
-	}
-	.unit-banner.enemy .portrait {
-		transform: rotateY(180deg);
-		background-size: 100%;
-		background-position: center top;
-		border-color: var(--coral);
-	}
-	.unit-banner.enemy .nameplate {
-		transform: rotateY(180deg);
-		padding: 4px 40px 8px 20px;
-		clip-path: polygon(10% 0, 100% 0, 100% 100%, 0 100%);
-		.name {
-			color: white;
+	@keyframes ringPulse {
+		0%,
+		100% {
+			box-shadow: 0 0 10px color-mix(in srgb, var(--char-primary, var(--coral)) 45%, transparent);
+		}
+		50% {
+			box-shadow: 0 0 18px color-mix(in srgb, var(--char-primary, var(--coral)) 80%, transparent);
 		}
 	}
-	.unit-banner.enemy .vitals {
-		box-shadow:
-			0 3px 0 rgba(0, 0, 0, 0.3),
-			0 5px 12px rgba(0, 0, 0, 0.35);
-		/* left: -12px; */
+
+	@media (prefers-reduced-motion: reduce) {
+		.portrait-wrap.ready .ult-ring {
+			animation: none;
+		}
 	}
 </style>

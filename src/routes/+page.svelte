@@ -36,7 +36,7 @@
 
 	const ROSTER = getAllCharacters();
 
-	const DEFAULT_PARTY = ['ryoma', 'maria_elena', 'midorima', 'frosty', 'june9', 'sefyra'];
+	const DEFAULT_PARTY = ['carla', 'maria_elena', 'midorima', 'frosty', 'june9', 'sefyra'];
 
 	const ENEMY_OPTIONS = {
 		dragon: [getEnemy('dragon')!],
@@ -169,7 +169,7 @@
 						updateHoldState(
 							now,
 							char.pos,
-							ability.shapeParams?.range ?? 0,
+							ability.aimRange ?? ability.shapeParams?.range ?? 0,
 							ability.chargeMsPerTile,
 							ability.chargeMaxRange,
 							trackPos
@@ -329,8 +329,7 @@
 		column-gap: 24px;
 		align-items: stretch;
 		justify-content: center;
-		padding: 2.5rem;
-		padding-bottom: 3.5rem;
+		padding: 0.75rem 2.5rem 3.5rem 2.5rem;
 		border-radius: 24px;
 		background-color: #415a77;
 		background-image: var(--arena-bg, url('/characters/group2.png'));
@@ -355,7 +354,6 @@
 		justify-content: space-between;
 		width: 100%;
 		z-index: 1;
-		/* top: -2rem; */
 	}
 
 	.party-row {
@@ -373,7 +371,7 @@
 		font-size: 2rem;
 		letter-spacing: 2px;
 		margin: 0 0 0.25rem;
-		color: var(--panel-2);
+		color: var(--text);
 	}
 
 	.codex-btn {
@@ -415,7 +413,7 @@
 	}
 	.board-wrap {
 		background-color: var(--panel-raised);
-		padding: .5rem 1.5rem 2rem 1.5rem;
+		padding: 0.5rem 1.5rem 2rem 1.5rem;
 		border-radius: 18px;
 		box-shadow:
 			0 0 0px 4px rgba(0, 0, 0, 0.4) inset,

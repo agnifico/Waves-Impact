@@ -96,7 +96,7 @@ export function bindInputEvents(
 		}
 
 		// Abilities: V is tap-fire, X and C support hold
-		if (intent === 'abilityV') tryAbility(state, 'V', now);
+		if (intent === 'abilityV') beginHold(state, 'V', now);
 		if (intent === 'abilityX') beginHold(state, 'X', now);
 		if (intent === 'abilityC') beginHold(state, 'C', now);
 	}
@@ -127,7 +127,8 @@ export function bindInputEvents(
 		// Release held ability
 		if (
 			(intent === 'abilityX' && holdState.holdingSlot === 'X') ||
-			(intent === 'abilityC' && holdState.holdingSlot === 'C')
+			(intent === 'abilityC' && holdState.holdingSlot === 'C') ||
+			(intent === 'abilityV' && holdState.holdingSlot === 'V')
 		) {
 			if (!holdState.cancelNextRelease && state) {
 				fireHeldAbility(state, holdState.holdingSlot as AbilitySlot, now);
@@ -172,24 +173,27 @@ export function bindInputEvents(
 		holdState.holdStartAt = now;
 		holdState.reticle = null;
 		holdState.reticleMovedThisHold = false;
-		holdState.chargedRange = ability.shapeParams?.range ?? 0;
+		holdState.chargedRange = ability.aimRange ?? ability.shapeParams?.range ?? 0;
 		holdState.abilityHoldIsSelf = false;
 		holdState.cancelNextRelease = false;
 
 		if (ability.holdBehavior === 'aim') {
 			// Reticle starts on nearest enemy if in range, else self
-			const enemy = nearestEnemy(state, char.pos, ability.shapeParams?.range);
+			const enemy = nearestEnemy(state, char.pos, ability.aimRange ?? ability.shapeParams?.range);
 			if (ability.autoTargetEnemy && enemy) {
 				holdState.reticle = { ...enemy.pos };
 			} else {
-				holdState.reticle = { ...char.pos };
+				holdState.reticle = {
+					x: char.pos.x + Math.sign(char.facing.x || 0),
+					y: char.pos.y + Math.sign(char.facing.y || 0),
+				};
 			}
 		} else if (ability.holdBehavior === 'track') {
 			const locked = getLockedEnemyId();
 			const acq =
 				locked && state.enemies.some((e) => e.id === locked && e.hp > 0)
 					? state.enemies.find((e) => e.id === locked)!
-					: nearestEnemy(state, char.pos, ability.shapeParams?.range);
+					: nearestEnemy(state, char.pos, ability.aimRange ?? ability.shapeParams?.range);
 			holdState.trackTargetId = acq ? acq.id : null;
 			holdState.reticle = acq ? { ...acq.pos } : { ...char.pos };
 		} else if (ability.holdBehavior === 'aim_dir') {

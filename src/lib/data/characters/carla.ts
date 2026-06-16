@@ -1,8 +1,8 @@
 import type { Character } from '$lib/types/character';
 
-export const ryoma: Character = {
-    id: 'ryoma',
-    name: 'Ryoma',
+export const carla: Character = {
+    id: 'carla',
+    name: 'Carla',
     element: 'dark', // Using the dark element classification
     maxHp: 200,       // High-precision glass cannon profile
     maxEnergy: 100,
@@ -14,35 +14,35 @@ export const ryoma: Character = {
         {
             name: 'Tactical Draw (1)',
             damage: 6,
-            range: 1, // Slight reach due to his blade profile
+            range: 8, // Slight reach due to his blade profile
             energyGain: 12,
             poiseDamage: 10,
             shape: 'melee', // Crisp, straight-line thrust geometry
             omniTarget: true,
             dashBack: 1,
-            fx: { strike: 'claw', colors: ['#f35b04', '#c084fc'] }
+            fx: { strike: 'bullet', colors: ['#f35b04', '#c084fc'] }
         },
         {
             name: 'Crimson Sheath (2)',
             damage: 10,
-            range: 2,
+            range: 8,
             energyGain: 12,
             poiseDamage: 12,
             shape: 'melee',
-            dashBack: 3,
-            fx: { strike: 'claw', colors: ['#f7b801', 'var(--gold-bright)'] }
+            // dashBack: 3,
+            fx: { strike: 'bullet', colors: ['#f7b801', 'var(--gold-bright)'] }
         },
         {
             name: 'Glint of Execution (3)',
             damage: 18,
-            range: 5, // Extended lunge step
+            range: 8, // Extended lunge step
             energyGain: 15,
             poiseDamage: 25,
             shape: 'melee',
-            gapClose: true,
+            // gapClose: true,
             grantsStack: 'discipline', // Strategic collection of tactical insight
             appliesEffects: ['tactical_mark'], // Places an assassination mark on hit via the status engine
-            fx: { strike: 'claw', gashes:7, colors: ['#7678ed', '#ff003c'] }
+            fx: { strike: 'bullet', gashes:7, colors: ['#7678ed', '#ff003c'] }
         }
     ],
 
@@ -118,9 +118,10 @@ export const ryoma: Character = {
     offFieldStackBonus: 1.2, // Grants a minor energy generation modifier while holding stacks off-field
 
     art: {
-        gem: '/characters/ryoma3.png',
-        profile: '/characters/avatars2/ryoma.png',
-        poster: '/characters/ryoma_poster.png'
+        gem: '/characters/carla5.png',
+        profile: '/characters/avatars2/carla.png',
+        poster: '/characters/carla1.png',
+        bannerPoster: '/characters/carla4.png'
     },
     theme: {
         primary: '#9b5de5', // Deep Obsidian Purple matching the new dark palette matrix

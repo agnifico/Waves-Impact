@@ -3,7 +3,7 @@ import type { Position } from '$lib/types/common';
 import { chebyshev, step8Toward, samePos, clamp } from '../board';
 import { publish } from '../events';
 import { canEnter } from '../spatial';
-import { resolveTarget, tryAttacks } from './utils';
+import { resolveTarget, tileBlockedByConstruct, tryAttacks } from './utils';
 
 /**
  * flanker: approach from the player's blind side.
@@ -37,7 +37,19 @@ export function tick(state: EngineState, enemy: EnemyState, now: number): void {
                 const perpL = clamp(state.board, { x: active.pos.x + f.y * scale, y: active.pos.y - f.x * scale });
                 const perpR = clamp(state.board, { x: active.pos.x - f.y * scale, y: active.pos.y + f.x * scale });
                 const flankTarget = chebyshev(perpL, enemy.pos) <= chebyshev(perpR, enemy.pos) ? perpL : perpR;
-                candidate = clamp(state.board, step8Toward(enemy.pos, flankTarget));
+                const raw = clamp(state.board, step8Toward(enemy.pos, flankTarget));
+                if (tileBlockedByConstruct(state, raw, enemy)) {
+                    const alternatives = [
+                        { x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 },
+                        { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }
+                    ]
+                        .map(o => clamp(state.board, { x: enemy.pos.x + o.x, y: enemy.pos.y + o.y }))
+                        .filter(p => !tileBlockedByConstruct(state, p, enemy) && canEnter(enemy.stratum, p, state.board, def.traversal))
+                        .sort((a, b) => chebyshev(a, flankTarget) - chebyshev(b, flankTarget));
+                    candidate = alternatives[0] ?? raw;
+                } else {
+                    candidate = raw;
+                }
             }
             // Already adjacent: hold and let tryAttacks fire next tick when cd clears
         } else {

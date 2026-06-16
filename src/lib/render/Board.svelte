@@ -83,6 +83,8 @@
 
 	function computePreviewTiles(active: CharacterState, ability: Ability): Position[] {
 		let tiles: Position[] = [];
+		const zoneCenter =
+			ability.holdBehavior === 'aim' && holdState.reticle ? holdState.reticle : active.pos;
 		if (ability.shape === 'circle') {
 			let center = active.pos;
 			if (holdState.holdBehavior === 'aim' && holdState.reticle) {
@@ -106,11 +108,11 @@
 		} else if (ability.behavior === 'zone') {
 			tiles = resolveTiles(
 				'circle',
-				active.pos,
+				zoneCenter,
 				active.facing,
 				{ radius: ability.shapeParams?.radius ?? 2 },
 				gs.board,
-				active.pos
+				zoneCenter
 			);
 		} else if (ability.behavior === 'dash') {
 			// shapeParams is Record<string, number> but dir is actually stored as a string.
@@ -145,6 +147,14 @@
 						if (tx >= 0 && tx < gs.board.size.width && ty >= 0 && ty < gs.board.size.height)
 							tiles.push({ x: tx, y: ty });
 					}
+				}
+			}
+		} else if (ability.behavior === 'multi_construct' && ability.multiConstructOffsets) {
+			for (const offset of ability.multiConstructOffsets) {
+				const tx = active.pos.x + offset.x;
+				const ty = active.pos.y + offset.y;
+				if (tx >= 0 && tx < gs.board.size.width && ty >= 0 && ty < gs.board.size.height) {
+					tiles.push({ x: tx, y: ty });
 				}
 			}
 		} else if (ability.shape) {

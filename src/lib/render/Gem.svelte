@@ -326,5 +326,6 @@
 	.square {
 		border-radius: 3px;
 		background-size: contain;
+		box-shadow: none;
 	}
 </style>

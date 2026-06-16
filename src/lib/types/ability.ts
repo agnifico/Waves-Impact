@@ -24,17 +24,18 @@ export type ShapeId =
  * state changed. (Data Contract §2, §6)
  */
 export type BehaviorId =
-	| 'damage_aoe'
-	| 'damage_first_in_line'
-	| 'summon'
-	| 'construct'
-	| 'dash'
-	| 'zone'
-	| 'channel_beam'
-	| 'chain'
-	| 'displace'
-	| 'marker'
-	| (string & {}); // extensible
+    | 'damage_aoe'
+    | 'damage_first_in_line'
+    | 'summon'
+    | 'construct'
+    | 'multi_construct'   // ← ADD
+    | 'dash'
+    | 'zone'
+    | 'channel_beam'
+    | 'chain'
+    | 'displace'
+    | 'marker'
+    | (string & {});
 
 /** Hold modifier — orthogonal to behavior. (Data Contract §5.1) */
 export type HoldBehavior = 'aim' | 'charge' | 'channel' | 'track' | 'aim_dir';
@@ -53,6 +54,7 @@ export interface ZoneBuff {
 	damageBonus?: number;
 	ownerEnergyDrainPerTick?: number;
 	upkeepReductionPerStack?: number;
+	gatherPerTick?: { steps: number };
 }
 
 export interface ShapeParams {
@@ -107,6 +109,7 @@ export interface Ability {
 	unchainedBonus?: number;
 	appliesEffects?: string[];
 	persistsAfterDeath?: boolean;   // zone: keep ticking after owner dies
+	aimRange?: number;
 
 	gather?: { radius: number; steps: number }; // pull enemies toward caster
 
@@ -128,7 +131,7 @@ export interface Ability {
 	zoneFollows?: 'caster' | 'fixed' | 'active';
 
 	creationId?: string;   // registry key into data/creations.ts
-
+	multiConstructOffsets?: { x: number; y: number }[];
 	// Visual
 	impactClass?: string;
 	hits?: Stratum[];  // strata this ability can hit; omit = all

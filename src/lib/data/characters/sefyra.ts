@@ -62,14 +62,25 @@ export const sefyra: Character = {
         },
         // PROVISIONAL (chunk 5 = gather + whirlwind + 3-stack VV buff)
         V: {
-            id: 'goddess',
-            name: 'Goddess of the Divine Gale',
-            behavior: 'zone', shape: 'circle',
-            shapeParams: { radius: 5 }, durationMs: 16000,
-            cooldownMs: 20000, energyCost: 40,
-            zoneBuff: { damageBonus: .5, tickMs: 1500 },
-            fx: {zone: 'holy'},
-        }
+            id: 'divine_vortex',
+            name: 'Divine Vortex',
+            behavior: 'zone',
+            shapeParams: { radius: 5 },
+            durationMs: 8000,
+            cooldownMs: 20000,
+            energyCost: 40,
+            aimRange: 12,
+            holdBehavior: 'aim',
+            zoneFollows: 'fixed',
+            zoneBuff: {
+                tickMs: 600,
+                dmgPerTick: 8,
+                damageBonus: 0.2,
+                gatherPerTick: { steps: 1 },
+            },
+            fx: { zone: 'holy' },
+            grantsStack: 'divinity',
+        },
     },
 
     stackType: 'divinity',
@@ -84,8 +95,9 @@ export const sefyra: Character = {
 
     art: {
         gem: '/characters/sefyra_profile2.png',
-        profile: '/characters/avatars/sefyra.png',
-        poster: '/characters/sefyra100.png'
+        profile: '/characters/avatars2/sefyra.png',
+        poster: '/characters/sefyra_poster3.png',
+        bannerPoster: '/characters/sefyra100.png'
     },
     theme: {
         primary: '#fcbf49',

@@ -9,6 +9,7 @@ import { canEnter } from './spatial';
 import { OFF_FIELD_REGEN_MS, regenOffField } from './energy';
 import { calculateDamage } from './pipeline';
 import { getCreationDef } from '$lib/data/creations';
+import { grantStack } from './stacks';
 
 /** Fallback movement step interval (ms) when a character omits moveMs. */
 const DEFAULT_MOVE_MS = 150;
@@ -258,6 +259,7 @@ function tickSummons(state: EngineState, now: number): void {
 					enemy.hp = Math.max(0, enemy.hp - splash);
 					publish('damage:dealt', { source: summon.ownerId, target: enemy.id, amount: splash, abilityName: 'Summon attack' });
 					if (enemy.hp <= 0) publish('enemy:defeated', { enemyId: enemy.id, killer: summon.ownerId });
+					rewardOwner(state, summon.ownerId, summon.defId, now);
 				}
 			}
 
@@ -275,6 +277,19 @@ function tickSummons(state: EngineState, now: number): void {
 	}
 }
 
+function rewardOwner(state: EngineState, ownerId: string, defId: string, now: number): void {
+	const def = getCreationDef(defId);
+	if (!def) return;
+	const owner = state.party.find((p) => p.id === ownerId);
+	if (!owner || owner.hp <= 0) return;
+	if (def.energyPerHit) {
+		owner.energy = Math.min(owner.def.maxEnergy, owner.energy + def.energyPerHit);
+	}
+	if (def.grantsOwnerStack) {
+		grantStack(state, owner, def.grantsOwnerStack, now);
+	}
+}
+
 // ─── Construct tick ───────────────────────────────────────────────────────────
 // Constructs live in state.constructs (not state.summons). They are stationary,
 // pulse-only, and invisible to enemy aggro AI.
@@ -282,7 +297,7 @@ function tickSummons(state: EngineState, now: number): void {
 function tickConstructs(state: EngineState, now: number): void {
 	for (let i = state.constructs.length - 1; i >= 0; i--) {
 		const construct = state.constructs[i];
-
+		const def = getCreationDef(construct.defId);
 		if (now >= construct.expiresAt) {
 			publish('construct:expired', { constructId: construct.id, ownerId: construct.ownerId });
 			state.constructs.splice(i, 1);
@@ -321,12 +336,14 @@ function tickConstructs(state: EngineState, now: number): void {
 						element: construct.element
 					});
 					if (target.hp <= 0) publish('enemy:defeated', { enemyId: target.id, killer: construct.ownerId });
+					rewardOwner(state, construct.ownerId, construct.defId, now);
 				}
 			} else {
 				// Pulse (default): hit all enemies in radius
 				for (const enemy of state.enemies) {
 					if (enemy.hp <= 0) continue;
 					if (chebyshev(enemy.pos, construct.pos) > construct.pulseRadius) continue;
+					if (def?.hits && !def.hits.includes(enemy.stratum)) continue;
 					const dmg = owner
 						? calculateDamage(construct.pulseDmg, { source: owner, target: enemy, state, sourcePos: construct.pos, element: construct.element })
 						: construct.pulseDmg;
@@ -339,6 +356,7 @@ function tickConstructs(state: EngineState, now: number): void {
 						element: construct.element
 					});
 					if (enemy.hp <= 0) publish('enemy:defeated', { enemyId: enemy.id, killer: construct.ownerId });
+					rewardOwner(state, construct.ownerId, construct.defId, now);
 				}
 			}
 		}
@@ -347,6 +365,7 @@ function tickConstructs(state: EngineState, now: number): void {
 		for (const enemy of state.enemies) {
 			if (enemy.hp <= 0 || construct.stunMs <= 0) continue;
 			if (chebyshev(enemy.pos, construct.pos) > construct.pulseRadius) continue;
+			if (def?.hits && !def.hits.includes(enemy.stratum)) continue;
 			enemy.stunnedUntil = Math.max(enemy.stunnedUntil, now + construct.stunMs);
 		}
 
@@ -365,6 +384,7 @@ function tickConstructs(state: EngineState, now: number): void {
 				for (const enemy of state.enemies) {
 					if (enemy.hp <= 0) continue;
 					if (chebyshev(enemy.pos, construct.pos) > construct.pulseRadius) continue;
+					if (def?.hits && !def.hits.includes(enemy.stratum)) continue;
 					const dmg = owner
 						? calculateDamage(construct.pulseDmg, { source: owner, target: enemy, state, sourcePos: construct.pos, element: construct.element })
 						: construct.pulseDmg;
@@ -376,14 +396,8 @@ function tickConstructs(state: EngineState, now: number): void {
 						abilityName: 'Catalyst pulse',
 						element: source.element       // carries the source's element
 					});
-					// publish('construct:catalyst', {
-					// 	constructId: construct.id,
-					// 	pos: { ...construct.pos },
-					// 	element: source.element,     // source's element, not catalyst's
-					// 	radius: construct.pulseRadius,
-					// 	isCatalyst: true
-					// });
 					if (enemy.hp <= 0) publish('enemy:defeated', { enemyId: enemy.id, killer: construct.ownerId });
+					rewardOwner(state, construct.ownerId, construct.defId, now);
 				}
 			}
 		}
@@ -490,6 +504,28 @@ function tickZones(state: EngineState, now: number): void {
 						owner.energy = Math.max(0, owner.energy - drain);
 						if (owner.energy <= 0) zone.expiresAt = now; // ran dry → ring collapses
 					}
+				}
+			}
+		}
+
+		// Per-tick gather — pull enemies toward zone center
+		if (zone.buff.gatherPerTick) {
+			const { steps } = zone.buff.gatherPerTick;
+			for (const enemy of state.enemies) {
+				if (enemy.hp <= 0) continue;
+				if (chebyshev(enemy.pos, zone.center) > zone.radius) continue;
+				if (samePos(enemy.pos, zone.center)) continue;
+				const efrom = { ...enemy.pos };
+				let ep = enemy.pos;
+				for (let i = 0; i < steps; i++) {
+					if (samePos(ep, zone.center)) break;
+					const next = clamp(state.board, step8Toward(ep, zone.center));
+					if (samePos(next, ep)) break;
+					ep = next;
+				}
+				if (!samePos(efrom, ep)) {
+					enemy.pos = ep;
+					publish('movement:enemy', { enemyId: enemy.id, from: efrom, to: ep });
 				}
 			}
 		}

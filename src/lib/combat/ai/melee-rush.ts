@@ -2,7 +2,7 @@ import type { EngineState, EnemyState } from '$lib/types/state';
 import { chebyshev, step4Toward, step8Toward, step8Away, samePos, clamp } from '../board';
 import { publish } from '../events';
 import { canEnter } from '../spatial';
-import { resolveTarget, tryAttacks } from './utils';
+import { resolveTarget, tileBlockedByConstruct, tryAttacks } from './utils';
 
 /**
  * melee_rush: close to melee range and attack. Backs off slightly if too close
@@ -26,17 +26,25 @@ export function tick(state: EngineState, enemy: EnemyState, now: number): void {
         let candidate = enemy.pos;
 
         if (dist > desiredRange) {
-            candidate = clamp(state.board,
+            const raw = clamp(state.board,
                 def.canMoveDiagonal
                     ? step8Toward(enemy.pos, target)
                     : step4Toward(enemy.pos, target)
             );
-        } else if (dist < 1 && def.attacks.some((a) => a.range >= 2)) {
-            candidate = clamp(state.board,
-                def.canMoveDiagonal
-                    ? step8Away(enemy.pos, target)
-                    : step4Toward(enemy.pos, target)
-            );
+            // Try to route around constructs on the direct path
+            if (tileBlockedByConstruct(state, raw, enemy)) {
+                // Try 8 neighbours, pick closest to target that isn't construct-blocked
+                const alternatives = [
+                    { x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 },
+                    { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }
+                ]
+                    .map(o => clamp(state.board, { x: enemy.pos.x + o.x, y: enemy.pos.y + o.y }))
+                    .filter(p => !tileBlockedByConstruct(state, p, enemy) && canEnter(enemy.stratum, p, state.board, def.traversal))
+                    .sort((a, b) => chebyshev(a, target) - chebyshev(b, target));
+                candidate = alternatives[0] ?? raw; // fall back to raw if all blocked
+            } else {
+                candidate = raw;
+            }
         }
 
         if (canEnter(enemy.stratum, candidate, state.board, def.traversal)) {

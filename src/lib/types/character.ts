@@ -108,6 +108,7 @@ export interface Character {
 		gem: string;
 		profile: string;
 		poster: string;
+		bannerPoster?: string;
 	};
 	theme?: CharacterTheme;
 

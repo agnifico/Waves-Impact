@@ -13,7 +13,8 @@ export function resolve(
 	state: EngineState,
 	caster: CharacterState,
 	ability: Ability,
-	now: number
+	now: number,
+	opts: Record<string, unknown> = {}  // ← add opts
 ): boolean {
 	if (!ability.zoneBuff) return false;
 
@@ -21,10 +22,14 @@ export function resolve(
 	const prefix = `${ability.id}-`;
 	state.zones = state.zones.filter((z) => !(z.ownerId === caster.id && z.id.startsWith(prefix)));
 
+	// Center: reticle override → caster pos
+	const reticle = opts.reticle as { x: number; y: number } | null | undefined;
+	const center = reticle ? { ...reticle } : { ...caster.pos };
+
 	const zoneId = `${ability.id}-${now}`;
 	state.zones.push({
 		id: zoneId,
-		center: { ...caster.pos },
+		center,                          // ← was always caster.pos
 		follows: ability.zoneFollows ?? 'fixed',
 		ownerId: caster.id,
 		radius,

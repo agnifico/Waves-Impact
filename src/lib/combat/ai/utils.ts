@@ -108,3 +108,18 @@ export function applyKnockback(
         publish('movement:player', { characterId: active.id, from, to: active.pos });
     }
 }
+
+/**
+ * Returns true if a construct on this tile should block this enemy's pathing.
+ * Flying enemies pass over ground constructs freely.
+ */
+export function tileBlockedByConstruct(
+    state: EngineState,
+    pos: Position,
+    enemy: EnemyState
+): boolean {
+    if (enemy.stratum === 'flying') return false;
+    return state.constructs.some((c) => 
+        samePos(c.pos, pos) && c.stratum === enemy.stratum
+    );
+}

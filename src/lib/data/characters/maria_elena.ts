@@ -61,7 +61,8 @@ export const maria_elena: Character = {
             shape: 'melee',
             omniTarget: true,
             advanceOnlyIfMelee: true,
-            fx: { strike: 'swipe', colors: ['#f83600', '#ff4422'] }
+            fx: { strike: 'swipe', colors: ['#f83600', '#ff4422'] },
+            hits: ['ground']
         },
         {
             name: 'Flash Fire (2)',
@@ -71,7 +72,8 @@ export const maria_elena: Character = {
             shape: 'melee',
             omniTarget: true,
             advanceOnlyIfMelee: true,
-            fx: { strike: 'reverseswipe', colors: ['#e9c46a', '#f5d88a'] }
+            fx: { strike: 'reverseswipe', colors: ['#e9c46a', '#f5d88a'] },
+            hits: ['ground']
         },
         {
             name: 'Flash Fire (3)',
@@ -81,7 +83,8 @@ export const maria_elena: Character = {
             shape: 'melee',
             omniTarget: true,
             advanceOnlyIfMelee: true,
-            fx: { strike: 'swipe', colors: ['#e9c46a', '#f5d88a'] }
+            fx: { strike: 'swipe', colors: ['#e9c46a', '#f5d88a'] },
+            hits: ['ground']
         },
         {
             name: 'Flash Fire (4)',
@@ -91,14 +94,15 @@ export const maria_elena: Character = {
             shape: 'melee',
             omniTarget: true,
             grantsStack: 'immortal_flame',
-            fx: { strike: 'uppercut', colors: ['#f83600', '#ff1a00'] }
+            fx: { strike: 'uppercut', colors: ['#f83600', '#ff1a00'] },
+            hits: ['ground'],
         }
     ],
 
     enhancedBasic: {
         ba: {
             name: 'Furious Flames',
-            damage: 50,
+            damage: 5,
             range: 4,
             energyGain: 10,
             shape: 'melee',
@@ -125,7 +129,7 @@ export const maria_elena: Character = {
             },
             chargeMaxRange: 7,
             chargeMsPerTile: 150,
-            damage: 30,
+            damage: 100,
             poiseDamage: 30,
             knockback: 4,           // Plows enemies backward during the charge
             cooldownMs: 10000,
@@ -133,12 +137,13 @@ export const maria_elena: Character = {
             grantsStack: 'immortal_flame',
             holdBehavior: 'charge', // Hold to increase run distance
             charges: 2,
+            shield: { amount: 20, target: 'self' },
             description: 'Maria Elena dashes to the nearest/locked-on enemy and knocks them back 4 tiles, while dealing damage. Hold <kbd>X</kbd> to charge up the dash range, up to a range of 7 tiles. Grants her one stack of <Immortal Flame>. Has 2 initial charges.'
         },
-
+        
         //  — Aegis Pulse: Inverted defensive cone that protects flanks and punishes up-close threats
-
-
+        
+        
         C: {
             id: 'blazing_trail',
             name: 'Blazing Trail',
@@ -153,9 +158,11 @@ export const maria_elena: Character = {
                 // iframesMs: 200,       // reserved — wires up with the status engine
             },
             energyGain: 7,
-
+            hits: ['ground'],
+            
+            shield: { amount: 20, target: 'self' },
             charges: 3,
-            damage: 40,                  // to the first enemy hit along the line
+            damage: 100,                  // to the first enemy hit along the line
             cooldownMs: 10000,
             grantsStack: 'immortal_flame',     // +1 Divinity (declarative, as your placeholder is today)
             holdBehavior: 'track',         // hold C to aim a direction; release to dash (see note)
@@ -180,14 +187,14 @@ export const maria_elena: Character = {
             zoneFollows: 'active',
             zoneBuff: {
                 damageBonus: 0.2,
-                dmgPerTick: 30,
+                dmgPerTick: 50,
                 ownerEnergyDrainPerTick: 5,
-                upkeepReductionPerStack: 0.15,
+                upkeepReductionPerStack: 0.05,
                 tickMs: 1000
             },
             persistsAfterDeath: false,
             fx: { zone: 'flame' },
-            description: "Maria Elena summons a [Ring of the Defiant Flame]: a 1 tile circle that follows the active unit, dealing 20 DMG to all enemies in range, per second. The ring costs Maria Elena 5 energy per second to upkeep. At the time of casting this ability, she will also inflict a one-time 75 DMG to all enemies in the same range. [Defender of the Realm] : Each <Immortal Flame> stack reduces her energy upkeep for [Ring of the Defiant Flame] by 15%, up to 7 stacks. Grants one stack of <Immortal Flame>."
+            description: "Maria Elena summons a [Ring of the Defiant Flame]: a 1 tile circle that follows the active unit, dealing 20 DMG to all enemies in range, per second. The ring costs Maria Elena 5 energy per second to upkeep. At the time of casting this ability, she will also inflict a one-time 75 DMG to all enemies in the same range. [Defender of the Realm] : Each <Immortal Flame> stack reduces her energy upkeep for [Ring of the Defiant Flame] by 5%. Grants one stack of <Immortal Flame>."
         }
     },
 
@@ -206,8 +213,10 @@ export const maria_elena: Character = {
 
     art: {
         gem: '/characters/maria_elena6.png',
-        profile: '/characters/avatars/maria_elena2.png',
-        poster: '/characters/maria_poster.png',
+        profile: '/characters/avatars2/maria_elena.png',
+        poster: '/characters/maria_poster77.png',
+        bannerPoster: '/characters/maria_poster2.png'
+
     },
     theme: {
         primary: '#f83600',

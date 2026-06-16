@@ -16,7 +16,7 @@
 				class:active={isActive}
 				class:dead={isDead}
 				onclick={() => trySwap(state, i, performance.now())}
-				style:background-image="url({isActive ? pc.def.art?.poster : ''})"
+				style:background-image="url({isActive ? pc.def.art?.bannerPoster : ''})"
 			>
 				<kbd class="pc-slot">&nbsp;{i + 1}&nbsp;</kbd>
 				<div class="pc-thumb" style="background-image: url({pc.def.art?.profile})"></div>

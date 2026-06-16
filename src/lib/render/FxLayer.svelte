@@ -47,6 +47,7 @@
 		const ctx = d.contextualBasic;
 		if (ctx?.base?.name === abilityName) return ctx.base.fx ?? null;
 		if (ctx?.withStack?.name === abilityName) return ctx.withStack.fx ?? null;
+		if (d.enhancedBasic?.ba?.name === abilityName) return d.enhancedBasic.ba.fx ?? null; // ← ADD
 		return null;
 	}
 	function lineTiles(from: Position, to: Position): Position[] {
@@ -61,11 +62,22 @@
 	}
 
 	const ELEMENT_COLOR: Record<string, string> = {
-    	water: 'var(--frost)', wind: 'var(--wind)', fire: 'var(--coral)',
-    	nature: 'var(--verdant)', light: 'var(--gold-bright)', dark: '#9a7bd0',
+		water: 'var(--frost)',
+		wind: 'var(--wind)',
+		fire: 'var(--coral)',
+		nature: 'var(--verdant)',
+		light: 'var(--gold-bright)',
+		dark: '#9a7bd0'
 	};
 	/** Jagged lightning path between two pixel points (chain strike). */
-	function jagged(x1: number, y1: number, x2: number, y2: number, segs: number, amp: number): string {
+	function jagged(
+		x1: number,
+		y1: number,
+		x2: number,
+		y2: number,
+		segs: number,
+		amp: number
+	): string {
 		const dx = x2 - x1,
 			dy = y2 - y1,
 			len = Math.hypot(dx, dy) || 1;
@@ -86,35 +98,156 @@
 		return ELEMENT_COLOR[el ?? ''] ?? 'var(--gold)';
 	}
 
-
 	type ConstructRing = {
-		id: number; kind: 'construct_ring';
-		x: number; y: number; radius: number;
-		color: string; isCatalyst: boolean; ttl: number;
+		id: number;
+		kind: 'construct_ring';
+		x: number;
+		y: number;
+		radius: number;
+		color: string;
+		isCatalyst: boolean;
+		ttl: number;
 	};
-
 
 	type Burst = { id: number; kind: 'burst'; x: number; y: number; color: string; ttl: number };
 	type WaveTile = { x: number; y: number; color: string; delay: number };
 	type Wave = { id: number; kind: 'wave'; tiles: WaveTile[]; ttl: number };
 	type Projectile = {
-		id: number; kind: 'projectile'; x: number; y: number; dx: number; dy: number;
-		rot: number; dur: number; shape: string; size: string; trail: boolean;
-		color: string; tail: string; ttl: number;
+		id: number;
+		kind: 'projectile';
+		x: number;
+		y: number;
+		dx: number;
+		dy: number;
+		rot: number;
+		dur: number;
+		shape: string;
+		size: string;
+		trail: boolean;
+		color: string;
+		tail: string;
+		ttl: number;
 	};
-	type Swipe = { id: number; kind: 'swipe'; x: number; y: number; rot: number; color: string; ttl: number };
-	type ReverseSwipe = { id: number; kind: 'reverseswipe'; x: number; y: number; rot: number; color: string; ttl: number };
-	type ZoneBurst = { id: number; kind: 'zoneburst'; x: number; y: number; radius: number; color: string; ttl: number };
-	type Claw = { id: number; kind: 'claw'; x: number; y: number; rot: number; gashes: { a: number; d: number }[]; color: string; ttl: number };
-	type Stab = { id: number; kind: 'stab'; x: number; y: number; rot: number; len: number; color: string; ttl: number };
-	type Flurry = { id: number; kind: 'flurry'; x: number; y: number; ticks: { jx: number; jy: number; a: number; delay: number }[]; color: string; ttl: number };
-	type Slam = { id: number; kind: 'slam'; x: number; y: number; debris: { ex: number; ey: number }[]; color: string; ttl: number };
-	type Uppercut = { id: number; kind: 'uppercut'; x: number; y: number; sparks: { ex: number; d: number }[]; color: string; ttl: number };
-	type Bullet = { id: number; kind: 'bullet'; x: number; y: number; rot: number; len: number; color: string; ttl: number };
-	type Beam = { id: number; kind: 'beam'; x: number; y: number; rot: number; len: number; color: string; ttl: number };
-	type Chain = { id: number; kind: 'chain'; d: string; w: number; h: number; color: string; ttl: number };
-	type Fx = Burst | Wave | Projectile | Swipe | ReverseSwipe | ZoneBurst | Claw | Stab | Flurry | Slam | Uppercut | Bullet | Beam | Chain | ConstructRing;
-	
+	type Swipe = {
+		id: number;
+		kind: 'swipe';
+		x: number;
+		y: number;
+		rot: number;
+		color: string;
+		ttl: number;
+	};
+	type ReverseSwipe = {
+		id: number;
+		kind: 'reverseswipe';
+		x: number;
+		y: number;
+		rot: number;
+		color: string;
+		ttl: number;
+	};
+	type ZoneBurst = {
+		id: number;
+		kind: 'zoneburst';
+		x: number;
+		y: number;
+		radius: number;
+		color: string;
+		ttl: number;
+	};
+	type Claw = {
+		id: number;
+		kind: 'claw';
+		x: number;
+		y: number;
+		rot: number;
+		gashes: { a: number; d: number }[];
+		color: string;
+		ttl: number;
+	};
+	type Stab = {
+		id: number;
+		kind: 'stab';
+		x: number;
+		y: number;
+		rot: number;
+		len: number;
+		color: string;
+		ttl: number;
+	};
+	type Flurry = {
+		id: number;
+		kind: 'flurry';
+		x: number;
+		y: number;
+		ticks: { jx: number; jy: number; a: number; delay: number }[];
+		color: string;
+		ttl: number;
+	};
+	type Slam = {
+		id: number;
+		kind: 'slam';
+		x: number;
+		y: number;
+		debris: { ex: number; ey: number }[];
+		color: string;
+		ttl: number;
+	};
+	type Uppercut = {
+		id: number;
+		kind: 'uppercut';
+		x: number;
+		y: number;
+		sparks: { ex: number; d: number }[];
+		color: string;
+		ttl: number;
+	};
+	type Bullet = {
+		id: number;
+		kind: 'bullet';
+		x: number;
+		y: number;
+		rot: number;
+		len: number;
+		color: string;
+		ttl: number;
+	};
+	type Beam = {
+		id: number;
+		kind: 'beam';
+		x: number;
+		y: number;
+		rot: number;
+		len: number;
+		color: string;
+		ttl: number;
+	};
+	type Chain = {
+		id: number;
+		kind: 'chain';
+		d: string;
+		w: number;
+		h: number;
+		color: string;
+		ttl: number;
+	};
+	type Fx =
+		| Burst
+		| Wave
+		| Projectile
+		| Swipe
+		| ReverseSwipe
+		| ZoneBurst
+		| Claw
+		| Stab
+		| Flurry
+		| Slam
+		| Uppercut
+		| Bullet
+		| Beam
+		| Chain
+		| ConstructRing;
+
 	let fx = $state<Fx[]>([]);
 	let fxId = 0;
 	let layerEl: HTMLDivElement;
@@ -134,7 +267,14 @@
 			subscribe('zone:created', (e) => {
 				const z = gs.zones.find((zz) => zz.id === e.zoneId);
 				if (!z) return;
-				spawn({ kind: 'zoneburst', x: z.center.x, y: z.center.y, radius: z.radius, color: rampOf(e.ownerId)[0], ttl: 560 });
+				spawn({
+					kind: 'zoneburst',
+					x: z.center.x,
+					y: z.center.y,
+					radius: z.radius,
+					color: rampOf(e.ownerId)[0],
+					ttl: 560
+				});
 			}),
 			subscribe('damage:dealt', (e) => {
 				const tgt = gs.enemies.find((en) => en.id === e.target);
@@ -146,40 +286,91 @@
 				const strike = f?.strike;
 
 				if (src && strike === 'projectile') {
-					const fromX = cx(src.pos), fromY = cy(src.pos);
-					const dx = cx(tgt.pos) - fromX, dy = cy(tgt.pos) - fromY;
+					const fromX = cx(src.pos),
+						fromY = cy(src.pos);
+					const dx = cx(tgt.pos) - fromX,
+						dy = cy(tgt.pos) - fromY;
 					const dur = Math.min(360, Math.max(90, chebyshev(src.pos, tgt.pos) * (f.speed ?? 40)));
 					spawn({
-						kind: 'projectile', x: fromX, y: fromY, dx, dy,
-						rot: (Math.atan2(dy, dx) * 180) / Math.PI, dur,
-						shape: f.shape ?? 'bolt', size: f.size ?? 'm', trail: !!f.trail,
-						color: head, tail: mix(ramp, 1), ttl: dur + 40
+						kind: 'projectile',
+						x: fromX,
+						y: fromY,
+						dx,
+						dy,
+						rot: (Math.atan2(dy, dx) * 180) / Math.PI,
+						dur,
+						shape: f.shape ?? 'bolt',
+						size: f.size ?? 'm',
+						trail: !!f.trail,
+						color: head,
+						tail: mix(ramp, 1),
+						ttl: dur + 40
 					});
 					setTimeout(() => spawnBurst(tgt.pos, head), dur);
 				} else if (src && strike === 'swipe') {
-					spawn({ kind: 'swipe', x: tgt.pos.x, y: tgt.pos.y, rot: angleDeg(src.pos, tgt.pos), color: head, ttl: 240 });
+					spawn({
+						kind: 'swipe',
+						x: tgt.pos.x,
+						y: tgt.pos.y,
+						rot: angleDeg(src.pos, tgt.pos),
+						color: head,
+						ttl: 240
+					});
 					spawnBurst(tgt.pos, head);
 				} else if (src && strike === 'reverseswipe') {
-					spawn({ kind: 'reverseswipe', x: tgt.pos.x, y: tgt.pos.y, rot: angleDeg(src.pos, tgt.pos), color: head, ttl: 240 });
+					spawn({
+						kind: 'reverseswipe',
+						x: tgt.pos.x,
+						y: tgt.pos.y,
+						rot: angleDeg(src.pos, tgt.pos),
+						color: head,
+						ttl: 240
+					});
 					spawnBurst(tgt.pos, head);
 				} else if (src && strike === 'claw') {
-					const n = f.gashes ?? 3, spread = 48;
+					const n = f.gashes ?? 3,
+						spread = 48;
 					const gashes = Array.from({ length: n }, (_, i) => ({
 						a: n === 1 ? 0 : -spread / 2 + (spread / (n - 1)) * i,
 						d: i * 55
 					}));
-					spawn({ kind: 'claw', x: cx(tgt.pos), y: cy(tgt.pos), rot: angleDeg(src.pos, tgt.pos), gashes, color: head, ttl: 460 });
+					spawn({
+						kind: 'claw',
+						x: cx(tgt.pos),
+						y: cy(tgt.pos),
+						rot: angleDeg(src.pos, tgt.pos),
+						gashes,
+						color: head,
+						ttl: 460
+					});
 					setTimeout(() => spawnBurst(tgt.pos, head), 120);
 				} else if (src && strike === 'stab') {
-					spawn({ kind: 'stab', x: cx(src.pos), y: cy(src.pos), rot: angleDeg(src.pos, tgt.pos), len: distPx(src.pos, tgt.pos) + 14, color: head, ttl: 320 });
+					spawn({
+						kind: 'stab',
+						x: cx(src.pos),
+						y: cy(src.pos),
+						rot: angleDeg(src.pos, tgt.pos),
+						len: distPx(src.pos, tgt.pos) + 14,
+						color: head,
+						ttl: 320
+					});
 					setTimeout(() => spawnBurst(tgt.pos, head), 135);
 				} else if (strike === 'flurry') {
 					const N = f.hits ?? 6;
 					const ticks = Array.from({ length: N }, (_, i) => ({
-						jx: (Math.random() - 0.5) * 16, jy: (Math.random() - 0.5) * 16,
-						a: Math.random() * 90 - 45, delay: i * 68
+						jx: (Math.random() - 0.5) * 16,
+						jy: (Math.random() - 0.5) * 16,
+						a: Math.random() * 90 - 45,
+						delay: i * 68
 					}));
-					spawn({ kind: 'flurry', x: cx(tgt.pos), y: cy(tgt.pos), ticks, color: head, ttl: N * 68 + 260 });
+					spawn({
+						kind: 'flurry',
+						x: cx(tgt.pos),
+						y: cy(tgt.pos),
+						ticks,
+						color: head,
+						ttl: N * 68 + 260
+					});
 					setTimeout(() => spawnBurst(tgt.pos, head), N * 68);
 				} else if (strike === 'slam') {
 					const debris = Array.from({ length: 7 }, (_, i) => {
@@ -190,19 +381,53 @@
 					spawn({ kind: 'slam', x: cx(tgt.pos), y: cy(tgt.pos), debris, color: head, ttl: 820 });
 					setTimeout(() => spawnBurst(tgt.pos, head), 255);
 				} else if (strike === 'uppercut') {
-					const sparks = Array.from({ length: 6 }, (_, i) => ({ ex: (Math.random() - 0.5) * 26, d: i * 45 }));
-					spawn({ kind: 'uppercut', x: cx(tgt.pos), y: cy(tgt.pos), sparks, color: head, ttl: 760 });
+					const sparks = Array.from({ length: 6 }, (_, i) => ({
+						ex: (Math.random() - 0.5) * 26,
+						d: i * 45
+					}));
+					spawn({
+						kind: 'uppercut',
+						x: cx(tgt.pos),
+						y: cy(tgt.pos),
+						sparks,
+						color: head,
+						ttl: 760
+					});
 					spawnBurst(tgt.pos, head);
 				} else if (src && strike === 'bullet') {
-					spawn({ kind: 'bullet', x: cx(src.pos), y: cy(src.pos), rot: angleDeg(src.pos, tgt.pos), len: distPx(src.pos, tgt.pos), color: head, ttl: 240 });
+					spawn({
+						kind: 'bullet',
+						x: cx(src.pos),
+						y: cy(src.pos),
+						rot: angleDeg(src.pos, tgt.pos),
+						len: distPx(src.pos, tgt.pos),
+						color: head,
+						ttl: 240
+					});
 					setTimeout(() => spawnBurst(tgt.pos, head), 110);
 				} else if (src && strike === 'beam') {
-					spawn({ kind: 'beam', x: cx(src.pos), y: cy(src.pos), rot: angleDeg(src.pos, tgt.pos), len: distPx(src.pos, tgt.pos), color: head, ttl: 480 });
+					spawn({
+						kind: 'beam',
+						x: cx(src.pos),
+						y: cy(src.pos),
+						rot: angleDeg(src.pos, tgt.pos),
+						len: distPx(src.pos, tgt.pos),
+						color: head,
+						ttl: 480
+					});
 					setTimeout(() => spawnBurst(tgt.pos, head), 110);
 					setTimeout(() => spawnBurst(tgt.pos, head), 280);
 				} else if (src && strike === 'chain') {
-					const w = layerEl?.clientWidth ?? 600, h = layerEl?.clientHeight ?? 400;
-					spawn({ kind: 'chain', d: jagged(cx(src.pos), cy(src.pos), cx(tgt.pos), cy(tgt.pos), 8, 11), w, h, color: head, ttl: 420 });
+					const w = layerEl?.clientWidth ?? 600,
+						h = layerEl?.clientHeight ?? 400;
+					spawn({
+						kind: 'chain',
+						d: jagged(cx(src.pos), cy(src.pos), cx(tgt.pos), cy(tgt.pos), 8, 11),
+						w,
+						h,
+						color: head,
+						ttl: 420
+					});
 					setTimeout(() => spawnBurst(tgt.pos, head), 120);
 				} else {
 					spawnBurst(tgt.pos, head);
@@ -217,36 +442,84 @@
 					kind: 'wave',
 					ttl: path.length * STEP + 320,
 					tiles: path.map((p, i) => ({
-						x: p.x, y: p.y,
+						x: p.x,
+						y: p.y,
 						color: mix(ramp, path.length > 1 ? i / (path.length - 1) : 0),
 						delay: i * STEP
 					}))
 				});
 			}),
 			subscribe('construct:pulse', (e) => {
-			spawn({ kind: 'construct_ring', x: cx(e.pos), y: cy(e.pos), radius: e.radius, color: elementColor(e.element), isCatalyst: false, ttl: 480 });
-		}),
-		subscribe('construct:catalyst', (e) => {
-			spawn({ kind: 'construct_ring', x: cx(e.pos), y: cy(e.pos), radius: e.radius, color: elementColor(e.element), isCatalyst: true, ttl: 360 });
-		}),
-		subscribe('construct:turret', (e) => {
-			const color = elementColor(e.element);
-			spawn({ kind: 'bullet', x: cx(e.pos), y: cy(e.pos), rot: angleDeg(e.pos, e.targetPos), len: distPx(e.pos, e.targetPos), color, ttl: 240 });
-			setTimeout(() => spawnBurst(e.targetPos, color), 110);
-		}),
-		subscribe('summon:attack', (e) => {
-			const color = elementColor(e.element);
-			if (e.isRanged) {
-				const fromX = cx(e.fromPos), fromY = cy(e.fromPos);
-				const dx = cx(e.toPos) - fromX, dy = cy(e.toPos) - fromY;
-				const dur = Math.min(360, Math.max(90, chebyshev(e.fromPos, e.toPos) * 40));
-				spawn({ kind: 'projectile', x: fromX, y: fromY, dx, dy, rot: (Math.atan2(dy, dx) * 180) / Math.PI, dur, shape: 'orb', size: 's', trail: false, color, tail: color, ttl: dur + 40 });
-				setTimeout(() => spawnBurst(e.toPos, color), dur);
-			} else {
-				spawn({ kind: 'swipe', x: e.toPos.x, y: e.toPos.y, rot: angleDeg(e.fromPos, e.toPos), color, ttl: 220 });
-				spawnBurst(e.toPos, color);
-			}
-		}),
+				spawn({
+					kind: 'construct_ring',
+					x: cx(e.pos),
+					y: cy(e.pos),
+					radius: e.radius,
+					color: elementColor(e.element),
+					isCatalyst: false,
+					ttl: 480
+				});
+			}),
+			subscribe('construct:catalyst', (e) => {
+				spawn({
+					kind: 'construct_ring',
+					x: cx(e.pos),
+					y: cy(e.pos),
+					radius: e.radius,
+					color: elementColor(e.element),
+					isCatalyst: true,
+					ttl: 360
+				});
+			}),
+			subscribe('construct:turret', (e) => {
+				const color = elementColor(e.element);
+				spawn({
+					kind: 'bullet',
+					x: cx(e.pos),
+					y: cy(e.pos),
+					rot: angleDeg(e.pos, e.targetPos),
+					len: distPx(e.pos, e.targetPos),
+					color,
+					ttl: 240
+				});
+				setTimeout(() => spawnBurst(e.targetPos, color), 110);
+			}),
+			subscribe('summon:attack', (e) => {
+				const color = elementColor(e.element);
+				if (e.isRanged) {
+					const fromX = cx(e.fromPos),
+						fromY = cy(e.fromPos);
+					const dx = cx(e.toPos) - fromX,
+						dy = cy(e.toPos) - fromY;
+					const dur = Math.min(360, Math.max(90, chebyshev(e.fromPos, e.toPos) * 40));
+					spawn({
+						kind: 'projectile',
+						x: fromX,
+						y: fromY,
+						dx,
+						dy,
+						rot: (Math.atan2(dy, dx) * 180) / Math.PI,
+						dur,
+						shape: 'orb',
+						size: 's',
+						trail: false,
+						color,
+						tail: color,
+						ttl: dur + 40
+					});
+					setTimeout(() => spawnBurst(e.toPos, color), dur);
+				} else {
+					spawn({
+						kind: 'swipe',
+						x: e.toPos.x,
+						y: e.toPos.y,
+						rot: angleDeg(e.fromPos, e.toPos),
+						color,
+						ttl: 220
+					});
+					spawnBurst(e.toPos, color);
+				}
+			})
 		];
 		return () => unsubs.forEach((u) => u());
 	});
@@ -259,17 +532,24 @@
 		{@const zs = zoneSkin(z)}
 		<div
 			class={zs === 'default' ? 'fx-zone' : 'fx-zone-' + zs}
-			style="left:{z.center.x * TILE + 18}px;top:{z.center.y * TILE + 18}px;width:{d}px;height:{d}px;margin:{-d /
-				2}px 0 0 {-d / 2}px;--c:{ramp[0]};--c2:{ramp[1] ?? ramp[0]};"
+			style="left:{z.center.x * TILE + 18}px;top:{z.center.y * TILE +
+				18}px;width:{d}px;height:{d}px;margin:{-d / 2}px 0 0 {-d /
+				2}px;--c:{ramp[0]};--c2:{ramp[1] ?? ramp[0]};"
 		></div>
 	{/each}
 
 	{#each fx as f (f.id)}
 		{#if f.kind === 'burst'}
-			<div class="fx-burst" style="left:{f.x * TILE + 18}px;top:{f.y * TILE + 18}px;--c:{f.color};"></div>
+			<div
+				class="fx-burst"
+				style="left:{f.x * TILE + 18}px;top:{f.y * TILE + 18}px;--c:{f.color};"
+			></div>
 		{:else if f.kind === 'wave'}
 			{#each f.tiles as t (`${t.x},${t.y}`)}
-				<div class="fx-wave-tile" style="left:{t.x * TILE}px;top:{t.y * TILE}px;--c:{t.color};animation-delay:{t.delay}ms;"></div>
+				<div
+					class="fx-wave-tile"
+					style="left:{t.x * TILE}px;top:{t.y * TILE}px;--c:{t.color};animation-delay:{t.delay}ms;"
+				></div>
 			{/each}
 		{:else if f.kind === 'projectile'}
 			<div
@@ -282,9 +562,15 @@
 				<span class="head"></span>
 			</div>
 		{:else if f.kind === 'swipe'}
-			<div class="fx-swipe" style="left:{f.x * TILE + 18}px;top:{f.y * TILE + 18}px;--rot:{f.rot}deg;--c:{f.color};"></div>
+			<div
+				class="fx-swipe"
+				style="left:{f.x * TILE + 18}px;top:{f.y * TILE + 18}px;--rot:{f.rot}deg;--c:{f.color};"
+			></div>
 		{:else if f.kind === 'reverseswipe'}
-			<div class="fx-reverseswipe" style="left:{f.x * TILE + 18}px;top:{f.y * TILE + 18}px;--rot:{f.rot}deg;--c:{f.color};"></div>
+			<div
+				class="fx-reverseswipe"
+				style="left:{f.x * TILE + 18}px;top:{f.y * TILE + 18}px;--rot:{f.rot}deg;--c:{f.color};"
+			></div>
 		{:else if f.kind === 'claw'}
 			<div class="fx-claw" style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;">
 				{#each f.gashes as g}
@@ -292,12 +578,19 @@
 				{/each}
 			</div>
 		{:else if f.kind === 'stab'}
-			<div class="fx-stab" style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--len:{f.len}px;--c:{f.color};">
+			<div
+				class="fx-stab"
+				style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--len:{f.len}px;--c:{f.color};"
+			>
 				<div class="spike"></div>
 			</div>
 		{:else if f.kind === 'flurry'}
 			{#each f.ticks as t, i (i)}
-				<div class="fx-tick" style="left:{f.x + t.jx}px;top:{f.y + t.jy}px;--a:{t.a}deg;--c:{f.color};animation-delay:{t.delay}ms;"></div>
+				<div
+					class="fx-tick"
+					style="left:{f.x + t.jx}px;top:{f.y +
+						t.jy}px;--a:{t.a}deg;--c:{f.color};animation-delay:{t.delay}ms;"
+				></div>
 			{/each}
 		{:else if f.kind === 'slam'}
 			<div class="fx-slam" style="left:{f.x}px;top:{f.y}px;--c:{f.color};">
@@ -317,12 +610,24 @@
 			</div>
 		{:else if f.kind === 'bullet'}
 			<div class="fx-muzzle" style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--c:{f.color};"></div>
-			<div class="fx-tracer" style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--len:{f.len}px;--c:{f.color};"></div>
+			<div
+				class="fx-tracer"
+				style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--len:{f.len}px;--c:{f.color};"
+			></div>
 		{:else if f.kind === 'beam'}
 			<div class="fx-charge" style="left:{f.x}px;top:{f.y}px;--c:{f.color};"></div>
-			<div class="fx-beam" style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--len:{f.len}px;--c:{f.color};"></div>
+			<div
+				class="fx-beam"
+				style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--len:{f.len}px;--c:{f.color};"
+			></div>
 		{:else if f.kind === 'chain'}
-			<svg class="fx-chain" viewBox="0 0 {f.w} {f.h}" width={f.w} height={f.h} style="--c:{f.color};">
+			<svg
+				class="fx-chain"
+				viewBox="0 0 {f.w} {f.h}"
+				width={f.w}
+				height={f.h}
+				style="--c:{f.color};"
+			>
 				<path d={f.d}></path>
 				<path class="core" d={f.d}></path>
 			</svg>
@@ -330,15 +635,16 @@
 			{@const dd = (f.radius * 2 + 1) * TILE}
 			<div
 				class="fx-zoneburst"
-				style="left:{f.x * TILE + 18}px;top:{f.y * TILE + 18}px;width:{dd}px;height:{dd}px;margin:{-dd /
-					2}px 0 0 {-dd / 2}px;--c:{f.color};"
+				style="left:{f.x * TILE + 18}px;top:{f.y * TILE +
+					18}px;width:{dd}px;height:{dd}px;margin:{-dd / 2}px 0 0 {-dd / 2}px;--c:{f.color};"
 			></div>
-			{:else if f.kind === 'construct_ring'}
+		{:else if f.kind === 'construct_ring'}
 			{@const d = (f.radius * 2 + 1) * TILE}
 			<div
 				class="fx-construct-ring"
 				class:catalyst={f.isCatalyst}
-				style="left:{f.x}px;top:{f.y}px;width:{d}px;height:{d}px;margin:{-d/2}px 0 0 {-d/2}px;--c:{f.color};"
+				style="left:{f.x}px;top:{f.y}px;width:{d}px;height:{d}px;margin:{-d / 2}px 0 0 {-d /
+					2}px;--c:{f.color};"
 			></div>
 		{/if}
 	{/each}
