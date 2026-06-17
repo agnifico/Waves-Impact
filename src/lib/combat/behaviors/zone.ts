@@ -1,35 +1,39 @@
 import type { EngineState, CharacterState } from '$lib/types/state';
 import type { Ability } from '$lib/types/ability';
 import { chebyshev } from '../board';
-import { calculateDamage } from '../pipeline';
-import { coversStratum } from '../spatial';
+import { applyDelivery, applyOnHit, canHitStratum, type ResolveSource } from '../resolve';
 import { publish } from '../events';
 
 /**
- * zone: create a persistent field. Single-instance per caster+ability (recast refreshes,
- * never stacks). Optionally deals a one-time burst to enemies in range on cast. (§6)
+ * zone: create a persistent field. Single-instance per caster+ability (recast
+ * refreshes, never stacks). Optionally deals a one-time burst to enemies in range
+ * on cast — that burst now flows through the unified resolver (applyOnHit), so a
+ * zone's cast burst can splash, stun, lifesteal, etc. like any other hit. (§6)
+ *
+ * Aimed placement: opts.reticle (set by holdBehavior 'aim') overrides the center,
+ * letting the zone spawn away from the caster (Sefyra's vortex).
  */
 export function resolve(
 	state: EngineState,
 	caster: CharacterState,
 	ability: Ability,
 	now: number,
-	opts: Record<string, unknown> = {}  // ← add opts
+	opts: Record<string, unknown> = {}
 ): boolean {
 	if (!ability.zoneBuff) return false;
 
-	const radius = ability.shapeParams?.radius ?? 2;
+	const radius = ability.delivery?.shapeParams?.radius ?? 2;
 	const prefix = `${ability.id}-`;
 	state.zones = state.zones.filter((z) => !(z.ownerId === caster.id && z.id.startsWith(prefix)));
 
-	// Center: reticle override → caster pos
+	// Center: aimed reticle → caster pos
 	const reticle = opts.reticle as { x: number; y: number } | null | undefined;
 	const center = reticle ? { ...reticle } : { ...caster.pos };
 
 	const zoneId = `${ability.id}-${now}`;
 	state.zones.push({
 		id: zoneId,
-		center,                          // ← was always caster.pos
+		center,
 		follows: ability.zoneFollows ?? 'fixed',
 		ownerId: caster.id,
 		radius,
@@ -40,21 +44,25 @@ export function resolve(
 	});
 	publish('zone:created', { zoneId, ownerId: caster.id });
 
-	// One-time cast burst — enemies within radius of the caster (Maria's 50 on cast).
-	if (ability.damage && ability.damage > 0) {
+	// Guaranteed cast-time floor (heal/shield/energy/stack that lands regardless of hits).
+	const src: ResolveSource = {
+		owner: caster,
+		abilityName: ability.name,
+		element: caster.def.element,
+		ability,
+		sourcePos: center   // zone proximity + knockback origin = the zone center
+	};
+	applyDelivery(state, ability.delivery, src, now);
+
+	// One-time cast burst — enemies within radius of the zone CENTER (aimed or self).
+	const burst = ability.delivery?.damage ?? 0;
+	if (burst > 0 || ability.onHit) {
+		const strata = ability.delivery?.hitsStrata;
 		for (const enemy of state.enemies) {
 			if (enemy.hp <= 0) continue;
-			if (chebyshev(enemy.pos, caster.pos) > radius) continue;
-			if (!coversStratum(ability.hits, enemy.stratum)) continue;
-			const dmg = calculateDamage(ability.damage, {
-				source: caster, target: enemy, ability, element: caster.def.element, state
-			});
-			enemy.hp = Math.max(0, enemy.hp - dmg);
-			publish('damage:dealt', {
-				source: caster.id, target: enemy.id, amount: dmg,
-				abilityName: ability.name, element: caster.def.element
-			});
-			if (enemy.hp <= 0) publish('enemy:defeated', { enemyId: enemy.id, killer: caster.id });
+			if (chebyshev(enemy.pos, center) > radius) continue;
+			if (!canHitStratum(strata, enemy.stratum)) continue;
+			applyOnHit(state, enemy, burst, ability.onHit, src, now);
 		}
 	}
 	return true;

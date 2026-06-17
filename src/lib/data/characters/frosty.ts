@@ -13,28 +13,23 @@ export const frosty: Character = {
 	basicChain: [
 		{
 			name: 'Snowball (1)',
-			damage: 5,
 			range: 5,
-			energyGain: 10,
-			shape: 'melee',
 			omniTarget: true,
+			delivery: { damage: 5, energyGain: 10, shape: 'melee' },
 			fx: { strike: 'projectile', shape: 'orb', colors: ['#ade8f4', '#ffffff'] }
 		},
 		{
 			name: 'Snowball (2)',
-			damage: 10,
 			range: 5,
-			energyGain: 10,
-			shape: 'melee',
+			omniTarget: true,
+			delivery: { damage: 10, energyGain: 10, shape: 'melee' },
 			fx: { strike: 'projectile', shape: 'orb', colors: ['#ade8f4', '#ffffff'] }
 		},
 		{
 			name: 'Giant Snowball',
-			damage: 15,
 			range: 5,
-			energyGain: 10,
-			shape: 'melee',
-			grantsStack: 'eclipse',
+			omniTarget: true,
+			delivery: { damage: 15, energyGain: 10, shape: 'melee', grantsStack: 'eclipse' },
 			fx: { strike: 'projectile', shape: 'orb', size: 'l', colors: ['#00b4d8', '#ffffff'] }
 		}
 	],
@@ -44,40 +39,40 @@ export const frosty: Character = {
 			id: 'ice_on_fire',
 			name: 'Ice on Fire',
 			behavior: 'damage_first_in_line',
-			shape: 'line',
-			shapeParams: { range: 5 },
-			damage: 15,
 			cooldownMs: 4000,
-			energyGain: 15,
-			grantsStack: 'eclipse',
 			unchainedBonus: 10,
-			fx: { strike: 'projectile', shape: 'wave', size: "l", colors: ['#219ebc', '#ffffff'] },
+			delivery: {
+				damage: 15,
+				energyGain: 15,
+				grantsStack: 'eclipse',
+				shape: 'line',
+				shapeParams: { range: 5 },
+				hitsStrata: ['ground']
+			},
+			fx: { strike: 'projectile', shape: 'wave', size: 'l', colors: ['#219ebc', '#ffffff'] }
 		},
 
 		// ── C: Glacial Pylon ───────────────────────────────────────────────────────
-		// Places a stationary ice construct ONE TILE FORWARD in Frosty's facing
-		// direction. Cannot be placed on the same tile as an existing pylon
-		// (the cast is silently rejected, charge not spent).
+		// Places a stationary ice construct at the aimed tile (1×1 cursor, autoTarget
+		// snaps to nearest enemy on hold). Cannot be placed on a tile that already
+		// holds a pylon (cast silently rejected, charge not spent).
 		//
-		// Pulse math:
-		//   pulseMs  = 2000ms  stunMs = 800ms  → escape window = 1200ms (one pylon)
-		//   Two pylons placed separately will have offset nextPulseAt values.
-		//   Their combined effective pulse rate (~1000ms) covers the 800ms stun,
-		//   creating a soft lock while both are active.
-		//
-		// Synergy note: constructs do NOT attract enemy aggro (they live in
-		// state.constructs, not state.summons). The enemy will walk through the
-		// pylon's range, take damage and a brief stun, then continue to the player.
-		// Two pylons across the enemy's path create a meaningful gauntlet.
+		// Pulse math (in the creation def): pulseMs 2000 / stunMs 800 → 1200ms escape
+		// window for one pylon; two pylons' offset pulses create a soft lock.
+		// Constructs don't draw aggro — enemies walk the gauntlet to reach Frosty.
 		C: {
 			id: 'glacial_pylon', name: 'Glacial Pylon',
 			behavior: 'construct',
 			creationId: 'glacial_pylon',
-			charges: 2, rechargeMs: 12_000, energyGain: 10, grantsStack: 'eclipse',
-			aimRange: 5,           // ← replaces shapeParams: { radius: 1, range: 5 }
-			holdBehavior: 'aim',
-			damage: 10,
-			autoTargetEnemy: true,
+			charges: 2, rechargeMs: 12_000,
+			delivery: {
+				damage: 10,
+				energyGain: 10,
+				grantsStack: 'eclipse',
+				aimRange: 5,
+				holdBehavior: 'aim',
+				autoTargetEnemy: true
+			},
 			fx: { shape: 'orb', colors: ['#eaf6ff', 'var(--frost)', '#00b4d8'] }
 		},
 
@@ -85,10 +80,13 @@ export const frosty: Character = {
 			id: 'revenant_wolf', name: 'The Revenant Wolf',
 			behavior: 'summon',
 			creationId: 'wolfie',
-			cooldownMs: 20_000, energyCost: 10, grantsStack: 'eclipse',
-			aimRange: 4,           // ← wolf spawns anywhere within 4 tiles
-			holdBehavior: 'aim',
-		},
+			cooldownMs: 20_000, energyCost: 10,
+			delivery: {
+				grantsStack: 'eclipse',
+				aimRange: 4,
+				holdBehavior: 'aim',
+			}
+		}
 	},
 
 	stackType: 'eclipse',

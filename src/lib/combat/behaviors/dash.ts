@@ -1,10 +1,9 @@
-import type { EngineState, CharacterState } from '$lib/types/state';
+import type { EngineState, CharacterState, EnemyState } from '$lib/types/state';
 import type { Ability } from '$lib/types/ability';
 import { chebyshev, step8Toward, step8Away, samePos, clamp } from '../board';
 import { nearestEnemy } from '../query';
-import { calculateDamage } from '../pipeline';
 import { publish } from '../events';
-import { coversStratum } from '../spatial';
+import { applyDelivery, applyOnHit, canHitStratum, type ResolveSource } from '../resolve';
 import { walk } from '../movement';
 
 type Vec = { x: number; y: number };
@@ -19,28 +18,43 @@ export interface DashOpts {
 /**
  * dash: caster repositions; optional damage / displacement (Data Contract §6).
  *
- * Two shapes of dash, chosen by `shapeParams.dir`:
+ * Two shapes of dash, chosen by `delivery.shapeParams.dir`:
  *   • 'toward' (default) — legacy gap-closer: teleport adjacent to the nearest
- *     enemy in range, optional knockback + damage.  (June9's C — unchanged.)
+ *     enemy in range, optional knockback + damage.  (June9's C.)
  *   • 'forward' | 'back' | 'away' — aim-directional travel via the shared walker
- *     (movement.ts). Hits the first enemy along the line for `damage`, then an
- *     optional radius blast at the stop point.  (Sefyra's C — Photonic Transfiguration.)
+ *     (movement.ts). Hits the first enemy along the line, then an optional radius
+ *     blast at the stop point.  (Sefyra's C — Photonic Transfiguration.)
  *
- * Recognised `shapeParams` (all optional):
+ * Damage / CC / resources all flow through the unified resolver (applyOnHit), so
+ * a dash hit splashes/stuns/lifesteals like anything else. `gather` stays here —
+ * it's caster-relative repositioning of enemies, not a per-hit consequence.
+ *
+ * Recognised `delivery.shapeParams` (all optional):
  *   dir, tiles, throughObstacles, blastDamage, blastRadius, iframesMs, range.
  */
 export function resolve(
 	state: EngineState,
 	caster: CharacterState,
 	ability: Ability,
-	_now: number,
+	now: number,
 	opts: DashOpts = {}
 ): boolean {
-	const sp = (ability.shapeParams ?? {}) as Record<string, unknown>;
+	const sp = (ability.delivery?.shapeParams ?? {}) as Record<string, unknown>;
 	const dir = (sp.dir as string | undefined) ?? 'toward';
+	const baseDmg = ability.delivery?.damage ?? 0;
+	const strata = ability.delivery?.hitsStrata;
 
-	const canHit = (e: (typeof state.enemies)[number]) =>
-		!ability.hits || coversStratum(ability.hits, e.stratum);
+	const canHit = (e: EnemyState) => canHitStratum(strata, e.stratum);
+
+	const src: ResolveSource = {
+		owner: caster,
+		abilityName: ability.name,
+		element: caster.def.element,
+		ability
+	};
+
+	// Guaranteed cast-time floor (energy/heal/shield/stack regardless of hits).
+	applyDelivery(state, ability.delivery, src, now);
 
 	// ── Directional dash (forward / back / away) — Sefyra's C ────────────────────
 	if (dir === 'forward' || dir === 'back' || dir === 'away') {
@@ -60,18 +74,20 @@ export function resolve(
 		});
 		publish('movement:player', { characterId: caster.id, from: res.from, to: res.to });
 
-		// First enemy struck along the dash line.
-		if (ability.damage && ability.damage > 0) {
-			let hit: (typeof state.enemies)[number] | null = null;
+		// Enemies struck along the dash line. `allInLine` (shapeParams) sweeps every
+		// enemy on the trajectory; default hits only the first.
+		if (baseDmg > 0) {
+			const allInLine = sp.allInLine === true;
+			const struck = new Set<string>();
 			scan: for (const t of res.trajectory) {
 				for (const e of state.enemies) {
-					if (e.hp > 0 && canHit(e) && samePos(e.pos, t)) {
-						hit = e;
-						break scan;
+					if (e.hp > 0 && canHit(e) && samePos(e.pos, t) && !struck.has(e.id)) {
+						applyOnHit(state, e, baseDmg, ability.onHit, src, now);
+						struck.add(e.id);
+						if (!allInLine) break scan;
 					}
 				}
 			}
-			if (hit) dealDamage(state, caster, ability, hit, ability.damage);
 		}
 
 		// Terminal blast at the stop point.
@@ -80,16 +96,20 @@ export function resolve(
 			const radius = (sp.blastRadius as number | undefined) ?? 1;
 			for (const e of state.enemies) {
 				if (e.hp > 0 && canHit(e) && chebyshev(e.pos, res.to) <= radius) {
-					dealDamage(state, caster, ability, e, blastDamage);
+					// Blast uses the same onHit (splash/stun/etc.) at blast damage.
+					applyOnHit(state, e, blastDamage, ability.onHit, src, now);
 				}
 			}
 		}
 
+		// Caster-relative gather (pull toward the stop point).
+		runGather(state, caster, ability, now);
+
 		return true; // movement / utility ability — always "connects" (Data Contract §11.5)
 	}
 
-	// ── Legacy gap-closer (dir: 'toward') — June9's C, unchanged ──────────────────
-	const effRange = opts.chargedRange ?? (ability.shapeParams?.range as number | undefined) ?? 3;
+	// ── Legacy gap-closer (dir: 'toward') — June9's C ─────────────────────────────
+	const effRange = opts.chargedRange ?? (sp.range as number | undefined) ?? 3;
 
 	const enemy = nearestEnemy(state, caster.pos, effRange);
 	if (!enemy) return false;
@@ -105,63 +125,41 @@ export function resolve(
 	caster.pos = p;
 	publish('movement:player', { characterId: caster.id, from, to: p });
 
-	if (ability.knockback) {
-		const enemyFrom = { ...enemy.pos };
-		let ep = enemy.pos;
-		for (let i = 0; i < ability.knockback; i++) {
-			const next = clamp(state.board, step8Away(ep, caster.pos));
-			if (samePos(next, ep)) break;
-			ep = next;
-		}
-		enemy.pos = ep;
-		publish('movement:enemy', { enemyId: enemy.id, from: enemyFrom, to: ep });
-	}
+	// Caster-relative gather (pull toward the landing).
+	runGather(state, caster, ability, now);
 
-	// Gather: pull enemies within `radius` of the landing toward the caster.
-	// radius = catch reach (Chebyshev); steps = tiles pulled in. Net effect: a tight
-	// cluster in the 3×3 ring around her. (Sefyra scales this up later.)
-	const gather = ability.gather;
-	if (gather) {
-		for (const e of state.enemies) {
-			if (e.hp <= 0) continue;
-			if (chebyshev(e.pos, caster.pos) > gather.radius) continue;
-			const efrom = { ...e.pos };
-			let ep = e.pos;
-			for (let i = 0; i < gather.steps; i++) {
-				if (chebyshev(ep, caster.pos) <= 1) break;
-				const next = clamp(state.board, step8Toward(ep, caster.pos));
-				if (samePos(next, ep) || samePos(next, caster.pos)) break;
-				ep = next;
-			}
-			if (!samePos(efrom, ep)) {
-				e.pos = ep;
-				publish('movement:enemy', { enemyId: e.id, from: efrom, to: ep });
-			}
-		}
-	}
-
-	if (ability.damage && ability.damage > 0) {
-		const finalDmg = calculateDamage(ability.damage, {
-			source: caster,
-			target: enemy,
-			ability,
-			element: caster.def.element,
-			state
-		});
-		enemy.hp = Math.max(0, enemy.hp - finalDmg);
-		publish('damage:dealt', {
-			source: caster.id,
-			target: enemy.id,
-			amount: finalDmg,
-			abilityName: ability.name,
-			element: caster.def.element
-		});
-		if (enemy.hp <= 0) {
-			publish('enemy:defeated', { enemyId: enemy.id, killer: caster.id });
-		}
+	// Primary hit on the gap-closed enemy (knockback/stun/etc. via onHit).
+	if (baseDmg > 0 && canHit(enemy)) {
+		applyOnHit(state, enemy, baseDmg, ability.onHit, src, now);
 	}
 
 	return true;
+}
+
+/**
+ * Gather: pull enemies within `radius` of the caster toward the caster.
+ * Caster-relative repositioning — lives in dash, not in applyOnHit (which is
+ * target-relative). radius = catch reach (Chebyshev); steps = tiles pulled in.
+ */
+function runGather(state: EngineState, caster: CharacterState, ability: Ability, _now: number): void {
+	const gather = ability.gather;
+	if (!gather) return;
+	for (const e of state.enemies) {
+		if (e.hp <= 0) continue;
+		if (chebyshev(e.pos, caster.pos) > gather.radius) continue;
+		const efrom = { ...e.pos };
+		let ep = e.pos;
+		for (let i = 0; i < gather.steps; i++) {
+			if (chebyshev(ep, caster.pos) <= 1) break;
+			const next = clamp(state.board, step8Toward(ep, caster.pos));
+			if (samePos(next, ep) || samePos(next, caster.pos)) break;
+			ep = next;
+		}
+		if (!samePos(efrom, ep)) {
+			e.pos = ep;
+			publish('movement:enemy', { enemyId: e.id, from: efrom, to: ep });
+		}
+	}
 }
 
 /** Resolve a travel direction: explicit aimDir → reticle → facing → toward nearest → +x. */
@@ -175,30 +173,4 @@ function resolveAim(state: EngineState, caster: CharacterState, opts: DashOpts):
 	const near = nearestEnemy(state, caster.pos, reach);
 	if (near) return { x: near.pos.x - caster.pos.x, y: near.pos.y - caster.pos.y };
 	return { x: 1, y: 0 };
-}
-
-/** Damage one enemy through the pipeline + publish the canonical events. */
-function dealDamage(
-	state: EngineState,
-	caster: CharacterState,
-	ability: Ability,
-	enemy: (typeof state.enemies)[number],
-	base: number
-): void {
-	const dmg = calculateDamage(base, {
-		source: caster,
-		target: enemy,
-		ability,
-		element: caster.def.element,
-		state
-	});
-	enemy.hp = Math.max(0, enemy.hp - dmg);
-	publish('damage:dealt', {
-		source: caster.id,
-		target: enemy.id,
-		amount: dmg,
-		abilityName: ability.name,
-		element: caster.def.element
-	});
-	if (enemy.hp <= 0) publish('enemy:defeated', { enemyId: enemy.id, killer: caster.id });
 }

@@ -85,6 +85,20 @@
 			// style="border-color:{rim}; transform:translateY({lift}px); background-color:var(--bg);"
 			style="background-image: url({enemy?.def?.profileImage}); border: none;"
 		></div>
+		<div
+			class="facing"
+			style="transform:translateY({lift}px) rotate({facingDeg(enemy.facing)}deg);"
+		>
+			<svg viewBox="-18 -18 36 36"
+				><path
+					d="M0 -28 L8 -16 L0 -19 L-8 -16 Z"
+					fill="var(--char-primary)"
+					stroke="var(--char-primary)"
+					stroke-width="0.75"
+					stroke-linejoin="round"
+				/></svg
+			>
+		</div>
 		{#if locked}
 			<div class="nameplate">
 				<div class="np-bar"><i style="width:{hpPct}%; background:{rim};"></i></div>

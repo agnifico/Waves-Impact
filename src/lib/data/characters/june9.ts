@@ -15,81 +15,81 @@ export const june9: Character = {
 		selectBy: 'hold',
 		base: {
 			name: 'Solarfuel Blasters',
-			damage: 12,
 			range: 3,
-			energyGain: 10,
-			shape: 'melee',
 			omniTarget: true,
-			grantsStack: 'verdance',
-			// fx: { strike: 'swipe', colors: ['#2A9D8F', '#E9C46A'] }
+			delivery: { damage: 12, energyGain: 10, shape: 'melee', grantsStack: 'verdance' },
 			fx: { strike: 'projectile', shape: 'bolt', speed: 22, colors: ['#E9C46A'] }
 		},
 		withStack: {
 			name: 'Solar Beam',
-			damage: 12,
 			range: 3,
-			energyGain: 10,
-			shape: 'melee',
 			omniTarget: true,
 			consumesStack: 'verdance',
-			teamHeal: 35,
-			fx: { strike: 'beam', hits:6, colors: ['#2eb872'] }
+			delivery: { damage: 12, energyGain: 10, shape: 'melee' },
+			// teamHeal self-gates: withStack only fires when a verdance stack exists.
+			onHit: { teamHeal: 35 },
+			fx: { strike: 'beam', hits: 6, colors: ['#2eb872'] }
 		}
 	},
 
 	abilities: {
 		X: {
-			id: 'spatial_recovery',          // internal id kept; display rebranded
+			id: 'spatial_recovery',
 			name: 'Spatial Recovery',
 			behavior: 'damage_aoe',
-			shape: 'circle',
-			shapeParams: { radius: 1, range: 4 },
-			damage: 10,
-			stunMs: 2000,
 			cooldownMs: 6000,
-			energyGain: 15,
-			grantsStack: 'verdance',
-			teamHeal: 100,
-			autoTargetEnemy: true,
-			// allowSelfTarget: true,
-			holdBehavior: 'aim'
+			delivery: {
+				damage: 10,
+				energyGain: 15,
+				grantsStack: 'verdance',
+				teamHeal: 100,          // guaranteed cast-time heal (position-independent)
+				shape: 'circle',
+				shapeParams: { radius: 1, range: 4 },
+				autoTargetEnemy: true,
+				holdBehavior: 'aim'
+			},
+			onHit: { stunMs: 2000 }     // stun lands on enemies actually struck
 		},
 		C: {
-			id: 'thruster_bash',         // internal id kept
+			id: 'thruster_bash',
 			name: 'Thruster Bash',
 			behavior: 'dash',
-			shapeParams: { range: 3 },
-			damage: 10,
 			cooldownMs: 6000,
-			energyGain: 15,
-			grantsStack: 'verdance',
 			gather: { radius: 2, steps: 1 },
-			shield: { amount: 600, target: 'party' },
-			holdBehavior: 'charge',
-			chargeMaxRange: 7,
-			chargeMsPerTile: 200
+			delivery: {
+				damage: 10,
+				energyGain: 15,
+				grantsStack: 'verdance',
+				shield: { amount: 600, target: 'party' },   // cast-time party shield
+				shapeParams: { range: 3 },
+				holdBehavior: 'charge',
+				chargeMaxRange: 7,
+				chargeMsPerTile: 200
+			}
 		},
 		V: {
-			id: 'genesis_garden',               // internal id kept
+			id: 'genesis_garden',
 			name: 'Garden of Genesis',
 			behavior: 'zone',
-			shape: 'circle',
-			shapeParams: { radius: 3 },
 			durationMs: 16000,
 			cooldownMs: 16000,
 			energyCost: 50,
-			grantsStack: 'verdance',
 			zoneFollows: 'active',
-			zoneBuff: { damageBonus: .5, healPerTick: 40, activeBonusHeal: 30, tickMs: 1000,},
-			fx: { zone: 'mecha' },
 			persistsAfterDeath: true,
+			zoneBuff: { damageBonus: 0.5, healPerTick: 40, activeBonusHeal: 30, tickMs: 1000 },
+			delivery: {
+				grantsStack: 'verdance',
+				shape: 'circle',
+				shapeParams: { radius: 3 }
+			},
+			fx: { zone: 'mecha' }
 		}
 	},
 
-	stackType: 'verdance',       // internal id kept (self-contained to this file)
-	stackName: 'Genesis',        // display
+	stackType: 'verdance',
+	stackName: 'Genesis',
 	stackMax: 5,
-	onStackFull: 'bloomstride',  // effect id — rename its display in effects/bloomstride.ts if you want
+	onStackFull: 'bloomstride',
 	onStackFullTarget: 'party',
 
 	art: {
@@ -100,8 +100,8 @@ export const june9: Character = {
 	},
 
 	theme: {
-		primary: '#2eb872',                                 // verdant green
-		secondary: '#f5c04a',                               // radiant gold — bright accent
+		primary: '#2eb872',
+		secondary: '#f5c04a',
 		glow: { ready: '#b5e48c', bloomstride: '#ffd66b' },
 		energy: 'linear-gradient(180deg,#f5c04a 0%, #e0a020 100%);',
 		hp: 'linear-gradient(180deg,#74f0a8 0%, #2eb872 100%);',

@@ -1,5 +1,6 @@
 import type { FxSpec } from './ability';
-import type { Stratum } from './common';
+import type { Stratum, Position } from './common';
+import type { OnHit } from './onhit';
 
 export type CreationKind = 'summon' | 'construct';
 
@@ -17,6 +18,13 @@ export type SummonTargeting =
  * kind === 'summon'    → mobile agent; uses movement + attack fields.
  * kind === 'construct' → stationary object; uses pulse fields.
  * Shared fields apply to both.
+ *
+ * Creations don't use Delivery (they don't aim or charge — the ability that
+ * places them does). But their pulse/attack DOES land on enemies, so they embed
+ * `onHit`: the per-hit consequences (stun, splash, energy→owner, stack→owner,
+ * lifesteal, applied effects) flow through the SAME shared payload as abilities
+ * and basic attacks. Primary damage stays named (`pulseDmg` / `attackDamage`)
+ * because the construct-tick and summon-tick loops read them on different paths.
  */
 export interface CreationDef {
     id: string;
@@ -24,16 +32,23 @@ export interface CreationDef {
     kind: CreationKind;
     image?: string;
     durationMs?: number;
-    energyPerHit?: number;      // energy granted to owner on each damage event
-    grantsOwnerStack?: string;  // stack type to grant owner on each damage event
 
     stratum?: Stratum;        // physical layer; defaults 'ground'
-    hits?: Stratum[];         // strata the pulse can damage; omit = all
+    hitsStrata?: Stratum[];   // strata the pulse/attack can damage; omit = all
 
-    // ── Shared ───────────────────────────────────────────────────
+    /** Tiles occupied, relative to the placement origin. Omit = [{0,0}] (1×1).
+     *  A medium wall is [{-1,0},{0,0},{1,0}]; a ring is its full circle matrix.
+     *  ONE construct occupies many tiles — one timer, one icon, many footprint
+     *  cells for pathfinding. The origin {0,0} is the visual head (icon tile). */
+    footprint?: Position[];
+
+    // ── Shared on-hit (pulse / attack consequences) ──────────────
+    /** What happens to each enemy this creation's pulse/attack strikes — and what
+     *  the OWNER gets back (energyGain → owner, grantsStack → owner). Replaces the
+     *  old flat energyPerHit / grantsOwnerStack / stunMs / appliesEffects. */
+    onHit?: OnHit;
+
     receiveBuffs?: boolean;   // routes damage through calculateDamage pipeline
-    stunMs?: number;          // stun on hit / pulse
-    appliesEffects?: string[];
     attackFx?: FxSpec;
 
     // ── Summon ───────────────────────────────────────────────────
@@ -42,7 +57,7 @@ export interface CreationDef {
     stickyTargetMs?: number;  // ms before switching targets (default 1500)
     moveCooldownMs?: number;
     attackCooldownMs?: number;
-    attackDamage?: number;
+    attackDamage?: number;    // primary (summon attack)
     attackRange?: number;     // stop moving when within this range (default 1)
     aoeRadius?: number;       // splash radius around primary target
     mirrorsOwnerBA?: boolean;
@@ -50,7 +65,7 @@ export interface CreationDef {
     // ── Construct ─────────────────────────────────────────────────
     constructType?: 'inert' | 'source' | 'catalyst';
     targetingType?: 'pulse' | 'turret';
-    pulseDmg?: number;
+    pulseDmg?: number;        // primary (construct pulse)
     pulseMs?: number;
     pulseRadius?: number;
 }

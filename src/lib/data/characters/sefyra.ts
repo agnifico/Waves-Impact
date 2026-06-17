@@ -4,93 +4,107 @@ export const sefyra: Character = {
     id: 'sefyra',
     name: 'Sefyra',
     element: 'light',
-    maxHp: 200,            // low-survivability stand-in until a real DEF stat exists
+    maxHp: 200,
     maxEnergy: 100,
-    baCooldownMs: [200, 200, 1000], // BA3 is the channeled shot
+    baCooldownMs: [200, 200, 1000],
     baChainResetMs: 1500,
 
     basicStyle: 'chain',
     basicChain: [
         {
             name: 'Skymark (1)',
-            damage: 10, range: 7, energyGain: 10, shape: 'melee', omniTarget: true, grantsStack: 'divinity',
+            range: 7,
+            omniTarget: true,
+            delivery: { damage: 10, energyGain: 10, shape: 'melee', grantsStack: 'divinity' },
             fx: { strike: 'projectile', shape: 'arrow', colors: ['#a8e0ec', '#48cae4'] }
         },
         {
             name: 'Skymark (2)',
-            damage: 15, range: 7, energyGain: 10, shape: 'melee', omniTarget: true, grantsStack: 'divinity',
+            range: 7,
+            omniTarget: true,
+            delivery: { damage: 15, energyGain: 10, shape: 'melee', grantsStack: 'divinity' },
             fx: { strike: 'projectile', shape: 'arrow', colors: ['#a8e0ec', '#48cae4'] }
         },
         {
             name: 'Skymark (3)',
-            damage: 15, range: 7, energyGain: 10, shape: 'melee', omniTarget: true, consumesStack: 'divinity', consumeBonus: 20, teamHeal: 25,
+            range: 7,
+            omniTarget: true,
+            consumesStack: 'divinity',
+            consumeBonus: 20,
+            delivery: { damage: 15, energyGain: 10, shape: 'melee' },
+            onHit: { teamHeal: 25 },   // self-gates: BA3 finisher; heal lands on the consume hit
             fx: { strike: 'chain', shape: 'arrow', colors: ['#ffe9a8', 'var(--gold-bright)'] }
         }
     ],
 
     abilities: {
-        // X — Cloudpiercer (tiered auto-lock shot; tier from hold time in 3c, charges in 3a)
+        // X — Cloudpiercer: tiered auto-lock shot (unique behavior; tier from hold time)
         X: {
-            id: 'cloudpiercer', name: 'Cloudpiercer', behavior: 'cloudpiercer', holdBehavior: 'track', shapeParams: { range: 8 }, energyGain: 15, charges: 2, rechargeMs: 10000,
-            // fx: { strike: 'projectile', shape: 'arrow', size: 'l', trail: true, speed: 22, colors: ['#fff0c4', 'var(--gold-bright)'] }
+            id: 'cloudpiercer',
+            name: 'Cloudpiercer',
+            behavior: 'cloudpiercer',
+            charges: 2,
+            rechargeMs: 10000,
+            delivery: {
+                energyGain: 15,
+                holdBehavior: 'track',
+                shapeParams: { range: 8 }
+            },
             fx: { strike: 'bullet', trail: true, speed: 22, colors: ['#fff0c4', 'var(--gold-bright)'] }
         },
-        // PROVISIONAL (chunk 4 = directional dash + radius-2 blast)
+
+        // C — Photonic Transfiguration: aimed directional dash + terminal blast
         C: {
             id: 'photonic-transfiguration',
             name: 'Photonic Transfiguration',
-
             behavior: 'dash',
-            // no `shape` — dash travels by rule, not geometry
-            shapeParams: {
-                dir: 'forward',          // aim-directional (not the legacy gap-closer)
-                tiles: 4,                // dashes ~4 tiles down the aim line
-                throughObstacles: true,  // flying: passes through, lands on the furthest valid tile
-                blastDamage: 15,         // radius-2 detonation at the stop point
-                blastRadius: 2
-                // iframesMs: 200,       // reserved — wires up with the status engine
-            },
-
-            damage: 100,                  // to the first enemy hit along the line
             cooldownMs: 10000,
-            grantsStack: 'divinity',     // +1 Divinity (declarative, as your placeholder is today)
-            holdBehavior: 'track',         // hold C to aim a direction; release to dash (see note)
-            // carry over from your current C:
-            // energyGain: <your value>,
-            // impactClass: '<your vfx hook>',
-            // hits: [<strata>]          // add to stratum-gate the hit + blast; omit = hits all
+            delivery: {
+                damage: 100,
+                grantsStack: 'divinity',
+                holdBehavior: 'track',
+                shapeParams: {
+                    dir: 'forward',
+                    tiles: 4,
+                    throughObstacles: true,
+                    blastDamage: 15,
+                    blastRadius: 2
+                }
+            }
         },
-        // PROVISIONAL (chunk 5 = gather + whirlwind + 3-stack VV buff)
+
+        // V — Divine Vortex: aimed board-spanning gather zone (Venti ult)
         V: {
             id: 'divine_vortex',
             name: 'Divine Vortex',
             behavior: 'zone',
-            shapeParams: { radius: 5 },
             durationMs: 8000,
             cooldownMs: 20000,
             energyCost: 40,
-            aimRange: 12,
-            holdBehavior: 'aim',
             zoneFollows: 'fixed',
             zoneBuff: {
                 tickMs: 600,
                 dmgPerTick: 8,
                 damageBonus: 0.2,
-                gatherPerTick: { steps: 1 },
+                gatherPerTick: { steps: 1 }
             },
-            fx: { zone: 'holy' },
-            grantsStack: 'divinity',
-        },
+            delivery: {
+                grantsStack: 'divinity',
+                aimRange: 12,
+                holdBehavior: 'aim',
+                shapeParams: { radius: 5 }
+            },
+            fx: { zone: 'holy' }
+        }
     },
 
     stackType: 'divinity',
     stackName: 'Divinity',
-    stackMax: 6,
-    onStackFull: 'none',   // Sefyra has no at-max effect — see note
+    stackMax: 8,
+    onStackFull: 'none',
     onStackFullTarget: 'self',
 
-    stratum: 'flying',     // immune to ground-only attacks, overtakes obstacles
-
+    stratum: 'flying',
     offFieldStackBonus: 1.5,
 
     art: {

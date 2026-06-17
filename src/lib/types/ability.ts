@@ -1,4 +1,6 @@
 import type { Stratum } from './common';
+import type { Delivery } from './delivery';
+import type { OnHit } from './onhit';
 
 // ─── Shape / Behavior / Hold ─────────────────────────────────────────────────
 
@@ -24,18 +26,18 @@ export type ShapeId =
  * state changed. (Data Contract §2, §6)
  */
 export type BehaviorId =
-    | 'damage_aoe'
-    | 'damage_first_in_line'
-    | 'summon'
-    | 'construct'
-    | 'multi_construct'   // ← ADD
-    | 'dash'
-    | 'zone'
-    | 'channel_beam'
-    | 'chain'
-    | 'displace'
-    | 'marker'
-    | (string & {});
+	| 'damage_aoe'
+	| 'damage_first_in_line'
+	| 'summon'
+	| 'construct'
+	| 'multi_construct'
+	| 'dash'
+	| 'zone'
+	| 'channel_beam'
+	| 'chain'
+	| 'displace'
+	| 'marker'
+	| (string & {}); // extensible
 
 /** Hold modifier — orthogonal to behavior. (Data Contract §5.1) */
 export type HoldBehavior = 'aim' | 'charge' | 'channel' | 'track' | 'aim_dir';
@@ -45,7 +47,9 @@ export type AbilitySlot = 'X' | 'C' | 'V';
 
 // ─── Sub-interfaces ───────────────────────────────────────────────────────────
 
-/** Periodic buff / damage applied by a zone tile. (behavior === 'zone') */
+/** Periodic buff / damage applied by a zone tile. (behavior === 'zone')
+ *  NOTE: ZoneBuff is a THIRD payload kind — a continuous per-tick field, distinct
+ *  from Delivery (per-cast) and OnHit (per-connect). Intentionally NOT unified. */
 export interface ZoneBuff {
 	tickMs: number;
 	healPerTick?: number;
@@ -54,6 +58,7 @@ export interface ZoneBuff {
 	damageBonus?: number;
 	ownerEnergyDrainPerTick?: number;
 	upkeepReductionPerStack?: number;
+	/** Pull enemies within the zone toward its center each tick (Sefyra's Venti vortex). */
 	gatherPerTick?: { steps: number };
 }
 
@@ -64,6 +69,7 @@ export interface ShapeParams {
 	dir?: 'forward' | 'back' | 'away' | 'toward';
 	tiles?: number;
 	throughObstacles?: boolean;
+	allInLine?: boolean;
 	iframesMs?: number;
 	blastDamage?: number;
 	blastRadius?: number;
@@ -82,59 +88,56 @@ export interface ShieldParams {
 // ─── Ability ─────────────────────────────────────────────────────────────────
 
 /**
- * Full ability definition. Most fields are optional — presence depends on
- * behavior. (Data Contract §5)
+ * Full ability definition.
+ *
+ * An ability is now assembled from two shared payloads plus its own delivery
+ * geometry and cast economy:
+ *
+ *   • `delivery`  — HOW it's aimed/shaped/charged + the GUARANTEED resource floor
+ *                   (damage/heal/shield/energy granted on cast regardless of hits).
+ *                   The ability's primary damage is `delivery.damage`.
+ *   • `onHit`     — what additionally happens PER ENEMY STRUCK (splash, knockback,
+ *                   stun, per-hit energy/heal/stack, lifesteal).
+ *
+ * Top-level fields below are the things that are NEITHER delivery nor on-hit:
+ * behavior dispatch, cast economy (cooldown/charges/energyCost), creation refs,
+ * zone/gather sub-behaviors, and lifecycle.
+ *
+ * Most fields optional — presence depends on behavior. (Data Contract §5)
  */
 export interface Ability {
 	id: string;
 	name: string;
 	behavior: BehaviorId;
-	shape?: ShapeId;
-	shapeParams?: ShapeParams;
 	description?: string;
 
-	// Core effect params
-	damage?: number;
-	poiseDamage?: number;
+	/** How it's delivered + the guaranteed cast-time floor. */
+	delivery?: Delivery;
+	/** Per-connect bonus + target-side effects. */
+	onHit?: OnHit;
+
+	// ── Cast economy (neither delivery nor on-hit) ──────────────────
 	cooldownMs?: number;
 	charges?: number;       // >1 → multi-charge; omit/1 = single cooldown
 	rechargeMs?: number;    // per-charge regen time; defaults to cooldownMs
 	energyCost?: number;
-	energyGain?: number;
-	stunMs?: number;
-	knockback?: number;
-	selfHeal?: number;
-	teamHeal?: number;
-	durationMs?: number;
-	unchainedBonus?: number;
-	appliesEffects?: string[];
-	persistsAfterDeath?: boolean;   // zone: keep ticking after owner dies
-	aimRange?: number;
+	unchainedBonus?: number; // legacy: consumed-Unchained damage bump (de-hardcode later)
 
+	// ── Lifecycle ───────────────────────────────────────────────────
+	durationMs?: number;
+	persistsAfterDeath?: boolean;   // zone: keep ticking after owner dies
+
+	// ── Caster movement / control sub-behaviors ─────────────────────
 	gather?: { radius: number; steps: number }; // pull enemies toward caster
 
-	// Targeting
-	autoTargetEnemy?: boolean;
-	allowSelfTarget?: boolean;
-
-	// Stack interaction
-	grantsStack?: string;
-
-	// Hold modifier (Data Contract §5.1)
-	holdBehavior?: HoldBehavior;
-	chargeMaxRange?: number;
-	chargeMsPerTile?: number;
-
-	// Sub-behaviors
-	shield?:   ShieldParams;
+	// ── Sub-behaviors ───────────────────────────────────────────────
 	zoneBuff?: ZoneBuff;
 	zoneFollows?: 'caster' | 'fixed' | 'active';
 
-	creationId?: string;   // registry key into data/creations.ts
-	multiConstructOffsets?: { x: number; y: number }[];
+	creationId?: string;                       // registry key into data/creations.ts
+	multiConstructOffsets?: { x: number; y: number }[]; // multi_construct placement
+
 	// Visual
-	impactClass?: string;
-	hits?: Stratum[];  // strata this ability can hit; omit = all
 	fx?: FxSpec;
 }
 
@@ -142,9 +145,9 @@ export interface Ability {
 
 export interface FxSpec {
 	strike?:
-		| 'swipe' | 'reverseswipe' | 'claw' | 'stab' | 'flurry' | 'slam' | 'uppercut'
-		| 'projectile' | 'bullet' | 'beam' | 'chain'
-		| 'zone';
+	| 'swipe' | 'reverseswipe' | 'claw' | 'stab' | 'flurry' | 'slam' | 'uppercut'
+	| 'projectile' | 'bullet' | 'beam' | 'chain'
+	| 'zone';
 	zone?: string;
 	shape?: 'bolt' | 'arrow' | 'orb' | 'leaf' | 'wave';
 	size?: 's' | 'm' | 'l';
@@ -154,6 +157,6 @@ export interface FxSpec {
 	gashes?: number;
 	hits?: number;
 	skin?:
-		| 'default' | 'mecha' | 'flame' | 'wind' | 'void' | 'water'
-		| 'slashes' | 'pulse' | 'earth' | 'poison' | 'frost' | 'holy' | 'storm';
+	| 'default' | 'mecha' | 'flame' | 'wind' | 'void' | 'water'
+	| 'slashes' | 'pulse' | 'earth' | 'poison' | 'frost' | 'holy' | 'storm';
 }

@@ -169,9 +169,9 @@
 						updateHoldState(
 							now,
 							char.pos,
-							ability.aimRange ?? ability.shapeParams?.range ?? 0,
-							ability.chargeMsPerTile,
-							ability.chargeMaxRange,
+							ability.delivery?.aimRange ?? ability.delivery?.shapeParams?.range ?? 0,
+							ability.delivery?.chargeMsPerTile, 
+							ability.delivery?.chargeMaxRange,
 							trackPos
 						);
 						if (holdState.fireNow) {

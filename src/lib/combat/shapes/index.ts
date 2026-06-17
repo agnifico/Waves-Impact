@@ -6,8 +6,8 @@ import { pconeFrom } from './pcone';
 import { tconeFrom } from './tcone';
 import { circleAt } from './circle';
 import { meleeFrom } from './melee';
+import type { ShapeParams } from '$lib/types/ability';
 
-export type ShapeParams = Record<string, number>;
 
 /** Signature every shape function conforms to. */
 export type ShapeFn = (

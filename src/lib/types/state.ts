@@ -121,6 +121,9 @@ export interface ConstructState {
 	name?: string;
 	receiveBuffs?: boolean;
 	stratum: Stratum;
+	/** Tiles occupied (absolute board positions), computed from def.footprint at
+	 *  spawn. Omit/empty = single tile at `pos`. Pathfinding checks every cell. */
+	footprint?: Position[];
 }
 
 

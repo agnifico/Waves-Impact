@@ -7,8 +7,8 @@ import { consumeStack } from '../stacks';
 import { coversStratum } from '../spatial';
 
 // Tier index 0/1/2 ← hold-time tier, clamped to affordable stacks (see below).
-const TIER_DAMAGE = [120, 135, 175];
-const TIER_STACK_COST = [0, 1, 2];
+const TIER_DAMAGE = [120, 135, 175, 200, 275];
+const TIER_STACK_COST = [0, 1, 2, 3, 4];
 const TAP_RANGE = 5; // tier-0 is range-gated; charged tiers ignore range/obstacles
 
 /** Focus/locked enemy if set and alive, else nearest alive. */
@@ -46,9 +46,9 @@ export function resolve(
 ): boolean {
 	const target = pickTarget(state, caster.pos, opts.lockedTargetId as string | undefined);
 	if (!target) return false;
-	if (!coversStratum(ability.hits, target.stratum)) return false;
+	if (!coversStratum(ability.delivery?.hitsStrata, target.stratum)) return false;
 
-	const timeTier = Math.max(0, Math.min(2, (opts.tier as number) ?? 0));
+	const timeTier = Math.max(0, Math.min(4, (opts.tier as number) ?? 0));
 	const stacks = caster.stacks.current;
 	let tier = timeTier;
 	while (tier > 0 && stacks < TIER_STACK_COST[tier]) tier--; // cap to affordable

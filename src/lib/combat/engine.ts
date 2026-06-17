@@ -9,7 +9,7 @@ import { canEnter } from './spatial';
 import { OFF_FIELD_REGEN_MS, regenOffField } from './energy';
 import { calculateDamage } from './pipeline';
 import { getCreationDef } from '$lib/data/creations';
-import { grantStack } from './stacks';
+import { applyOnHit, canHitStratum, type ResolveSource } from './resolve';
 
 /** Fallback movement step interval (ms) when a character omits moveMs. */
 const DEFAULT_MOVE_MS = 150;
@@ -226,67 +226,31 @@ function tickSummons(state: EngineState, now: number): void {
 				const owner = state.party.find((p) => p.id === summon.ownerId);
 				if (owner?.def.basicChain) {
 					const idx = Math.max(0, owner.lastBaIndexLanded);
-					baseDmg = owner.def.basicChain[idx]?.damage ?? baseDmg;
+					baseDmg = owner.def.basicChain[idx]?.delivery?.damage ?? baseDmg;
 				}
 			}
 
-			const owner = summon.receiveBuffs
-				? state.party.find((p) => p.id === summon.ownerId)
-				: undefined;
+			const owner = state.party.find((p) => p.id === summon.ownerId);
+			if (owner) {
+				// Merge def.onHit with the summon's aoeRadius splash (if any) so both the
+				// unified onHit AND the legacy aoeRadius field produce splash.
+				const onHit = def?.aoeRadius && def.aoeRadius > 0
+					? { ...(def.onHit ?? {}), splash: def.onHit?.splash ?? { radius: def.aoeRadius } }
+					: def?.onHit;
 
-			const dmg = owner
-				? calculateDamage(baseDmg, { source: owner, target: target!, state, sourcePos: summon.pos })
-				: baseDmg;
-
-			target!.hp = Math.max(0, target!.hp - dmg);
-			publish('damage:dealt', { source: summon.ownerId, target: target!.id, amount: dmg, abilityName: 'Summon attack' });
-
-			if (def?.stunMs && def.stunMs > 0) {
-				target!.stunnedUntil = Math.max(target!.stunnedUntil, now + def.stunMs);
-			}
-			if (target!.hp <= 0) {
-				publish('enemy:defeated', { enemyId: target!.id, killer: summon.ownerId });
-			}
-
-			// AoE splash
-			if (def?.aoeRadius && def.aoeRadius > 0) {
-				for (const enemy of state.enemies) {
-					if (enemy.hp <= 0 || enemy.id === target!.id) continue;
-					if (chebyshev(enemy.pos, target!.pos) > def.aoeRadius) continue;
-					const splash = owner
-						? calculateDamage(baseDmg, { source: owner, target: enemy, state, sourcePos: summon.pos })
-						: baseDmg;
-					enemy.hp = Math.max(0, enemy.hp - splash);
-					publish('damage:dealt', { source: summon.ownerId, target: enemy.id, amount: splash, abilityName: 'Summon attack' });
-					if (enemy.hp <= 0) publish('enemy:defeated', { enemyId: enemy.id, killer: summon.ownerId });
-					rewardOwner(state, summon.ownerId, summon.defId, now);
-				}
+				const src: ResolveSource = {
+					owner,
+					abilityName: 'Summon attack',
+					element: summon.element,
+					sourcePos: summon.pos,
+					flatDamage: !summon.receiveBuffs   // unbuffed unless the def opts into pipeline
+				};
+				applyOnHit(state, target!, baseDmg, onHit, src, now);
 			}
 
 			summon.nextAttackAt = now + attackMs;
 			publish('summon:attack', { summonId: summon.id, ownerId: summon.ownerId, fromPos: { ...summon.pos }, toPos: { ...target!.pos }, isRanged: attackRange > 1, element: summon.element });
-			publish('summon:attack', {
-				summonId: summon.id,
-				ownerId: summon.ownerId,
-				fromPos: { ...summon.pos },
-				toPos: { ...target!.pos },
-				isRanged: attackRange > 1,
-				element: summon.element
-			});
 		}
-	}
-}
-
-function rewardOwner(state: EngineState, ownerId: string, defId: string, now: number): void {
-	const def = getCreationDef(defId);
-	if (!def) return;
-	const owner = state.party.find((p) => p.id === ownerId);
-	if (!owner || owner.hp <= 0) return;
-	if (def.energyPerHit) {
-		owner.energy = Math.min(owner.def.maxEnergy, owner.energy + def.energyPerHit);
-	}
-	if (def.grantsOwnerStack) {
-		grantStack(state, owner, def.grantsOwnerStack, now);
 	}
 }
 
@@ -305,71 +269,55 @@ function tickConstructs(state: EngineState, now: number): void {
 		}
 
 		if (now < construct.nextPulseAt) continue;
-		const owner = construct.receiveBuffs
-			? state.party.find((p) => p.id === construct.ownerId)
-			: undefined;
+		const owner = state.party.find((p) => p.id === construct.ownerId);
 		construct.nextPulseAt = now + construct.pulseMs;
 		// Ring FX — once per tick, before the damage loop
 		if (construct.pulseDmg > 0 && construct.targetingType !== 'turret') {
 			publish('construct:pulse', { constructId: construct.id, pos: { ...construct.pos }, element: construct.element, radius: construct.pulseRadius });
 		}
 
-		// Own pulse — all types
+		if (!owner) continue; // owner gone (dead + not persisted) — nothing to attribute
+
+		// Build the per-hit payload from the def, injecting the construct's denormalized
+		// stun so a construct stuns through the same onHit path as everything else.
+		const baseOnHit = def?.onHit ?? {};
+		const onHit = construct.stunMs > 0 && !baseOnHit.stunMs
+			? { ...baseOnHit, stunMs: construct.stunMs }
+			: baseOnHit;
+
+		const src: ResolveSource = {
+			owner,
+			abilityName: 'Construct pulse',
+			element: construct.element,
+			sourcePos: construct.pos,
+			flatDamage: !construct.receiveBuffs
+		};
+
+		const strata = def?.hitsStrata;
+
 		// Own pulse — branches on targetingType
 		if (construct.pulseDmg > 0) {
 			if (construct.targetingType === 'turret') {
-				// Scan: find nearest enemy in range, hit only them
+				// Scan: nearest enemy in range, hit only them.
 				const target = state.enemies
-					.filter((e) => e.hp > 0 && chebyshev(e.pos, construct.pos) <= construct.pulseRadius)
+					.filter((e) => e.hp > 0 && chebyshev(e.pos, construct.pos) <= construct.pulseRadius && canHitStratum(strata, e.stratum))
 					.sort((a, b) => chebyshev(a.pos, construct.pos) - chebyshev(b.pos, construct.pos))[0];
 				if (target) {
-					const dmg = owner
-						? calculateDamage(construct.pulseDmg, { source: owner, target: target, state, sourcePos: construct.pos, element: construct.element })
-						: construct.pulseDmg;
-					target.hp = Math.max(0, target.hp - dmg);
 					publish('construct:turret', { constructId: construct.id, pos: { ...construct.pos }, targetPos: { ...target.pos }, element: construct.element });
-					publish('damage:dealt', {
-						source: construct.ownerId,
-						target: target.id,
-						amount: dmg,
-						abilityName: 'Construct turret',
-						element: construct.element
-					});
-					if (target.hp <= 0) publish('enemy:defeated', { enemyId: target.id, killer: construct.ownerId });
-					rewardOwner(state, construct.ownerId, construct.defId, now);
+					applyOnHit(state, target, construct.pulseDmg, onHit, { ...src, abilityName: 'Construct turret' }, now);
 				}
 			} else {
-				// Pulse (default): hit all enemies in radius
+				// Pulse (default): hit all enemies in radius.
 				for (const enemy of state.enemies) {
 					if (enemy.hp <= 0) continue;
 					if (chebyshev(enemy.pos, construct.pos) > construct.pulseRadius) continue;
-					if (def?.hits && !def.hits.includes(enemy.stratum)) continue;
-					const dmg = owner
-						? calculateDamage(construct.pulseDmg, { source: owner, target: enemy, state, sourcePos: construct.pos, element: construct.element })
-						: construct.pulseDmg;
-					enemy.hp = Math.max(0, enemy.hp - dmg);
-					publish('damage:dealt', {
-						source: construct.ownerId,
-						target: enemy.id,
-						amount: dmg,
-						abilityName: 'Construct pulse',
-						element: construct.element
-					});
-					if (enemy.hp <= 0) publish('enemy:defeated', { enemyId: enemy.id, killer: construct.ownerId });
-					rewardOwner(state, construct.ownerId, construct.defId, now);
+					if (!canHitStratum(strata, enemy.stratum)) continue;
+					applyOnHit(state, enemy, construct.pulseDmg, onHit, src, now);
 				}
 			}
 		}
 
-		// Stun still applies to all enemies in range regardless of targeting type
-		for (const enemy of state.enemies) {
-			if (enemy.hp <= 0 || construct.stunMs <= 0) continue;
-			if (chebyshev(enemy.pos, construct.pos) > construct.pulseRadius) continue;
-			if (def?.hits && !def.hits.includes(enemy.stratum)) continue;
-			enemy.stunnedUntil = Math.max(enemy.stunnedUntil, now + construct.stunMs);
-		}
-
-		// Catalyst: one extra pulse per allied source in range, skipping same element
+		// Catalyst: one extra pulse per allied source in range, skipping same element.
 		if (construct.constructType === 'catalyst' && construct.pulseDmg > 0) {
 			const sources = state.constructs.filter(c =>
 				c.id !== construct.id &&
@@ -381,23 +329,12 @@ function tickConstructs(state: EngineState, now: number): void {
 			);
 			for (const source of sources) {
 				publish('construct:catalyst', { constructId: construct.id, pos: { ...construct.pos }, element: source.element, radius: construct.pulseRadius });
+				const catSrc: ResolveSource = { ...src, abilityName: 'Catalyst pulse', element: source.element };
 				for (const enemy of state.enemies) {
 					if (enemy.hp <= 0) continue;
 					if (chebyshev(enemy.pos, construct.pos) > construct.pulseRadius) continue;
-					if (def?.hits && !def.hits.includes(enemy.stratum)) continue;
-					const dmg = owner
-						? calculateDamage(construct.pulseDmg, { source: owner, target: enemy, state, sourcePos: construct.pos, element: construct.element })
-						: construct.pulseDmg;
-					enemy.hp = Math.max(0, enemy.hp - dmg);
-					publish('damage:dealt', {
-						source: construct.ownerId,
-						target: enemy.id,
-						amount: dmg,
-						abilityName: 'Catalyst pulse',
-						element: source.element       // carries the source's element
-					});
-					if (enemy.hp <= 0) publish('enemy:defeated', { enemyId: enemy.id, killer: construct.ownerId });
-					rewardOwner(state, construct.ownerId, construct.defId, now);
+					if (!canHitStratum(strata, enemy.stratum)) continue;
+					applyOnHit(state, enemy, construct.pulseDmg, onHit, catSrc, now);
 				}
 			}
 		}
@@ -531,4 +468,3 @@ function tickZones(state: EngineState, now: number): void {
 		}
 	}
 }
-

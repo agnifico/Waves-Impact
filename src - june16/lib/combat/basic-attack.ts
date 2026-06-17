@@ -1,0 +1,286 @@
+import type { EngineState, CharacterState, EnemyState } from '$lib/types/state';
+import { chebyshev, samePos, step8Away, step8Toward, clamp } from './board';
+import { resolveTiles } from './shapes';
+import { calculateDamage } from './pipeline';
+import { grantStack, consumeStack } from './stacks';
+import { focusTarget } from './query';
+import { publish } from './events';
+import { coversStratum } from './spatial';
+import { grantOffFieldShare } from './energy';
+import type { EnhancedCondition } from '$lib/types';
+
+/**
+ * Basic attacks. Both styles (chain / contextual) share ONE target-acquisition
+ * path (acquireTarget) and ONE hit-application path (applyBasicHit). The style
+ * functions only own their control flow: chain owns index/advance, contextual
+ * owns base/withStack selection.
+ *
+ * Target model (single-target focus, as the engine has always done):
+ *   • omniTarget        → focus enemy within `range` (Chebyshev), facing-agnostic
+ *   • shape === 'melee'  → focus enemy within `range`; wrong stratum = whiff event
+ *   • any other shape    → focus enemy must lie inside resolveTiles(shape, …)
+ *
+ * `hold` is the tap-vs-hold signal from the input layer. It only matters for a
+ * contextual BA whose contextualBasic.selectBy === 'hold' (June 9): tap → base,
+ * hold → enhanced. Everyone else ignores it.
+ */
+export function tryBasicAttack(state: EngineState, now: number, hold: boolean = false): void {
+	if (state.over) return;
+	const char = state.party[state.activeSlot];
+	if (char.stunnedUntil > now) return;
+
+	const baCd = char.def.baCooldownMs;
+	let cd: number;
+	if (Array.isArray(baCd)) {
+		const reset = now - char.lastBaTimestamp > char.def.baChainResetMs;
+		const idx = reset ? 0 : char.baChainIndex;
+		cd = baCd[idx] ?? baCd[0] ?? 0;
+	} else {
+		cd = baCd;
+	}
+	if (now - char.lastActionTimestamp < cd) return;
+
+	if (shouldFireEnhanced(char, now, hold)) {
+		resolveEnhanced(state, char, now);
+	} else if (char.def.basicStyle === 'contextual' && char.def.contextualBasic) {
+		resolveContextual(state, char, now, hold);
+	} else if (char.def.basicStyle === 'chain' && char.def.basicChain) {
+		resolveChain(state, char, now);
+	}
+}
+
+// ─── Shared target acquisition ───────────────────────────────────────────────
+
+type BasicAttackData = NonNullable<CharacterState['def']['basicChain']>[number];
+
+// ─── Enhanced BA — condition checks ─────────────────────────────────────────
+
+function meetsCondition(c: EnhancedCondition, char: CharacterState, now: number): boolean {
+	switch (c.type) {
+		case 'stacks_min':
+			return char.stacks.current >= c.n;
+		case 'stacks_exact':
+			return char.stacks.current === c.n;
+		case 'post_ability':
+			return !!char.lastAction
+				&& !char.lastAction.tag.startsWith('ba')
+				&& (now - char.lastAction.at <= c.windowMs);
+		case 'post_hit':
+			return !!char.lastHitAt && (now - char.lastHitAt <= c.windowMs);
+		case 'post_dash':
+			return !!char.lastAction
+				&& char.lastAction.tag === 'dash'
+				&& (now - char.lastAction.at <= c.windowMs);
+		case 'chain_finisher': {
+			const chain = char.def.basicChain;
+			return !!chain && char.baChainIndex === chain.length - 1;
+		}
+		case 'energy_threshold':
+			return char.def.maxEnergy > 0
+				&& (char.energy / char.def.maxEnergy) >= c.pct;
+	}
+}
+
+/**
+ * Exported so the UI layer can read availability to show the BA button glow.
+ * Does NOT check requireHold — that's a trigger concern, not an availability concern.
+ */
+export function isEnhancedAvailable(char: CharacterState, now: number): boolean {
+	const enh = char.def.enhancedBasic;
+	if (!enh) return false;
+	return enh.conditions.some((c) => meetsCondition(c, char, now));
+}
+
+function shouldFireEnhanced(char: CharacterState, now: number, hold: boolean): boolean {
+	const enh = char.def.enhancedBasic;
+	if (!enh || !isEnhancedAvailable(char, now)) return false;
+	if (enh.requireHold && !hold) return false;
+	if (enh.interruptsChain === false) {
+		const chain = char.def.basicChain;
+		if (chain && char.baChainIndex !== chain.length - 1) return false;
+	}
+	return true;
+}
+
+// ─── Enhanced BA — resolution ────────────────────────────────────────────────
+
+function resolveEnhanced(state: EngineState, char: CharacterState, now: number): void {
+	const ba = char.def.enhancedBasic!.ba;
+	const acq = acquireTarget(state, char, ba);
+	if (!acq.ok) {
+		if (acq.whiff) publish('basic:missed', { target: acq.whiff.id, abilityName: acq.whiff.name });
+		char.lastActionTimestamp = now;
+		return;
+	}
+	applyBasicHit(state, char, ba, acq.enemy, now);
+	char.baChainIndex = 0;           // reset combo after enhanced hit
+	char.lastBaTimestamp = now;
+	char.lastActionTimestamp = now;
+	char.lastAction = { tag: 'ba_enhanced', at: now };
+}
+
+type Acq =
+	| { ok: true; enemy: EnemyState }
+	| { ok: false; whiff?: { id: string; name: string } };
+
+/** Resolve whether this BA has a legal focus target right now. */
+function acquireTarget(state: EngineState, char: CharacterState, ba: BasicAttackData): Acq {
+	const enemy = focusTarget(state, char.pos);
+	if (!enemy) return { ok: false };
+
+	const inStratum = coversStratum(ba.hits, enemy.stratum);
+
+	if (ba.omniTarget) {
+		if (!inStratum || chebyshev(char.pos, enemy.pos) > ba.range) return { ok: false };
+		return { ok: true, enemy };
+	}
+
+	if (ba.shape === 'melee') {
+		if (chebyshev(char.pos, enemy.pos) > ba.range) return { ok: false };
+		// in range but wrong stratum (e.g. ground swing vs a flier) → whiff
+		if (!inStratum) return { ok: false, whiff: { id: enemy.id, name: ba.name } };
+		return { ok: true, enemy };
+	}
+
+	// Shaped: directional gate — focus enemy must lie inside the shape tiles.
+	const tiles = resolveTiles(ba.shape, char.pos, char.facing, { range: ba.range }, state.board);
+	if (!inStratum || !tiles.some((t) => samePos(t, enemy.pos))) return { ok: false };
+	return { ok: true, enemy };
+}
+
+// ─── Shared hit application ──────────────────────────────────────────────────
+
+/** Apply one landed BA: damage (+finisher), heal, energy, stack, dash-back, events. */
+function applyBasicHit(
+	state: EngineState,
+	char: CharacterState,
+	ba: BasicAttackData,
+	enemy: EnemyState,
+	now: number
+): void {
+	// Finisher: spend a stack for bonus damage (+ optional team heal / dash-back).
+	const consumed = !!ba.consumesStack && char.stacks.current > 0;
+	if (consumed) consumeStack(char, ba.consumesStack!, 1);
+
+	if (ba.gapClose) {
+		const from = { ...char.pos };
+		let p = char.pos;
+		for (let i = 0; i < ba.range; i++) {
+			if (chebyshev(p, enemy.pos) <= 1) break;
+			const next = clamp(state.board, step8Toward(p, enemy.pos));
+			if (samePos(next, p) || samePos(next, enemy.pos)) break;
+			p = next;
+		}
+		char.pos = p;
+		if (!samePos(from, p)) publish('movement:player', { characterId: char.id, from, to: p });
+	}
+
+	const base = ba.damage + (consumed ? (ba.consumeBonus ?? 0) : 0);
+	const finalDmg = calculateDamage(base, {
+		source: char,
+		target: enemy,
+		element: char.def.element,
+		state
+	});
+	enemy.hp = Math.max(0, enemy.hp - finalDmg);
+	publish('damage:dealt', {
+		source: char.id,
+		target: enemy.id,
+		amount: finalDmg,
+		abilityName: ba.name,
+		element: char.def.element
+	});
+
+	if (consumed && ba.teamHeal) {
+		for (const pc of state.party) {
+			if (pc.hp <= 0) continue;
+			const before = pc.hp;
+			pc.hp = Math.min(pc.def.maxHp, pc.hp + ba.teamHeal);
+			if (pc.hp > before) {
+				publish('heal:applied', {
+					target: pc.id,
+					source: char.id,
+					amount: pc.hp - before,
+					abilityName: ba.name
+				});
+			}
+		}
+	}
+
+	// Energy
+	char.energy = Math.min(char.def.maxEnergy, char.energy + ba.energyGain);
+	grantOffFieldShare(state, ba.energyGain);
+
+	// Stack grant
+	if (ba.grantsStack) grantStack(state, char, ba.grantsStack, now);
+
+	// Dash back (withStack variant, or any BA that declares it)
+	if (ba.dashBack) {
+		let p = char.pos;
+		for (let i = 0; i < ba.dashBack; i++) {
+			const next = clamp(state.board, step8Away(p, enemy.pos));
+			if (samePos(next, p)) break;
+			p = next;
+		}
+		char.pos = p;
+	}
+
+	if (enemy.hp <= 0) {
+		publish('enemy:defeated', { enemyId: enemy.id, killer: char.id });
+	}
+}
+
+// ─── Chain style (Frosty / Sefyra) ───────────────────────────────────────────
+
+function resolveChain(state: EngineState, char: CharacterState, now: number): void {
+	const chain = char.def.basicChain!;
+	if (now - char.lastBaTimestamp > char.def.baChainResetMs) char.baChainIndex = 0;
+
+	const ba = chain[char.baChainIndex];
+	const acq = acquireTarget(state, char, ba);
+	if (!acq.ok) {
+		if (acq.whiff) publish('basic:missed', { target: acq.whiff.id, abilityName: acq.whiff.name });
+		char.lastActionTimestamp = now; // swing-and-miss still gates the next swing
+		return;
+	}
+
+	applyBasicHit(state, char, ba, acq.enemy, now);
+
+	char.lastBaIndexLanded = char.baChainIndex;
+	char.lastBaTimestamp = now;
+	char.lastActionTimestamp = now;
+	char.lastAction = { tag: char.baChainIndex === chain.length - 1 ? 'ba_chain_end' : 'ba', at: now };
+
+	// Advance (gated by advanceOnlyIfMelee). Note: read pos AFTER any dash-back.
+	if (!ba.advanceOnlyIfMelee || chebyshev(char.pos, acq.enemy.pos) <= 1) {
+		char.baChainIndex = (char.baChainIndex + 1) % chain.length;
+	}
+}
+
+// ─── Contextual style (June 9 / Maria Elena) ──────────────────────────────────
+
+function resolveContextual(
+	state: EngineState,
+	char: CharacterState,
+	now: number,
+	hold: boolean
+): void {
+	const cb = char.def.contextualBasic!;
+	const hasStack = char.stacks.current > 0;
+
+	// 'hold'   → player picks: tap = base, hold = enhanced (only if a stack is bankable).
+	// 'stacks' → (default/legacy) auto-enhance whenever a stack exists.
+	const useEnhanced = cb.selectBy === 'hold' ? hold && hasStack : hasStack;
+	const ba = useEnhanced ? cb.withStack : cb.base;
+
+	const acq = acquireTarget(state, char, ba);
+	if (!acq.ok) {
+		if (acq.whiff) publish('basic:missed', { target: acq.whiff.id, abilityName: acq.whiff.name });
+		char.lastActionTimestamp = now;
+		return;
+	}
+
+	applyBasicHit(state, char, ba, acq.enemy, now);
+	char.lastActionTimestamp = now;
+	char.lastAction = { tag: 'ba', at: now };
+}

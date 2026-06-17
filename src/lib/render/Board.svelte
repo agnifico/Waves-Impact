@@ -83,17 +83,23 @@
 
 	function computePreviewTiles(active: CharacterState, ability: Ability): Position[] {
 		let tiles: Position[] = [];
+		const d = ability.delivery;
+		const shape = d?.shape;
+		const sp = d?.shapeParams ?? {};
+		const aimRange = d?.aimRange ?? sp.range;
+
 		const zoneCenter =
-			ability.holdBehavior === 'aim' && holdState.reticle ? holdState.reticle : active.pos;
-		if (ability.shape === 'circle') {
-			let center = active.pos;
+			d?.holdBehavior === 'aim' && holdState.reticle ? holdState.reticle : active.pos;
+
+		if (shape === 'circle') {
+			let center: Position = active.pos;
 			if (holdState.holdBehavior === 'aim' && holdState.reticle) {
 				center = holdState.reticle;
-			} else if (ability.allowSelfTarget && holdState.abilityHoldIsSelf) {
+			} else if (d?.allowSelfTarget && holdState.abilityHoldIsSelf) {
 				center = active.pos;
-			} else if (ability.autoTargetEnemy) {
+			} else if (d?.autoTargetEnemy) {
 				const enemy = gs.enemies.find(
-					(e) => e.hp > 0 && chebyshev(active.pos, e.pos) <= (ability.shapeParams?.range ?? 99)
+					(e) => e.hp > 0 && chebyshev(active.pos, e.pos) <= (aimRange ?? 99)
 				);
 				if (enemy) center = enemy.pos;
 			}
@@ -101,7 +107,7 @@
 				'circle',
 				center,
 				active.facing,
-				{ radius: ability.shapeParams?.radius ?? 1 },
+				{ radius: sp.radius ?? 1 },
 				gs.board,
 				center
 			);
@@ -110,22 +116,26 @@
 				'circle',
 				zoneCenter,
 				active.facing,
-				{ radius: ability.shapeParams?.radius ?? 2 },
+				{ radius: sp.radius ?? 2 },
 				gs.board,
 				zoneCenter
 			);
+		} else if (ability.behavior === 'multi_construct' && ability.multiConstructOffsets) {
+			for (const off of ability.multiConstructOffsets) {
+				const tx = active.pos.x + off.x;
+				const ty = active.pos.y + off.y;
+				if (tx >= 0 && tx < gs.board.size.width && ty >= 0 && ty < gs.board.size.height) {
+					tiles.push({ x: tx, y: ty });
+				}
+			}
 		} else if (ability.behavior === 'dash') {
-			// shapeParams is Record<string, number> but dir is actually stored as a string.
-			// Cast through unknown to satisfy TS without lying about the runtime type.
-			const sp = ability.shapeParams ?? {};
 			const spDir = (sp as Record<string, unknown>).dir as string | undefined;
 			if (spDir === 'forward') {
-				// Aimed directional dash (Sefyra C): a line along the aim direction.
 				const aim = holdState.aimDir ?? active.facing;
 				const ux = Math.sign(aim.x);
 				const uy = Math.sign(aim.y);
 				if (ux !== 0 || uy !== 0) {
-					const len = sp.tiles ?? sp.range ?? 3;
+					const len = (sp.tiles as number | undefined) ?? sp.range ?? 3;
 					let p = { ...active.pos };
 					for (let i = 0; i < len; i++) {
 						const nx = p.x + ux,
@@ -136,7 +146,6 @@
 					}
 				}
 			} else {
-				// Legacy gap-closer (June9 C): filled disk of the dash range — unchanged.
 				const effRange =
 					holdState.holdBehavior === 'charge' ? holdState.chargedRange : (sp.range ?? 3);
 				for (let dx = -effRange; dx <= effRange; dx++) {
@@ -149,22 +158,8 @@
 					}
 				}
 			}
-		} else if (ability.behavior === 'multi_construct' && ability.multiConstructOffsets) {
-			for (const offset of ability.multiConstructOffsets) {
-				const tx = active.pos.x + offset.x;
-				const ty = active.pos.y + offset.y;
-				if (tx >= 0 && tx < gs.board.size.width && ty >= 0 && ty < gs.board.size.height) {
-					tiles.push({ x: tx, y: ty });
-				}
-			}
-		} else if (ability.shape) {
-			tiles = resolveTiles(
-				ability.shape,
-				active.pos,
-				active.facing,
-				ability.shapeParams ?? {},
-				gs.board
-			);
+		} else if (shape) {
+			tiles = resolveTiles(shape, active.pos, active.facing, sp, gs.board);
 		}
 		return tiles;
 	}

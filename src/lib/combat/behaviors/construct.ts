@@ -58,7 +58,7 @@ export function resolve(
         pulseDmg:      def.pulseDmg    ?? 0,
         pulseMs,
         pulseRadius:   def.pulseRadius ?? 1,
-        stunMs:        def.stunMs      ?? 0,
+        stunMs: def.onHit?.stunMs ?? 0,
         nextPulseAt:   now + pulseMs,
         expiresAt:     now + (def.durationMs ?? 10_000),
         stratum: def.stratum ?? 'ground',

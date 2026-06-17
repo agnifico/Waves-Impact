@@ -1,12 +1,11 @@
 import type { EngineState, CharacterState, EnemyState } from '$lib/types/state';
 import { chebyshev, samePos, step8Away, step8Toward, clamp } from './board';
 import { resolveTiles } from './shapes';
-import { calculateDamage } from './pipeline';
-import { grantStack, consumeStack } from './stacks';
+import { consumeStack } from './stacks';
 import { focusTarget } from './query';
 import { publish } from './events';
 import { coversStratum } from './spatial';
-import { grantOffFieldShare } from './energy';
+import { applyDelivery, applyOnHit, type ResolveSource } from './resolve';
 import type { EnhancedCondition } from '$lib/types';
 
 /**
@@ -128,14 +127,15 @@ function acquireTarget(state: EngineState, char: CharacterState, ba: BasicAttack
 	const enemy = focusTarget(state, char.pos);
 	if (!enemy) return { ok: false };
 
-	const inStratum = coversStratum(ba.hits, enemy.stratum);
+	const shape = ba.delivery?.shape;
+	const inStratum = coversStratum(ba.delivery?.hitsStrata, enemy.stratum);
 
 	if (ba.omniTarget) {
 		if (!inStratum || chebyshev(char.pos, enemy.pos) > ba.range) return { ok: false };
 		return { ok: true, enemy };
 	}
 
-	if (ba.shape === 'melee') {
+	if (shape === 'melee' || !shape) {
 		if (chebyshev(char.pos, enemy.pos) > ba.range) return { ok: false };
 		// in range but wrong stratum (e.g. ground swing vs a flier) → whiff
 		if (!inStratum) return { ok: false, whiff: { id: enemy.id, name: ba.name } };
@@ -143,7 +143,7 @@ function acquireTarget(state: EngineState, char: CharacterState, ba: BasicAttack
 	}
 
 	// Shaped: directional gate — focus enemy must lie inside the shape tiles.
-	const tiles = resolveTiles(ba.shape, char.pos, char.facing, { range: ba.range }, state.board);
+	const tiles = resolveTiles(shape, char.pos, char.facing, { range: ba.range }, state.board);
 	if (!inStratum || !tiles.some((t) => samePos(t, enemy.pos))) return { ok: false };
 	return { ok: true, enemy };
 }
@@ -162,6 +162,7 @@ function applyBasicHit(
 	const consumed = !!ba.consumesStack && char.stacks.current > 0;
 	if (consumed) consumeStack(char, ba.consumesStack!, 1);
 
+	// Gap-close BEFORE the hit (it shapes where the strike lands from).
 	if (ba.gapClose) {
 		const from = { ...char.pos };
 		let p = char.pos;
@@ -175,46 +176,26 @@ function applyBasicHit(
 		if (!samePos(from, p)) publish('movement:player', { characterId: char.id, from, to: p });
 	}
 
-	const base = ba.damage + (consumed ? (ba.consumeBonus ?? 0) : 0);
-	const finalDmg = calculateDamage(base, {
-		source: char,
-		target: enemy,
-		element: char.def.element,
-		state
-	});
-	enemy.hp = Math.max(0, enemy.hp - finalDmg);
-	publish('damage:dealt', {
-		source: char.id,
-		target: enemy.id,
-		amount: finalDmg,
+	const src: ResolveSource = {
+		owner: char,
 		abilityName: ba.name,
 		element: char.def.element
-	});
+	};
 
-	if (consumed && ba.teamHeal) {
-		for (const pc of state.party) {
-			if (pc.hp <= 0) continue;
-			const before = pc.hp;
-			pc.hp = Math.min(pc.def.maxHp, pc.hp + ba.teamHeal);
-			if (pc.hp > before) {
-				publish('heal:applied', {
-					target: pc.id,
-					source: char.id,
-					amount: pc.hp - before,
-					abilityName: ba.name
-				});
-			}
-		}
+	// Guaranteed floor — cast-time energy/heal/shield/stack from delivery (with
+	// off-field energy share). Lands regardless of whether the swing connects.
+	applyDelivery(state, ba.delivery, src, now);
+
+	// Per-hit: base + finisher bonus, through the unified resolver (splash/stun/
+	// lifesteal/knockback all via ba.onHit). delivery.hits>1 fires applyOnHit per hit.
+	const base = (ba.delivery?.damage ?? 0) + (consumed ? (ba.consumeBonus ?? 0) : 0);
+	const shots = Math.max(1, ba.delivery?.hits ?? 1);
+	for (let i = 0; i < shots; i++) {
+		applyOnHit(state, enemy, base, ba.onHit, src, now);
+		if (enemy.hp <= 0) break; // stop multi-hit once dead (defeat event already fired by resolver)
 	}
 
-	// Energy
-	char.energy = Math.min(char.def.maxEnergy, char.energy + ba.energyGain);
-	grantOffFieldShare(state, ba.energyGain);
-
-	// Stack grant
-	if (ba.grantsStack) grantStack(state, char, ba.grantsStack, now);
-
-	// Dash back (withStack variant, or any BA that declares it)
+	// Dash back (withStack variant, or any BA that declares it) — AFTER the hit.
 	if (ba.dashBack) {
 		let p = char.pos;
 		for (let i = 0; i < ba.dashBack; i++) {
@@ -223,10 +204,6 @@ function applyBasicHit(
 			p = next;
 		}
 		char.pos = p;
-	}
-
-	if (enemy.hp <= 0) {
-		publish('enemy:defeated', { enemyId: enemy.id, killer: char.id });
 	}
 }
 

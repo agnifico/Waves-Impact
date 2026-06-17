@@ -97,7 +97,11 @@ export function updateHoldState(
 		// Fallback designator (spec §4c): charge by held time — even with no enemy on
 		// field — and fire on release only. The reticle just marks the designated target.
 		const held = now - holdState.holdStartAt;
-		holdState.tier = held >= 1500 ? 2 : held >= 500 ? 1 : 0; // caps at tier 2
+		holdState.tier =
+			held >= 3000 ? 4 :
+			held >= 2250 ? 3 :
+			held >= 1500 ? 2 :
+			held >= 750  ? 1 : 0; // 5 bands, 750ms each; caps at tier 4
 		if (trackPos) {
 			holdState.reticle = { x: trackPos.x, y: trackPos.y }; // 2×2 box rides the target
 		}

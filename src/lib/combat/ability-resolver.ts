@@ -1,12 +1,9 @@
 import type { EngineState } from '$lib/types/state';
 import type { AbilitySlot } from '$lib/types/ability';
 import { resolveBehavior } from './behaviors';
-import { grantStack } from './stacks';
 import { hasEffect, removeEffect } from './effects';
-import { publish, subscribe } from './events';
-import { grantOffFieldShare, WHIFF_SELF_RATIO } from './energy';
+import { publish } from './events';
 import type { Vector } from '$lib/types';
-import { grantShield } from './effects';
 
 export interface AbilityOpts {
 	reticle?: { x: number; y: number } | null;
@@ -66,54 +63,31 @@ export function tryAbility(
 	// Energy cost check
 	if (ability.energyCost && char.energy < ability.energyCost) return;
 
-	// Shield grant — declarative, behavior-agnostic
-	if (ability.shield) {
-		const s = ability.shield;
-		const targets = s.target === 'party' ? state.party : [char];
-		for (const t of targets) {
-			if (t.hp > 0) {
-				grantShield(t, s.amount, char.id, now, {
-					durationMs: s.durationMs,
-					maxTotal: s.maxTotal,
-					effectId: s.effectId
-				});
-			}
-		}
-	}
-
 	// Reset BA chain on any ability use
 	char.baChainIndex = 0;
 
-	// Resolve unchained bonus (consume if active)
+	// Resolve unchained bonus (consume if active). Legacy mechanic — bumps the
+	// delivery's primary damage when Unchained is up. (Daylight: generalize this.)
 	let abilityWithBonus = ability;
 	if (ability.unchainedBonus && hasEffect(char, 'unchained')) {
-		// Create a modified copy with boosted damage
 		abilityWithBonus = {
 			...ability,
-			damage: (ability.damage ?? 0) + ability.unchainedBonus
+			delivery: {
+				...ability.delivery,
+				damage: (ability.delivery?.damage ?? 0) + ability.unchainedBonus
+			}
 		};
 		removeEffect(char, 'unchained');
 	}
 
-	// Dispatch, observing whether the cast actually damages an enemy
-	let dealtDamage = false;
-	const unsub = subscribe('damage:dealt', (e) => {
-		if (e.source === char.id) dealtDamage = true;
-	});
+	// Dispatch to the behavior handler.
 	const fired = resolveBehavior(state, char, abilityWithBonus, now, opts as Record<string, unknown>);
-	unsub();
 	if (!fired) return;
 
-	// Post-resolution bookkeeping
-	// Energy: cost is spent on cast; energyGain is hit/whiff-aware
+	// Post-resolution bookkeeping.
+	// Energy COST is spent on cast (behaviors grant energy GAIN via applyDelivery/applyOnHit).
 	if (ability.energyCost) {
 		char.energy -= ability.energyCost;
-	} else if (ability.energyGain) {
-		const isDamage = (ability.damage ?? 0) > 0;
-		const connected = isDamage ? dealtDamage : true; // utility skills don't whiff
-		const self = connected ? ability.energyGain : ability.energyGain * WHIFF_SELF_RATIO;
-		char.energy = Math.min(char.def.maxEnergy, char.energy + self);
-		if (connected) grantOffFieldShare(state, ability.energyGain);
 	}
 
 	// Cooldowns and charges
@@ -129,12 +103,7 @@ export function tryAbility(
 
 	// Timestamp
 	char.lastActionTimestamp = now;
-
 	char.lastAction = { tag: 'cast_' + slot, at: now };
-
-	if (ability.grantsStack) {
-		grantStack(state, char, ability.grantsStack, now);
-	}
 
 	publish('ability:cast', { caster: char.id, abilityId: ability.id, slot });
 }

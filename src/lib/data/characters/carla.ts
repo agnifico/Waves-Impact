@@ -1,133 +1,126 @@
 import type { Character } from '$lib/types/character';
 
+// ⚠️ PLACEHOLDER UNIT — Carla is a rough draft (the Dark dealer slated for a proper
+// redesign). This file is migrated to the new delivery/onHit structure so it
+// type-checks and runs, but the kit itself is NOT balanced or final. In particular,
+// her V's original multi-stage `stages[]` scaffolding (lock → execute) doesn't exist
+// in the engine; it's been collapsed to a single board-wide damage_aoe burst so she
+// runs. Redesign properly later.
+
 export const carla: Character = {
-    id: 'carla',
-    name: 'Carla',
-    element: 'dark', // Using the dark element classification
-    maxHp: 200,       // High-precision glass cannon profile
-    maxEnergy: 100,
-    baCooldownMs: [100, 100, 100], // Extremely swift, calculated execution pacing
-    baChainResetMs: 1000,
+	id: 'carla',
+	name: 'Carla',
+	element: 'dark',
+	maxHp: 200,
+	maxEnergy: 100,
+	baCooldownMs: [50, 50, 50],
+	baChainResetMs: 1000,
 
-    basicStyle: 'chain',
-    basicChain: [
-        {
-            name: 'Tactical Draw (1)',
-            damage: 6,
-            range: 8, // Slight reach due to his blade profile
-            energyGain: 12,
-            poiseDamage: 10,
-            shape: 'melee', // Crisp, straight-line thrust geometry
-            omniTarget: true,
-            dashBack: 1,
-            fx: { strike: 'bullet', colors: ['#f35b04', '#c084fc'] }
-        },
-        {
-            name: 'Crimson Sheath (2)',
-            damage: 10,
-            range: 8,
-            energyGain: 12,
-            poiseDamage: 12,
-            shape: 'melee',
-            // dashBack: 3,
-            fx: { strike: 'bullet', colors: ['#f7b801', 'var(--gold-bright)'] }
-        },
-        {
-            name: 'Glint of Execution (3)',
-            damage: 18,
-            range: 8, // Extended lunge step
-            energyGain: 15,
-            poiseDamage: 25,
-            shape: 'melee',
-            // gapClose: true,
-            grantsStack: 'discipline', // Strategic collection of tactical insight
-            appliesEffects: ['tactical_mark'], // Places an assassination mark on hit via the status engine
-            fx: { strike: 'bullet', gashes:7, colors: ['#7678ed', '#ff003c'] }
-        }
-    ],
+	basicStyle: 'chain',
+	basicChain: [
+		{
+			name: 'Tactical Draw (1)',
+			range: 8,
+			omniTarget: true,
+			dashBack: 1,
+			delivery: { damage: 6, energyGain: 12, shape: 'melee' },
+			onHit: { poiseDamage: 10 },
+			fx: { strike: 'bullet', colors: ['#f35b04', '#c084fc'] }
+		},
+		{
+			name: 'Crimson Sheath (2)',
+			range: 8,
+			omniTarget: true,
+			delivery: { damage: 10, energyGain: 12, shape: 'melee' },
+			onHit: { poiseDamage: 12 },
+			fx: { strike: 'bullet', colors: ['#f7b801', 'var(--gold-bright)'] }
+		},
+		{
+			name: 'Glint of Execution (3)',
+			range: 8,
+			omniTarget: true,
+			delivery: { damage: 18, energyGain: 15, shape: 'melee', grantsStack: 'discipline' },
+			onHit: { poiseDamage: 25, appliesEffects: ['tactical_mark'] },
+			fx: { strike: 'bullet', gashes: 7, colors: ['#7678ed', '#ff003c'] }
+		}
+	],
 
-    abilities: {
-        // X — Nightshade Lunge: A quick tactical pass that leaves marks behind
-        X: {
-            id: 'nightshade_lunge',
-            name: 'Nightshade Lunge',
-            behavior: 'dash', // Dash behavior tracking his physical traversal line
-            shapeParams: { 
-                range: 4,
-                throughObstacles: false // Slips along open tiles, stopped by clean blockades
-            },
-            damage: 16,
-            cooldownMs: 5000, // Short cooldown for constant field repositioning
-            energyGain: 10,
-            grantsStack: 'discipline',
-            appliesEffects: ['tactical_mark'], // Marks targets cut along his dash path
-            holdBehavior: 'aim',
-            impactClass: 'impact-shadow-edge'
-        },
+	abilities: {
+		// X — Nightshade Lunge: aimed dash that marks along its path
+		X: {
+			id: 'nightshade_lunge',
+			name: 'Nightshade Lunge',
+			behavior: 'dash',
+			cooldownMs: 5000,
+			delivery: {
+				damage: 16,
+				energyGain: 10,
+				grantsStack: 'discipline',
+				shapeParams: { range: 4, throughObstacles: false },
+				holdBehavior: 'aim'
+			},
+			onHit: { appliesEffects: ['tactical_mark'] }
+		},
 
-        // C — Command: Ominous Sweep: A wider, controlled execution zone in front of him
-        C: {
-            id: 'ominous_sweep',
-            name: 'Command: Ominous Sweep',
-            shape: 'circle',
-            shapeParams: { radius: 1, range: 4 },
-            damage: 10,
-            stunMs: 2000,
-            cooldownMs: 6000,
-            energyGain: 15,
-            charges: 2,
-            poiseDamage: 20,
-            grantsStack: 'discipline',
-            holdBehavior: 'aim',
-            autoTargetEnemy: true,
-            behavior: 'damage_aoe'
-        },
+		// C — Command: Ominous Sweep: aimed AoE burst with stun
+		C: {
+			id: 'ominous_sweep',
+			name: 'Command: Ominous Sweep',
+			behavior: 'damage_aoe',
+			cooldownMs: 6000,
+			charges: 2,
+			delivery: {
+				damage: 10,
+				energyGain: 15,
+				grantsStack: 'discipline',
+				shape: 'circle',
+				shapeParams: { radius: 1, range: 4 },
+				autoTargetEnemy: true,
+				holdBehavior: 'aim'
+			},
+			onHit: { stunMs: 2000, poiseDamage: 20 }
+		},
 
-        // V — Absolute Midnight: Multi-stage tracking array that executes marked targets anywhere on board
-        V: {
-            id: 'absolute_midnight',
-            name: 'Absolute Midnight',
-            behavior: 'damage_aoe', // Resolves across specific query domains
-            shapeParams: { range: 8 },
-            durationMs: 8000, // Duration window to complete his execution pattern
-            cooldownMs: 24000,
-            energyCost: 60,
-            // Multi-stage architecture scaffolding (§15.9):
-            stages: [
-                {
-                    prompt: 'lock_targets', // Stage 1: Scans board and consumes 'discipline' stacks
-                    shape: 'circle',
-                    shapeParams: { radius: 8 }
-                },
-                {
-                    prompt: 'execute', // Stage 2: Fires tracking strikes onto targets holding 'tactical_mark'
-                    damage: 60, 
-                    unchainedBonus: 30 // Deals massive bonus damage per stack of 'discipline' spent
-                }
-            ]
-        }
-    },
+		// V — Absolute Midnight: PLACEHOLDER. Original design was a 2-stage
+		// lock-then-execute on marked targets, scaling with discipline stacks. The
+		// staged system doesn't exist yet — collapsed to a single board-wide burst.
+		// Redesign when Carla gets her proper pass.
+		V: {
+			id: 'absolute_midnight',
+			name: 'Absolute Midnight',
+			behavior: 'damage_aoe',
+			durationMs: 8000,
+			cooldownMs: 24000,
+			energyCost: 60,
+			unchainedBonus: 30,   // legacy hook retained; not the intended per-stack scaling
+			delivery: {
+				damage: 60,
+				shape: 'circle',
+				shapeParams: { radius: 8, range: 8 },
+				autoTargetEnemy: true
+			}
+		}
+	},
 
-    // Stack System: Hold-and-Spend paradigm (§9)
-    stackType: 'discipline',
-    stackName: 'Tactical Discipline',
-    stackMax: 4,
-    onStackFull: 'none', // Holds resources manually to power his final execution stages
+	stackType: 'discipline',
+	stackName: 'Tactical Discipline',
+	stackMax: 4,
+	onStackFull: 'none',
 
-    stratum: 'ground', // Bound firmly to tactical terrain lines
-    offFieldStackBonus: 1.2, // Grants a minor energy generation modifier while holding stacks off-field
+	stratum: 'ground',
+	offFieldStackBonus: 1.2,
 
-    art: {
-        gem: '/characters/carla5.png',
-        profile: '/characters/avatars2/carla.png',
-        poster: '/characters/carla1.png',
-        bannerPoster: '/characters/carla4.png'
-    },
-    theme: {
-        primary: '#9b5de5', // Deep Obsidian Purple matching the new dark palette matrix
-        secondary: '#e26d5c', // Royal Violet
-        glow: { ready: '#c084fc' }, // Vivid Lavender glow
-        hp: 'linear-gradient(-90deg, #1f1135 0%, #4c1d95 50%, #ff003c 100%);', // Infused with deep violet and eye-crimson
-        energy: 'linear-gradient(to right, #2e1065, #7c3aed);'
-    }
+	art: {
+		gem: '/characters/carla5.png',
+		profile: '/characters/avatars2/carla.png',
+		poster: '/characters/carla1.png',
+		bannerPoster: '/characters/carla4.png'
+	},
+	theme: {
+		primary: '#9b5de5',
+		secondary: '#e26d5c',
+		glow: { ready: '#c084fc' },
+		hp: 'linear-gradient(-90deg, #1f1135 0%, #4c1d95 50%, #ff003c 100%);',
+		energy: 'linear-gradient(to right, #2e1065, #7c3aed);'
+	}
 };

@@ -1,31 +1,47 @@
 import type { Element, Guard, Position, Stratum, Terrain } from './common';
-import type { Ability, AbilitySlot, FxSpec, ShapeId } from './ability';
+import type { Ability, AbilitySlot, FxSpec } from './ability';
+import type { Delivery } from './delivery';
+import type { OnHit } from './onhit';
 
 /**
  * A single hit in a basic-attack chain. (Data Contract §4.1)
+ *
+ * Like Ability, a BasicAttack is now assembled from the two shared payloads:
+ *
+ *   • `delivery` — shape/aim/charge + the guaranteed cast-time floor. The BA's
+ *                  primary damage is `delivery.damage`; its baseline energy is
+ *                  `delivery.energyGain`.
+ *   • `onHit`    — per-connect bonus + target-side effects (splash, knockback,
+ *                  stun, lifesteal, per-hit energy/heal/stack). This is what
+ *                  finally lets a BA shield-on-hit, splash, or lifesteal.
+ *
+ * Top-level fields are BA-only: combo mechanics (stack consume, gap-close,
+ * dash-back), the chain-advance gate, and `range` (the BA's reach, kept flat
+ * because the engine's target-acquisition reads it on the hot path).
  */
 export interface BasicAttack {
 	name: string;
-	damage: number;
 	description?: string;
-	shape: ShapeId;
-	shapeParams?: Record<string, number>;
+
+	/** Reach (Chebyshev). Kept flat — acquireTarget reads it directly. */
 	range: number;
-	energyGain: number;
-	poiseDamage?: number;
+
+	/** Geometry + guaranteed floor (damage, energy, etc.). */
+	delivery?: Delivery;
+	/** Per-connect bonus + target effects. */
+	onHit?: OnHit;
+
+	// ── targeting / chain flow (BA-only) ────────────────────────────
 	omniTarget?: boolean;
 	advanceOnlyIfMelee?: boolean;
-	grantsStack?: string;
-	appliesEffects?: string[];
-	hits?: Stratum[];
-	// in BasicAttack
-	consumesStack?: string;   // BA3: stack type to spend
-	consumeBonus?: number;    // bonus damage when a stack is consumed
-	teamHeal?: number;        // heal applied to the whole party when consumed
-	fx?: FxSpec;
-	dashBack?: number;
-	gapClose?: boolean;
 
+	// ── combo mechanics (BA-only) ───────────────────────────────────
+	consumesStack?: string;   // BA finisher: stack type to spend
+	consumeBonus?: number;    // bonus damage when a stack is consumed
+	gapClose?: boolean;       // close to the target before striking
+	dashBack?: number;        // retreat N tiles after the hit
+
+	fx?: FxSpec;
 }
 
 export type EnhancedCondition =
@@ -36,8 +52,6 @@ export type EnhancedCondition =
 	| { type: 'post_dash'; windowMs: number }
 	| { type: 'chain_finisher' }
 	| { type: 'energy_threshold'; pct: number };   // 0–1
-
-
 
 /**
  * Contextual basic: variant selected by character state. (Data Contract §4.2)
@@ -95,7 +109,7 @@ export interface Character {
 	outroSkill?: Ability;
 
 	enhancedBasic?: {
-		ba: BasicAttack;              // same shape as basicChain entries
+		ba: BasicAttack;                  // same shape as basicChain entries
 		conditions: EnhancedCondition[];  // OR logic — any one true = available
 		requireHold?: boolean;            // default false. true = must hold even when available
 		interruptsChain?: boolean;        // default true. false = only fires at last chain step
@@ -116,7 +130,6 @@ export interface Character {
 	traversal?: Terrain[];  // terrain override; default derived from stratum
 	guard?: Guard;          // default 'front'
 	footprint?: Position[]; // tile offsets for multi-tile; default 1×1
-
 }
 
 export interface CharacterTheme {

@@ -2,67 +2,55 @@ import type { EngineState, CharacterState } from '$lib/types/state';
 import type { Ability } from '$lib/types/ability';
 import { resolveTiles } from '../shapes';
 import { samePos, chebyshev } from '../board';
-import { calculateDamage } from '../pipeline';
-import { publish } from '../events';
-import { coversStratum } from '../spatial';
+import { applyDelivery, applyOnHit, canHitStratum, type ResolveSource } from '../resolve';
 
 /**
  * damage_first_in_line: resolve line tiles sorted by distance from caster,
- * damage the first enemy encountered. (Data Contract §6)
+ * damage the FIRST enemy encountered. (Data Contract §6)
+ *
+ * Damage / CC / sustain flow through the unified resolver — so a first-in-line
+ * hit can splash off the struck enemy, stun, lifesteal, etc. The guaranteed
+ * floor lands once via applyDelivery even if the line connects with nothing.
  */
 export function resolve(
 	state: EngineState,
 	caster: CharacterState,
 	ability: Ability,
-	_now: number
+	now: number
 ): boolean {
 	const tiles = resolveTiles(
-		ability.shape!,
+		ability.delivery?.shape ?? 'line',
 		caster.pos,
 		caster.facing,
-		ability.shapeParams ?? {},
+		ability.delivery?.shapeParams ?? {},
 		state.board
 	);
-
 	if (tiles.length === 0) return false;
 
-	// Sort tiles by distance from caster (near → far)
-	const sorted = tiles.slice().sort((a, b) => chebyshev(a, caster.pos) - chebyshev(b, caster.pos));
+	const src: ResolveSource = {
+		owner: caster,
+		abilityName: ability.name,
+		element: caster.def.element,
+		ability
+	};
 
-	// Find first enemy in the line
+	// Guaranteed cast-time floor — lands whether or not the line hits anything.
+	applyDelivery(state, ability.delivery, src, now);
+
+	const baseDmg = ability.delivery?.damage ?? 0;
+	const strata = ability.delivery?.hitsStrata;
+
+	// Sort tiles near → far, damage the first enemy found.
+	const sorted = tiles.slice().sort((a, b) => chebyshev(a, caster.pos) - chebyshev(b, caster.pos));
 	for (const tile of sorted) {
 		for (const enemy of state.enemies) {
 			if (enemy.hp <= 0) continue;
 			if (!samePos(tile, enemy.pos)) continue;
-			if (!coversStratum(ability.hits, enemy.stratum)) continue;
-
-			const baseDmg = ability.damage ?? 0;
-			const finalDmg = calculateDamage(baseDmg, {
-				source: caster,
-				target: enemy,
-				ability,
-				element: caster.def.element,
-				state
-			});
-
-			enemy.hp = Math.max(0, enemy.hp - finalDmg);
-
-			publish('damage:dealt', {
-				source: caster.id,
-				target: enemy.id,
-				amount: finalDmg,
-				abilityName: ability.name,
-				element: caster.def.element
-			});
-
-			if (enemy.hp <= 0) {
-				publish('enemy:defeated', { enemyId: enemy.id, killer: caster.id });
-			}
-
-			return true; // Stop at first hit
+			if (!canHitStratum(strata, enemy.stratum)) continue;
+			applyOnHit(state, enemy, baseDmg, ability.onHit, src, now);
+			return true; // stop at first hit
 		}
 	}
 
-	// Line hit nothing
-	return true; // Still counts as a valid cast (ability was fired)
+	return true; // line hit nothing — still a valid cast
 }

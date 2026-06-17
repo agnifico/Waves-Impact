@@ -169,34 +169,36 @@ export function bindInputEvents(
 		if (!ability) return;
 
 		holdState.holdingSlot = slot;
-		holdState.holdBehavior = ability.holdBehavior ?? null;
+		const d = ability.delivery;
+		const aimRange = d?.aimRange ?? d?.shapeParams?.range;
+		holdState.holdBehavior = d?.holdBehavior ?? null;
 		holdState.holdStartAt = now;
 		holdState.reticle = null;
 		holdState.reticleMovedThisHold = false;
-		holdState.chargedRange = ability.aimRange ?? ability.shapeParams?.range ?? 0;
+		holdState.chargedRange = aimRange ?? 0;
 		holdState.abilityHoldIsSelf = false;
 		holdState.cancelNextRelease = false;
 
-		if (ability.holdBehavior === 'aim') {
+		if (d?.holdBehavior === 'aim') {
 			// Reticle starts on nearest enemy if in range, else self
-			const enemy = nearestEnemy(state, char.pos, ability.aimRange ?? ability.shapeParams?.range);
-			if (ability.autoTargetEnemy && enemy) {
+			const enemy = nearestEnemy(state, char.pos, aimRange);
+			if (d.autoTargetEnemy && enemy) {
 				holdState.reticle = { ...enemy.pos };
 			} else {
 				holdState.reticle = {
 					x: char.pos.x + Math.sign(char.facing.x || 0),
-					y: char.pos.y + Math.sign(char.facing.y || 0),
+					y: char.pos.y + Math.sign(char.facing.y || 0)
 				};
 			}
-		} else if (ability.holdBehavior === 'track') {
+		} else if (d?.holdBehavior === 'track') {
 			const locked = getLockedEnemyId();
 			const acq =
 				locked && state.enemies.some((e) => e.id === locked && e.hp > 0)
 					? state.enemies.find((e) => e.id === locked)!
-					: nearestEnemy(state, char.pos, ability.aimRange ?? ability.shapeParams?.range);
+					: nearestEnemy(state, char.pos, aimRange);
 			holdState.trackTargetId = acq ? acq.id : null;
 			holdState.reticle = acq ? { ...acq.pos } : { ...char.pos };
-		} else if (ability.holdBehavior === 'aim_dir') {
+		} else if (d?.holdBehavior === 'aim_dir') {
 			// Seed a direction so an instant tap still dashes somewhere sane.
 			holdState.aimDir = wasdVec() ?? { ...char.facing };
 		}
@@ -209,7 +211,7 @@ export function bindInputEvents(
 
 		if (holdState.holdBehavior === 'aim') {
 			const held = now - holdState.holdStartAt;
-			if (!holdState.reticleMovedThisHold && ability.allowSelfTarget && held > 250) {
+			if (!holdState.reticleMovedThisHold && ability.delivery?.allowSelfTarget && held > 250) {
 				tryAbility(state, slot, now, { selfTarget: true });
 			} else {
 				tryAbility(state, slot, now, {

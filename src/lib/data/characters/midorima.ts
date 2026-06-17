@@ -3,64 +3,54 @@ import type { Character } from '$lib/types/character';
 export const midorima: Character = {
 	id: 'midorima',
 	name: 'Midorima',
-	element: 'wind', // Coincides with her teal palette and breeze-skirting agility
-	maxHp: 200,       // Agile glass-skirmisher health scaling
+	element: 'wind',
+	maxHp: 200,
 	maxEnergy: 100,
-	baCooldownMs: [160, 160, 350], // Extremely fast, low-frame recovery sword draws
+	baCooldownMs: [160, 160, 350],
 	baChainResetMs: 1600,
 
-	// Basic-Attack Style: Rapid directional slashes that generate Gale stacks
 	basicStyle: 'chain',
 	basicChain: [
 		{
 			name: 'Gale Draw (1)',
-			damage: 15,
 			range: 3,
-			energyGain: 10,
-			shape: 'line', // Linear forward katana thrust
-			omniTarget: true, // Strongly directionally manual
-			// advanceOnlyIfMelee: true,
+			omniTarget: true,
+			delivery: { damage: 15, energyGain: 10, shape: 'line' },
 			fx: { strike: 'swipe', colors: ['#48cae4', '#a8e0ec'] }
 		},
 		{
 			name: 'Whirlwind Cut (2)',
-			damage: 25,
 			range: 3,
-			energyGain: 15,
-			omniTarget: true, // Strongly directionally manual
-			shape: 'pcone', // A wide, short frontal sweep
+			omniTarget: true,
+			delivery: { damage: 25, energyGain: 15, shape: 'pcone' },
 			fx: { strike: 'swipe', colors: ['#48cae4', '#6be9e3'] }
 		},
 		{
 			name: 'Zephyr Dash-Strike (3)',
-			damage: 30,
 			range: 3,
-			energyGain: 15,
-			shape: 'line', // Lunges forward through the enemy
-			omniTarget: true, // Strongly directionally manual
-			grantsStack: 'gale',
+			omniTarget: true,
+			delivery: { damage: 30, energyGain: 15, shape: 'line', grantsStack: 'gale' },
 			fx: { strike: 'projectile', shape: 'wave', colors: ['#6be9e3', '#fff8ec'] }
 		}
 	],
 
 	abilities: {
-		// X — Sakura Rush: A tactical non-teleport dash that tracks open ground paths
+		// X — Sakura Rush: low-cooldown gap-closer dash
 		X: {
 			id: 'sakura_rush',
 			name: 'Sakura Rush',
 			behavior: 'dash',
-			shape: 'line', // Translates to non_teleport_dash pathing internally
-			shapeParams: { 
-				range: 4,
-				respectsObstacles: true // Interrupted if slamming into terrain or enemies
-			},
-			damage: 12,
-			cooldownMs: 4000, // Highly spammable, low-cooldown skirmish tool
-			energyGain: 30,
-			grantsStack: 'gale',
+			cooldownMs: 4000,
+			delivery: {
+				damage: 12,
+				energyGain: 30,
+				grantsStack: 'gale',
+				shape: 'line',
+				shapeParams: { range: 4, respectsObstacles: true }
+			}
 		},
 
-		// C — Tempest Wheel: A mid-distance circular zoning bomb thrown from her blade
+		// C — Wind Tower: 4-tower diagonal multi-construct
 		C: {
 			id: 'wind_tower',
 			name: 'Wind Tower',
@@ -68,47 +58,43 @@ export const midorima: Character = {
 			creationId: 'wind_tower',
 			multiConstructOffsets: [
 				{ x: -1, y: -1 },
-				{ x:  1, y: -1 },
-				{ x: -1, y:  1 },
-				{ x:  1, y:  1 },
+				{ x: 1, y: -1 },
+				{ x: -1, y: 1 },
+				{ x: 1, y: 1 }
 			],
 			charges: 2,
 			rechargeMs: 12_000,
-			energyGain: 10,
-			grantsStack: 'gale',
+			delivery: { energyGain: 10, grantsStack: 'gale' },
 			fx: { shape: 'orb', colors: ['#eaf6ff', 'var(--frost)', '#00b4d8'] }
 		},
 
-		// V — Sakura Monsoon: Unleashes her spent energy to envelope herself in a moving aura
+		// V — Sakura Monsoon: personal following storm zone
 		V: {
 			id: 'sakura_monsoon',
 			name: 'Sakura Monsoon',
 			behavior: 'zone',
-			shape: 'circle', // Generates a personal protective hurricane
-			shapeParams: { radius: 2 },
 			durationMs: 3000,
 			cooldownMs: 10000,
 			energyCost: 100,
-			zoneFollows: 'active', // The storm actively tracks her as she dashes around
-			zoneBuff: {
-                damageBonus: 0.15,
-                dmgPerTick: 75,
-                tickMs: 250
-            },
-			fx: {zone: 'slashes'},
+			zoneFollows: 'active',
 			persistsAfterDeath: true,
-			hits: ['ground', 'flying']
+			zoneBuff: { damageBonus: 0.15, dmgPerTick: 75, tickMs: 250 },
+			delivery: {
+				shape: 'circle',
+				shapeParams: { radius: 2 },
+				hitsStrata: ['ground', 'flying']
+			},
+			fx: { zone: 'slashes' }
 		}
 	},
 
-	// Stack System: Convert-at-max Paradigm (§9)
 	stackType: 'gale',
 	stackName: 'Gale Stance',
 	stackMax: 3,
-	onStackFull: 'cyclone_veil', // At 3 stacks, auto-resets to 0 and injects 'cyclone_veil' buff
+	onStackFull: 'cyclone_veil',
 	onStackFullTarget: 'self',
 
-	stratum: 'ground', // Operates tightly as an earthbound horizontal speedster
+	stratum: 'ground',
 
 	art: {
 		gem: '/characters/midorima1.png',
