@@ -17,18 +17,18 @@ export const june9: Character = {
 			name: 'Solarfuel Blasters',
 			range: 3,
 			omniTarget: true,
-			delivery: { damage: 12, energyGain: 10, shape: 'melee', grantsStack: 'verdance' },
-			fx: { strike: 'projectile', shape: 'bolt', speed: 22, colors: ['#E9C46A'] }
+			delivery: { damage: 12, energyGain: 10, shape: 'melee', grantsStack: 'verdance', windUpMs: 200, windUpStyle: 'recoil' },
+			fx: { strike: 'projectile', shape: 'bolt', speed: 22, colors: ['#f4a261',"#e9c46a"] }
 		},
 		withStack: {
 			name: 'Solar Beam',
 			range: 3,
 			omniTarget: true,
 			consumesStack: 'verdance',
-			delivery: { damage: 12, energyGain: 10, shape: 'melee' },
+			delivery: { damage: 12, energyGain: 10, shape: 'melee', windUpMs: 200, windUpStyle: 'melee' },
 			// teamHeal self-gates: withStack only fires when a verdance stack exists.
 			onHit: { teamHeal: 35 },
-			fx: { strike: 'beam', hits: 6, colors: ['#2eb872'] }
+			fx: { strike: 'beam', hits: 6, colors: ['#2eb872', "#e9c46a"] }
 		}
 	},
 
@@ -46,7 +46,7 @@ export const june9: Character = {
 				shape: 'circle',
 				shapeParams: { radius: 1, range: 4 },
 				autoTargetEnemy: true,
-				holdBehavior: 'aim'
+				holdBehavior: 'aim',
 			},
 			onHit: { stunMs: 2000 }     // stun lands on enemies actually struck
 		},
@@ -93,7 +93,7 @@ export const june9: Character = {
 	onStackFullTarget: 'party',
 
 	art: {
-		gem: '/characters/june9_gem.png',
+		gem: '/characters/gem-june9.png',
 		profile: '/characters/avatars2/june9.png',
 		poster: '/characters/june9_poster4.png',
 		bannerPoster: '/characters/june9_banner_full.png'

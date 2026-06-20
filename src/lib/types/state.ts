@@ -2,7 +2,7 @@ import type { Position, Vector, EntityId, Stratum } from './common';
 import type { Character } from './character';
 import type { Enemy } from './enemy';
 import type { EffectInstance } from './effect';
-import type { ZoneBuff, AbilitySlot } from './ability';
+import type { ZoneBuff, AbilitySlot, FxSpec } from './ability';
 
 /**
  * The combat board. Obstacles block movement, dashes, and knockback. (Data Contract §14)
@@ -40,6 +40,14 @@ export interface CharacterState {
 	lastAction?: { tag: string; at: number };
 	charges: Partial<Record<AbilitySlot, { count: number; rechargeAt: number }>>;
 	lastHitAt?: number;
+	pendingBasic?: {
+		enemyId: string;
+		firesAt: number;
+		ba: unknown;
+		dirX?: number;
+		dirY?: number;
+		fx?: FxSpec;
+	};
 }
 
 /**
@@ -59,6 +67,21 @@ export interface EnemyState {
 	poise: number;
 	facing: Vector;
 	stratum: Stratum;
+	// Enemy attack wind-up (telegraph): a committed strike landing when firesAt elapses.
+	pendingAttack?: {
+		attackId: string;
+		firesAt: number;
+		damage: number;
+		stunMs?: number;
+		knockback?: number;
+		knockbackSmart?: boolean;
+		name: string;
+		targetIsChar: boolean;
+		windUpStyle?: string;
+		dirX?: number;
+		dirY?: number;
+		fx?: FxSpec;
+	};
 }
 
 /**
@@ -121,9 +144,6 @@ export interface ConstructState {
 	name?: string;
 	receiveBuffs?: boolean;
 	stratum: Stratum;
-	/** Tiles occupied (absolute board positions), computed from def.footprint at
-	 *  spawn. Omit/empty = single tile at `pos`. Pathfinding checks every cell. */
-	footprint?: Position[];
 }
 
 

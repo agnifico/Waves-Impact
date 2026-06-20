@@ -115,6 +115,22 @@ export interface Character {
 		interruptsChain?: boolean;        // default true. false = only fires at last chain step
 	};
 
+	/**
+	 * Channel basic (hold-to-fire sustained stream — Carla's Stream Buffer).
+	 * Held BA enters a channel firing every `intervalMs`, draining one stack every
+	 * `drainPerStackMs` (1 stack = 1 second of fire). Auto-targets nearest; sputters
+	 * without fuel or target. Tapping still fires the normal chain.
+	 */
+	channelBasic?: {
+		name: string;
+		intervalMs: number;        // time between shots (e.g. 250 = 4/sec)
+		drainPerStackMs: number;   // ms of fire per stack (e.g. 1000 = 1 stack/sec)
+		range: number;
+		delivery?: Delivery;       // damage + hitsStrata per shot
+		onHit?: OnHit;             // per-shot effects (e.g. refresh the mark)
+		fx?: FxSpec;
+	};
+
 	// in Character
 	offFieldStackBonus?: number; // ×multiplier on off-field energy while holding stacks - Sefyra
 
@@ -143,4 +159,7 @@ export interface CharacterTheme {
 	resources?: { id: string; fill: string; label?: string }[];
 	/** Named glow colors for ability-button states. */
 	glow?: Record<string, string>;
+	/** CSS class for this character's signature ambient gem effect (applied to the
+	 *  player gem while on field). One bespoke flourish per unit; fill in over time. */
+	signatureFx?: string;
 }

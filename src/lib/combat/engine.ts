@@ -1,6 +1,6 @@
 import type { CharacterState, EnemyState, EngineState, SummonState } from '$lib/types/state';
 import { tickEffects } from './effects';
-import { tickEnemyAi } from './ai';
+import { fireEnemyAttacks, tickEnemyAi } from './ai';
 import { chebyshev, samePos, clamp, step8Toward } from './board';
 import { checkAutoSwap } from './swap';
 import { publish } from './events';
@@ -10,6 +10,8 @@ import { OFF_FIELD_REGEN_MS, regenOffField } from './energy';
 import { calculateDamage } from './pipeline';
 import { getCreationDef } from '$lib/data/creations';
 import { applyOnHit, canHitStratum, type ResolveSource } from './resolve';
+import { tickChannel } from './channel';
+import { fireWindUpCasts } from './ability-resolver';
 
 /** Fallback movement step interval (ms) when a character omits moveMs. */
 const DEFAULT_MOVE_MS = 150;
@@ -64,11 +66,16 @@ export function tick(
 
 	}
 
+
 	// 2. Enemy AI ticks
 	for (const enemy of state.enemies) {
 		if (enemy.hp <= 0) continue;
 		tickEnemyAi(state, enemy, now);
+		fireEnemyAttacks(state, now);
 	}
+
+	tickChannel(state, now);
+	fireWindUpCasts(state, now);
 
 	// 3. Summon ticks
 	tickSummons(state, now);

@@ -28,6 +28,9 @@ export function tryBasicAttack(state: EngineState, now: number, hold: boolean = 
 	const char = state.party[state.activeSlot];
 	if (char.stunnedUntil > now) return;
 
+	// Rhythmic wind-up: a committed swing is in flight — no new swing until it lands.
+	if (char.pendingBasic) return;
+
 	const baCd = char.def.baCooldownMs;
 	let cd: number;
 	if (Array.isArray(baCd)) {
@@ -111,7 +114,7 @@ function resolveEnhanced(state: EngineState, char: CharacterState, now: number):
 		char.lastActionTimestamp = now;
 		return;
 	}
-	applyBasicHit(state, char, ba, acq.enemy, now);
+	maybeDeferBasic(state, char, ba, acq.enemy, now);
 	char.baChainIndex = 0;           // reset combo after enhanced hit
 	char.lastBaTimestamp = now;
 	char.lastActionTimestamp = now;
@@ -151,7 +154,7 @@ function acquireTarget(state: EngineState, char: CharacterState, ba: BasicAttack
 // ─── Shared hit application ──────────────────────────────────────────────────
 
 /** Apply one landed BA: damage (+finisher), heal, energy, stack, dash-back, events. */
-function applyBasicHit(
+export function applyBasicHit(
 	state: EngineState,
 	char: CharacterState,
 	ba: BasicAttackData,
@@ -207,6 +210,36 @@ function applyBasicHit(
 	}
 }
 
+/**
+ * Rhythmic wind-up: if this BA declares delivery.windUpMs, defer the hit by that
+ * long and play the gem wind-up telegraph; the swing pacing IS the wind-up (the
+ * next swing is gated on pendingBasic). Otherwise hit immediately. Returns true
+ * if the hit was deferred.
+ */
+function maybeDeferBasic(
+	state: EngineState,
+	char: CharacterState,
+	ba: BasicAttackData,
+	enemy: EnemyState,
+	now: number
+): boolean {
+	const wu = ba.delivery?.windUpMs ?? 0;
+	if (wu <= 0) {
+		applyBasicHit(state, char, ba, enemy, now);
+		return false;
+	}
+	char.pendingBasic = {
+		enemyId: enemy.id,
+		firesAt: now + wu,
+		ba,
+		dirX: Math.sign(enemy.pos.x - char.pos.x),
+		dirY: Math.sign(enemy.pos.y - char.pos.y)
+	};
+	publish('cast:windup', { caster: char.id, slot: 'BA' as never, durationMs: wu });
+	return true;
+}
+
+
 // ─── Chain style (Frosty / Sefyra) ───────────────────────────────────────────
 
 function resolveChain(state: EngineState, char: CharacterState, now: number): void {
@@ -221,13 +254,12 @@ function resolveChain(state: EngineState, char: CharacterState, now: number): vo
 		return;
 	}
 
-	applyBasicHit(state, char, ba, acq.enemy, now);
+	maybeDeferBasic(state, char, ba, acq.enemy, now);
 
 	char.lastBaIndexLanded = char.baChainIndex;
 	char.lastBaTimestamp = now;
 	char.lastActionTimestamp = now;
 	char.lastAction = { tag: char.baChainIndex === chain.length - 1 ? 'ba_chain_end' : 'ba', at: now };
-
 	// Advance (gated by advanceOnlyIfMelee). Note: read pos AFTER any dash-back.
 	if (!ba.advanceOnlyIfMelee || chebyshev(char.pos, acq.enemy.pos) <= 1) {
 		char.baChainIndex = (char.baChainIndex + 1) % chain.length;
@@ -257,7 +289,7 @@ function resolveContextual(
 		return;
 	}
 
-	applyBasicHit(state, char, ba, acq.enemy, now);
+	maybeDeferBasic(state, char, ba, acq.enemy, now);
 	char.lastActionTimestamp = now;
 	char.lastAction = { tag: 'ba', at: now };
 }

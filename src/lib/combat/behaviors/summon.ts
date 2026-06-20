@@ -18,7 +18,7 @@ export function resolve(
     caster: CharacterState,
     ability: Ability,
     now: number,
-    opts: Record<string, unknown> = {}   // ← add opts param
+    opts: { reticle?: { x: number; y: number } | null } = {}
 ): boolean {
     const creationId = ability.creationId;
     if (!creationId) return false;
@@ -29,36 +29,38 @@ export function resolve(
     // One instance of this summon at a time
     if (state.summons.some((s) => s.defId === creationId)) return false;
 
-    // Place adjacent to caster, biased toward nearest enemy
-    const enemy = nearestEnemy(state, caster.pos);
-    const reticle = opts.reticle as { x: number; y: number } | null | undefined;
+    // Aimed placement (Frosty's wolf has holdBehavior:'aim') — drop the summon on
+    // the reticle tile. Falls back to adjacent-toward-nearest-enemy when not aimed.
     let pos: { x: number; y: number };
-    if (reticle) {
-        pos = clamp(state.board, { ...reticle });
-    } else if (enemy) {
-        pos = clamp(state.board, step8Toward(caster.pos, enemy.pos));
-        if (samePos(pos, enemy.pos)) {
+    if (opts.reticle) {
+        pos = clamp(state.board, { ...opts.reticle });
+    } else {
+        const enemy = nearestEnemy(state, caster.pos);
+        if (enemy) {
+            pos = clamp(state.board, step8Toward(caster.pos, enemy.pos));
+            if (samePos(pos, enemy.pos)) {
+                pos = clamp(state.board, { x: caster.pos.x, y: caster.pos.y - 1 });
+            }
+        } else {
             pos = clamp(state.board, { x: caster.pos.x, y: caster.pos.y - 1 });
         }
-    } else {
-        pos = clamp(state.board, { x: caster.pos.x, y: caster.pos.y - 1 });
     }
 
     state.summons.push({
-        id: `${creationId}-${now}`,
-        defId: creationId,
-        ownerId: caster.id,
+        id:           `${creationId}-${now}`,
+        defId:        creationId,
+        ownerId:      caster.id,
         pos,
-        name: def.name,
+        stratum:      def.stratum ?? 'ground',
+        name:         def.name,
         profileImage: def.image,
         receiveBuffs: def.receiveBuffs ?? false,
-        expiresAt: now + (def.durationMs ?? 10_000),
-        nextMoveAt: now + (def.moveCooldownMs ?? 500),
+        expiresAt:    now + (def.durationMs ?? 10_000),
+        nextMoveAt:   now + (def.moveCooldownMs ?? 500),
         nextAttackAt: now + (def.attackCooldownMs ?? 1000),
         element: caster.def.element,
-        stratum: def.stratum ?? 'ground',
     });
 
-    publish('summon:spawned', { summonId: creationId, owner: caster.id });
+    publish('summon:spawned', { summonId: `${creationId}-${now}`, owner: caster.id, pos: { ...pos } });
     return true;
 }

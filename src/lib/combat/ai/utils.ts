@@ -1,5 +1,6 @@
 import type { EngineState, EnemyState } from '$lib/types/state';
 import type { Position } from '$lib/types/common';
+import type { FxSpec } from '$lib/types/ability';
 import { chebyshev, step8Toward, step8Away, samePos, clamp } from '../board';
 import { publish } from '../events';
 import { absorbDamage, getStatModifier } from '../effects';
@@ -41,7 +42,9 @@ export function tryAttacks(
     targetIsChar: boolean,
     now: number
 ): boolean {
-    const active = state.party[state.activeSlot];
+    // A committed wind-up is in flight — hold until it resolves (drained elsewhere).
+    if (enemy.pendingAttack) return true;
+
     const sorted = enemy.def.attacks.slice().sort((a, b) => b.priority - a.priority);
 
     for (const atk of sorted) {
@@ -50,26 +53,81 @@ export function tryAttacks(
 
         enemy.attackCooldowns[atk.id] = now + atk.cooldownMs;
 
-        if (targetIsChar) {
-            const red = Math.min(1, getStatModifier(active, 'damageReduction'));
-            const dmg = Math.max(0, Math.round(atk.damage * (1 - red)));
-            const toHp = absorbDamage(active, dmg);
-            active.hp = Math.max(0, active.hp - toHp);
-            active.lastHitAt = now;
-            publish('damage:taken', {
-                target: active.id, source: enemy.id,
-                amount: toHp, abilityName: atk.name
-            });
-            if (atk.stunMs) active.stunnedUntil = Math.max(active.stunnedUntil, now + atk.stunMs);
-            if ((atk as any).knockback > 0) {
-                applyKnockback(state, enemy, (atk as any).knockback, !!(atk as any).knockbackSmart);
-            }
+        const wu = atk.windUpMs ?? 0;
+        if (wu > 0) {
+            // Telegraph: commit the strike now, land it after the wind-up. Direction
+            // points at the target (enemy.facing is unused), so the gem lunges right.
+            enemy.pendingAttack = {
+                attackId: atk.id,
+                firesAt: now + wu,
+                damage: atk.damage,
+                stunMs: atk.stunMs,
+                knockback: atk.knockback,
+                knockbackSmart: atk.knockbackSmart,
+                name: atk.name,
+                targetIsChar,
+                windUpStyle: atk.windUpStyle,
+                fx: atk.fx,
+                dirX: Math.sign(target.x - enemy.pos.x),
+                dirY: Math.sign(target.y - enemy.pos.y)
+            };
+            publish('enemy:windup', { enemy: enemy.id, durationMs: wu, attackName: atk.name });
+        } else {
+            applyEnemyHit(state, enemy, {
+                damage: atk.damage, stunMs: atk.stunMs,
+                knockback: atk.knockback, knockbackSmart: atk.knockbackSmart,
+                name: atk.name, targetIsChar, fx: atk.fx
+            }, now);
         }
-        // summon hit: absorbed — summons are currently unkillable
-
         return true;
     }
     return false;
+}
+
+/** Land an enemy strike on the active character (shared by instant + wind-up paths). */
+export function applyEnemyHit(
+    state: EngineState,
+    enemy: EnemyState,
+    hit: { damage: number; stunMs?: number; knockback?: number; knockbackSmart?: boolean; name: string; targetIsChar: boolean; fx?: FxSpec },
+    now: number
+): void {
+    if (!hit.targetIsChar) return; // summon hit: absorbed (summons currently unkillable)
+    const active = state.party[state.activeSlot];
+    const red = Math.min(1, getStatModifier(active, 'damageReduction'));
+    const dmg = Math.max(0, Math.round(hit.damage * (1 - red)));
+    const toHp = absorbDamage(active, dmg);
+    active.hp = Math.max(0, active.hp - toHp);
+    active.lastHitAt = now;
+    publish('damage:taken', { target: active.id, source: enemy.id, amount: toHp, abilityName: hit.name });
+    publish('enemy:strike', { enemy: enemy.id, target: active.id, fx: hit.fx });
+    if (hit.stunMs) {
+        active.stunnedUntil = Math.max(active.stunnedUntil, now + hit.stunMs);
+        publish('combat:stun', { target: active.id, durationMs: hit.stunMs });
+    }
+    if (hit.knockback && hit.knockback > 0) {
+        applyKnockback(state, enemy, hit.knockback, !!hit.knockbackSmart);
+    }
+}
+
+/**
+ * Resolve any enemy attack wind-up whose timer elapsed. Called once per engine
+ * tick (from fireWindUpCasts). Re-checks range — dash out and the swing whiffs.
+ */
+export function fireEnemyAttacks(state: EngineState, now: number): void {
+    for (const enemy of state.enemies) {
+        const pa = enemy.pendingAttack;
+        if (!pa || now < pa.firesAt) continue;
+        enemy.pendingAttack = undefined;
+        if (enemy.hp <= 0) continue;
+        const { pos: target, isChar } = resolveTarget(state, enemy);
+        const atk = enemy.def.attacks.find((a) => a.id === pa.attackId);
+        if (chebyshev(enemy.pos, target) > (atk?.range ?? 1)) continue; // whiffed
+        applyEnemyHit(state, enemy, {
+            damage: pa.damage, stunMs: pa.stunMs,
+            knockback: pa.knockback, knockbackSmart: pa.knockbackSmart,
+            name: pa.name, targetIsChar: isChar, fx: pa.fx
+        }, now);
+    }
 }
 
 /**

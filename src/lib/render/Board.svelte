@@ -3,7 +3,7 @@
 	import type { Position } from '$lib/types/common';
 	import { samePos, chebyshev, step8Toward } from '$lib/combat/board';
 	import { resolveTiles } from '$lib/combat/shapes';
-	import { holdState } from '$lib/input/intent-state';
+	import { holdState, camera, ZOOM_LEVELS, zoomIn, zoomOut, zoomReset, isDown, wasdVec } from '$lib/input/intent-state';
 	import { subscribe, clear } from '$lib/combat/events';
 	import { onMount } from 'svelte';
 	import Gem from './Gem.svelte';
@@ -12,6 +12,92 @@
 	import { resolveTheme } from './char-theme';
 
 	let { gs, now = 0 }: { gs: EngineState; now: number } = $props();
+
+	// ─── Camera: zoom + follow + elastic look ────────────────────────────────
+	// The whole board lives in a `.world` layer that scales+pans inside a fixed
+	// `.viewport`. All TILE=36 math downstream is untouched — the camera is one
+	// transform on top, so gems, FX, everything magnifies together.
+	const TILE = 36;
+	const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+	let vpW = $derived(gs.board.size.width * TILE);   // viewport = board size at 1×
+	let vpH = $derived(gs.board.size.height * TILE);
+	// `camera` is a plain object (like holdState), so gate on `now` to stay live.
+	let zoom = $derived.by(() => {
+		void now;
+		return ZOOM_LEVELS[camera.zoomIndex] ?? 1;
+	});
+	let zoomPct = $derived.by(() => {
+		void now;
+		return Math.round((ZOOM_LEVELS[camera.zoomIndex] ?? 1) * 100);
+	});
+
+	// Elastic look-offset (px). While `cameraLook` (Z) is held, WASD pans the
+	// camera; on release it returns to 0 and the CSS transition eases home.
+	let lookX = $state(0);
+	let lookY = $state(0);
+	let lastNow = now;
+	$effect(() => {
+		const dt = Math.min(50, now - lastNow); // cap dt so a tab-stall can't jump
+		lastNow = now;
+		if (isDown('cameraLook')) {
+			const v = wasdVec();
+			if (v) {
+				const SPEED = 0.6; // px/ms — peek speed
+				lookX = clampN(lookX + v.x * SPEED * dt, -vpW, vpW);
+				lookY = clampN(lookY + v.y * SPEED * dt, -vpH, vpH);
+			}
+		} else if (lookX !== 0 || lookY !== 0) {
+			lookX = 0; // snap target → transition eases the camera back to centre
+			lookY = 0;
+		}
+	});
+
+	// Pan to centre the active unit (+ look offset), clamped so the board edge is
+	// never overshot. If the zoomed world is smaller than the viewport, centre it.
+	let cam = $derived.by(() => {
+		void now;
+		const active = gs.party[gs.activeSlot];
+		const worldW = vpW * zoom, worldH = vpH * zoom;
+		const fx = ((active?.pos.x ?? gs.board.size.width / 2 - 0.5) + 0.5) * TILE;
+		const fy = ((active?.pos.y ?? gs.board.size.height / 2 - 0.5) + 0.5) * TILE;
+		let panX = vpW / 2 - fx * zoom + lookX;
+		let panY = vpH / 2 - fy * zoom + lookY;
+		panX = worldW <= vpW ? (vpW - worldW) / 2 : clampN(panX, vpW - worldW, 0);
+		panY = worldH <= vpH ? (vpH - worldH) / 2 : clampN(panY, vpH - worldH, 0);
+		return { panX, panY, zoom };
+	});
+
+	// Off-screen enemies → a red glow bleeding in from the border edge in their
+	// direction. Pulses brighter while that enemy is winding up an attack.
+	let edgeMarkers = $derived.by(() => {
+		void now;
+		const { panX, panY, zoom: z } = cam;
+		const cx0 = vpW / 2, cy0 = vpH / 2;
+		const M = 8; // inset from the very edge
+		const out: { id: string; x: number; y: number; ang: number; winding: boolean }[] = [];
+		for (const e of gs.enemies) {
+			if (e.hp <= 0) continue;
+			const sx = panX + (e.pos.x + 0.5) * TILE * z;
+			const sy = panY + (e.pos.y + 0.5) * TILE * z;
+			if (sx >= 0 && sx <= vpW && sy >= 0 && sy <= vpH) continue; // on-screen
+			const dx = sx - cx0, dy = sy - cy0;
+			if (dx === 0 && dy === 0) continue;
+			let t = Infinity;
+			if (dx > 0) t = Math.min(t, (vpW - M - cx0) / dx);
+			if (dx < 0) t = Math.min(t, (M - cx0) / dx);
+			if (dy > 0) t = Math.min(t, (vpH - M - cy0) / dy);
+			if (dy < 0) t = Math.min(t, (M - cy0) / dy);
+			out.push({
+				id: e.id,
+				x: cx0 + dx * t,
+				y: cy0 + dy * t,
+				ang: (Math.atan2(dy, dx) * 180) / Math.PI,
+				winding: !!e.pendingAttack
+			});
+		}
+		return out;
+	});
 
 	// Aim reticle cursor — recomputes every frame via `now`
 	let reticle = $derived.by(() => {
@@ -367,11 +453,12 @@
 	}
 </script>
 
-<div
-	class="board"
-	bind:this={boardEl}
-	style="grid-template-columns: repeat({gs.board.size.width}, 36px); --ba-tint: {baTint};"
->
+<div class="viewport" bind:this={boardEl} style="width:{vpW}px; height:{vpH}px;">
+	<div
+		class="world"
+		style="transform: translate({cam.panX}px, {cam.panY}px) scale({cam.zoom}); --ba-tint: {baTint};"
+	>
+		<div class="grid" style="grid-template-columns: repeat({gs.board.size.width}, 36px);">
 	{#each { length: gs.board.size.height } as _, y}
 		{#each { length: gs.board.size.width } as _, x}
 			<!-- {@const extra = tileClass(x, y, now)} -->
@@ -413,6 +500,7 @@
 						type="enemy"
 						enemy={entity.data}
 						{now}
+						party={gs.party}
 						locked={entity.data.id === gs.focusTargetId}
 					/>
 				{:else if entity?.type === 'summon'}
@@ -437,6 +525,18 @@
 		</div>
 	{/each}
 	<FxLayer {gs} {now} />
+		</div>
+	</div>
+
+	<!-- Off-screen enemy markers: red glow bleeding in from the border edge -->
+	{#each edgeMarkers as m (m.id)}
+		<div
+			class="edge-marker"
+			class:winding={m.winding}
+			style="left:{m.x}px; top:{m.y}px; --ang:{m.ang}deg;"
+		></div>
+	{/each}
+
 	{#if totalDamage > 0}
 		<div class="stats-panel">
 			<div class="stats-header">
@@ -462,19 +562,113 @@
 			{/each}
 		</div>
 	{/if}
+
+	<!-- On-page zoom controls (mirror the 0 / − / = hotkeys). stopPropagation so a
+	     click here never registers as a board basic-attack via the viewport listener. -->
+	<div class="zoom-controls" onmousedown={(e) => e.stopPropagation()}>
+		<button class="zoom-btn" onclick={zoomOut} title="Zoom out (−)" aria-label="Zoom out">−</button>
+		<button class="zoom-pct" onclick={zoomReset} title="Reset zoom (0)" aria-label="Reset zoom">{zoomPct}%</button>
+		<button class="zoom-btn" onclick={zoomIn} title="Zoom in (=)" aria-label="Zoom in">+</button>
+	</div>
 </div>
 
 <style>
-	.board {
-		display: grid;
-		/* gap: 1px; */
-		/* padding: 3px; */
-		border: 2px solid var(--panel-2);
+	.viewport {
+		position: relative;
+		overflow: hidden;
 		box-sizing: border-box;
 		border-radius: 9px;
-		position: relative;
+		box-shadow: 0 0 0 2px var(--panel-2);
 		background: radial-gradient(120% 120% at 50% 30%, #1c2230 0%, var(--panel) 70%);
 	}
+	.world {
+		position: relative;
+		transform-origin: 0 0;
+		transition: transform 180ms ease-out;
+		will-change: transform;
+	}
+	.grid {
+		display: grid;
+		position: relative;
+	}
+	/* Off-screen enemy direction marker — red glow bleeding in from the border. */
+	.edge-marker {
+		position: absolute;
+		width: 46px;
+		height: 12px;
+		transform: translate(-50%, -50%) rotate(var(--ang, 0deg));
+		transform-origin: 50% 50%;
+		pointer-events: none;
+		z-index: 55;
+		border-radius: 6px;
+		background: linear-gradient(
+			to right,
+			transparent 0%,
+			color-mix(in srgb, var(--blood, #e04040) 35%, transparent) 55%,
+			var(--blood, #e04040) 100%
+		);
+		filter: drop-shadow(0 0 5px color-mix(in srgb, var(--blood, #e04040) 70%, transparent));
+		opacity: 0.85;
+	}
+	.edge-marker.winding {
+		opacity: 1;
+		animation: edge-pulse 0.5s ease-in-out infinite;
+	}
+	@keyframes edge-pulse {
+		0%, 100% {
+			opacity: 0.6;
+			filter: drop-shadow(0 0 4px color-mix(in srgb, var(--blood, #e04040) 60%, transparent));
+		}
+		50% {
+			opacity: 1;
+			filter: drop-shadow(0 0 10px var(--blood, #e04040));
+		}
+	}
+	.zoom-controls {
+		position: absolute;
+		left: 8px;
+		bottom: 8px;
+		z-index: 56;
+		display: flex;
+		align-items: stretch;
+		gap: 2px;
+		padding: 2px;
+		background: rgba(8, 12, 18, 0.78);
+		border: 1px solid rgba(255, 255, 255, 0.06);
+		border-radius: 6px;
+		backdrop-filter: blur(3px);
+		user-select: none;
+		font-family: 'JetBrains Mono', monospace;
+	}
+	.zoom-controls button {
+		pointer-events: auto;
+		cursor: pointer;
+		border: none;
+		background: var(--panel-2);
+		color: var(--text);
+		border-radius: 4px;
+		font-family: inherit;
+		transition: color 0.12s, background 0.12s;
+	}
+	.zoom-controls button:hover {
+		color: var(--gold);
+		background: var(--panel-raised, var(--panel-2));
+	}
+	.zoom-btn {
+		width: 22px;
+		height: 22px;
+		font-size: 16px;
+		font-weight: 700;
+		line-height: 1;
+	}
+	.zoom-pct {
+		min-width: 44px;
+		font-size: 11px;
+		font-weight: 600;
+		padding: 0 6px;
+		color: var(--text-dim);
+	}
+
 	.tile {
 		width: 36px;
 		height: 36px;

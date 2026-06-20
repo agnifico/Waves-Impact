@@ -9,5 +9,8 @@ export const solis_sentinel: Enemy = {
     attacks: [{
         id: 'solar_lance', name: 'Solar Lance',
         range: 2, damage: 5, poiseDamage: 30, cooldownMs: 2000, priority: 1,
+        windUpMs: 400,
+        windUpStyle: 'fire',
+        fx: { strike: 'stab', colors: ['#ff8800', '#ffdd00'] }
     }]
 };

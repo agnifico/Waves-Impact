@@ -10,7 +10,7 @@ export const maria_elena: Character = {
 
 	description: 'The Goddess of Fire, Maria Elena is a gap-closing, sustained main damage dealer, with strong off-field DMG capabilities.',
 
-	baCooldownMs: [350, 350, 350, 250],
+	baCooldownMs: [0, 0, 0, 0],
 	baChainResetMs: 2000,
 
 	basicStyle: 'chain',
@@ -20,7 +20,7 @@ export const maria_elena: Character = {
 			range: 1,
 			omniTarget: true,
 			advanceOnlyIfMelee: true,
-			delivery: { damage: 18, energyGain: 8, shape: 'melee', hitsStrata: ['ground'] },
+			delivery: { damage: 18, energyGain: 8, shape: 'melee', hitsStrata: ['ground'], windUpMs: 150, windUpStyle: 'bow' },
             onHit: {
                 splash: {radius: 1},
             },
@@ -32,7 +32,7 @@ export const maria_elena: Character = {
 			range: 1,
 			omniTarget: true,
 			advanceOnlyIfMelee: true,
-			delivery: { damage: 22, energyGain: 8, shape: 'melee', hitsStrata: ['ground'] },
+			delivery: { damage: 22, energyGain: 8, shape: 'melee', hitsStrata: ['ground'], windUpMs: 150, },
             onHit: {
                 splash: {radius: 1},
             },
@@ -43,7 +43,7 @@ export const maria_elena: Character = {
 			range: 1,
 			omniTarget: true,
 			advanceOnlyIfMelee: true,
-			delivery: { damage: 22, energyGain: 8, shape: 'melee', hitsStrata: ['ground'] },
+			delivery: { damage: 22, energyGain: 8, shape: 'melee', hitsStrata: ['ground'], windUpMs: 200,},
             onHit: {
                 splash: {radius: 1},
             },
@@ -53,7 +53,7 @@ export const maria_elena: Character = {
 			name: 'Flash Fire (4)',
 			range: 1,
 			omniTarget: true,
-			delivery: { damage: 45, energyGain: 14, shape: 'melee', grantsStack: 'immortal_flame', hitsStrata: ['ground'] },
+			delivery: { damage: 45, energyGain: 14, shape: 'melee', grantsStack: 'immortal_flame', hitsStrata: ['ground'], windUpMs: 350, windUpStyle: 'pistol' },
             onHit: {
                 splash: {radius: 1},
             },
@@ -68,7 +68,7 @@ export const maria_elena: Character = {
 			omniTarget: true,
 			consumesStack: 'immortal_flame',
 			gapClose: true,
-			delivery: { damage: 5, energyGain: 10, shape: 'melee' },
+			delivery: { damage: 5, energyGain: 10, shape: 'melee',windUpMs: 500, windUpStyle: 'bow' },
             onHit: {
                 splash: {radius: 1},
             },
@@ -96,9 +96,11 @@ export const maria_elena: Character = {
 				shapeParams: { range: 4, throughObstacles: false },
 				holdBehavior: 'charge',
 				chargeMaxRange: 7,
-				chargeMsPerTile: 150
+				chargeMsPerTile: 150,
+				windUpMs: 200, windUpStyle: 'levitate'
 			},
-			onHit: { knockback: 4, poiseDamage: 30 },
+			onHit: { knockback: 4, poiseDamage: 30, stunMs: 1000 },
+			fx: { strike: 'stab', colors: ['#ee9b00', '#bb3e03'] },
 			description: 'Maria Elena dashes to the nearest/locked-on enemy and knocks them back 4 tiles, while dealing damage. Hold X to charge up the dash range, up to 7 tiles. Grants one stack of Immortal Flame. 2 charges.'
 		},
 
@@ -110,6 +112,7 @@ export const maria_elena: Character = {
 			cooldownMs: 10000,
 			charges: 3,
 			delivery: {
+				windUpMs: 200, windUpStyle: 'melee',
 				damage: 100,
 				energyGain: 7,
 				grantsStack: 'immortal_flame',
@@ -123,8 +126,10 @@ export const maria_elena: Character = {
 					blastDamage: 50,
 					blastRadius: 2
 				},
-				holdBehavior: 'track'
+				holdBehavior: 'track',
+				windUpMs: 100, windUpStyle: 'back-circle'
 			},
+			fx: { strike: 'uppercut', colors: ['#ee9b00', '#bb3e03'] },
 			description: 'Maria Elena dashes in a line, dealing DMG to all enemies in path, with enemies at the end taking an additional blast. Hold Shift + WASD to aim in place. 3 charges.'
 		},
 
@@ -149,7 +154,8 @@ export const maria_elena: Character = {
 				damage: 50,                 // one-time cast burst
 				grantsStack: 'immortal_flame',
 				shape: 'circle',
-				shapeParams: { radius: 1 }
+				shapeParams: { radius: 1 },
+				windUpMs: 300, windUpStyle: 'tremor'
 			},
 			fx: { zone: 'flame' },
 			description: 'A 1-tile ring that follows the active unit, dealing damage per second, with a cast-time burst. Costs energy per second to upkeep, reduced 5% per Immortal Flame stack.'
@@ -168,7 +174,7 @@ export const maria_elena: Character = {
 	poiseRegenPerSec: 25,
 
 	art: {
-		gem: '/characters/maria_elena6.png',
+		gem: '/characters/gem-maria_elena.png',
 		profile: '/characters/avatars2/maria_elena.png',
 		poster: '/characters/maria_poster77.png',
 		bannerPoster: '/characters/maria_poster2.png'

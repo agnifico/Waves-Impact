@@ -1,20 +1,25 @@
 /* ============================================================
-   STRIKES — melee & ranged transient effects
+   STRIKES — melee & ranged transient effects  (TWO-TONE build)
    Ported from FxLayer.svelte, then extended.
    Every animated element uses fixed durations; slow-mo is driven
    via the Web Animations API (playbackRate) in JS.
+
+   Color contract: --c primary, --c2 secondary (OPTIONAL, falls back
+   to --c). Projectiles also accept --t (tail) — secondary resolves
+   as var(--c2, var(--t, var(--c))) so existing --t wiring still works.
    ============================================================ */
 
-/* ── Impact burst — white-hot core + ring (shared) ─────────── */
+/* ── Impact burst — white-hot core (--c) + ring (--c2) ─────── */
 .fx-burst {
 	position: absolute;
 	width: 18px;
 	height: 18px;
 	margin: -9px 0 0 -9px;
 	border-radius: 50%;
+	background: radial-gradient(circle, transparent, var(--c) 45%, transparent 72%);
 	box-shadow:
 		0 0 10px 4px var(--c),
-		0 0 24px 12px color-mix(in srgb, var(--c) 65%, transparent);
+		0 0 24px 12px color-mix(in srgb, var(--c2, var(--c)) 65%, transparent);
 	opacity: 0;
 	transform: scale(0.4);
 	animation: fx-burst 0.44s ease-out forwards;
@@ -26,7 +31,7 @@
 	position: absolute;
 	inset: -7px;
 	border-radius: 50%;
-	border: 3px solid var(--c);
+	border: 3px solid var(--c2, var(--c));
 	opacity: 0;
 	animation: fx-burst-ring 0.45s ease-out forwards;
 }
@@ -60,14 +65,15 @@
 	}
 }
 
-/* ── Movement / dash wave tile (shared) ────────────────────── */
+/* ── Movement / dash wave tile — fill(--c, ramped) + edge(--c2) ─ */
 .fx-wave-tile {
 	position: absolute;
 	width: 36px;
 	height: 36px;
 	box-sizing: border-box;
-	border: 1px solid var(--c);
+	border: 1px solid var(--c2, var(--c));
 	background: color-mix(in srgb, var(--c) 22%, transparent);
+	box-shadow: inset 0 0 10px color-mix(in srgb, var(--c2, var(--c)) 28%, transparent);
 	opacity: 0;
 	animation: fx-wave-flash 0.32s ease-out forwards;
 }
@@ -91,11 +97,14 @@
 
 /* ════════════════════════════════════════════════════════════
    RANGED — projectiles (element travels source→target)
+   Head leads in --c; trails fade through --c2 (or --t). 
    ════════════════════════════════════════════════════════════ */
 .fx-proj {
 	position: absolute;
 	width: 0;
 	height: 0;
+	/* resolved trail color: explicit --c2, else legacy --t, else --c */
+	--trail: var(--c2, var(--t, var(--c)));
 	animation: fx-proj-travel var(--dur) linear forwards;
 	mix-blend-mode: screen;
 	z-index: 5;
@@ -110,7 +119,8 @@
 	margin: calc(var(--sz) / -2) 0 0 calc(var(--sz) / -2);
 	transform: rotate(var(--rot));
 	background: var(--c);
-	box-shadow: 0 0 8px 1px var(--c);
+	/* core glows --c, halo picks up --c2 so even a bare dot reads two-tone */
+	box-shadow: 0 0 6px 1px var(--c), 0 0 12px 3px color-mix(in srgb, var(--c2, var(--c)) 55%, transparent);
 }
 
 .fx-proj.trail .head::before {
@@ -121,7 +131,7 @@
 	width: calc(var(--sz) * 2.8);
 	height: calc(var(--sz) * 0.5);
 	transform: translateY(-50%);
-	background: linear-gradient(to left, var(--c), transparent);
+	background: linear-gradient(to left, var(--c), var(--trail) 45%, transparent);
 	border-radius: 999px;
 }
 
@@ -137,24 +147,26 @@
 	width: calc(var(--sz) * 1.8);
 	height: calc(var(--sz) * 0.45);
 	transform: translateY(-50%);
-	background: linear-gradient(to left, var(--c), transparent);
+	background: linear-gradient(to left, var(--c), var(--trail) 50%, transparent);
 	border-radius: 999px;
 }
 
 .fx-proj.bolt .head {
 	width: calc(var(--sz) * 1.7);
 	border-radius: 999px;
+	background: linear-gradient(to right, var(--trail), var(--c));
 }
 
 .fx-proj.leaf .head {
 	border-radius: 0 100% 0 100%;
+	background: linear-gradient(135deg, var(--c) 35%, var(--c2, var(--c)));
 }
 
 .fx-proj.arrow .head {
 	width: calc(var(--sz) * 1.9);
 	height: calc(var(--sz) * 0.55);
 	margin: calc(var(--sz) * -0.275) 0 0 calc(var(--sz) * -0.95);
-	background: linear-gradient(to right, var(--t), var(--c));
+	background: linear-gradient(to right, var(--trail), var(--c));
 	clip-path: polygon(0 25%, 70% 25%, 70% 0, 100% 50%, 70% 100%, 70% 75%, 0 75%);
 }
 
@@ -167,7 +179,8 @@
 	background: transparent;
 	box-shadow: none;
 	border: 0 solid transparent;
-	border-right: calc(var(--sz) * 0.6) solid var(--c);
+	/* leading crescent edge in --c2, body glow in --c */
+	border-right: calc(var(--sz) * 0.6) solid var(--c2, var(--c));
 	filter: drop-shadow(0 0 6px var(--c));
 }
 
@@ -182,7 +195,7 @@
 }
 
 /* ════════════════════════════════════════════════════════════
-   MELEE — swipe (ported)
+   MELEE — swipe (ported) — two-tone arc edge
    ════════════════════════════════════════════════════════════ */
 .fx-slam,
 .fx-upper {
@@ -197,8 +210,8 @@
 	border-radius: 50%;
 	background: transparent;
 	border: 0 solid transparent;
-	border-top: 12px solid color-mix(in srgb, #fff 20%, var(--c));
-	filter: drop-shadow(0 0 5px var(--c));
+	border-top: 12px solid color-mix(in srgb, var(--c2, var(--c)) 35%, var(--c));
+	filter: drop-shadow(0 0 5px var(--c)) drop-shadow(0 0 9px color-mix(in srgb, var(--c2, var(--c)) 60%, transparent));
 	animation: fx-slash 0.25s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
 	z-index: 5;
 }
@@ -229,8 +242,8 @@
 	border-radius: 50%;
 	background: transparent;
 	border: 0 solid transparent;
-	border-top: 12px solid color-mix(in srgb, #fff 20%, var(--c));
-	filter: drop-shadow(0 0 5px var(--c));
+	border-top: 12px solid color-mix(in srgb, var(--c2, var(--c)) 35%, var(--c));
+	filter: drop-shadow(0 0 5px var(--c)) drop-shadow(0 0 9px color-mix(in srgb, var(--c2, var(--c)) 60%, transparent));
 	animation: fx-slash-reverse 0.25s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
 	z-index: 5;
 }
@@ -258,7 +271,7 @@
    MELEE — NEW
    ════════════════════════════════════════════════════════════ */
 
-/* ── Claw — 3 diverging tapered gashes ─────────────────────── */
+/* ── Claw — 3 diverging tapered gashes, ramp --c -> --c2 ────── */
 .fx-claw {
 	position: absolute;
 	width: 0;
@@ -278,15 +291,19 @@
 	transform: rotate(var(--a)) scaleX(0);
 	background: linear-gradient(to right,
 			transparent 0%,
-			color-mix(in srgb, #fff 55%, var(--c)) 22%,
-			var(--c) 60%,
+			color-mix(in srgb, transparent, var(--gc, var(--c))) 22%,
+			var(--gc, var(--c)) 60%,
 			transparent 100%);
 	clip-path: polygon(0 50%, 30% 8%, 100% 42%, 100% 58%, 30% 92%);
-	filter: drop-shadow(0 0 4px var(--c));
+	filter: drop-shadow(0 0 4px var(--gc, var(--c)));
 	opacity: 0;
 	animation: fx-claw-slash 0.3s cubic-bezier(0.15, 0.85, 0.2, 1) forwards;
 	animation-delay: var(--d, 0ms);
 }
+.fx-claw .gash:nth-child(1) { --gc: var(--c); }
+.fx-claw .gash:nth-child(2) { --gc: color-mix(in srgb, var(--c2, var(--c)) 50%, var(--c)); }
+.fx-claw .gash:nth-child(3) { --gc: var(--c2, var(--c)); }
+.fx-claw .gash:nth-child(4) { --gc: var(--c2, var(--c)); }
 
 @keyframes fx-claw-slash {
 	0% {
@@ -305,7 +322,7 @@
 	}
 }
 
-/* ── Stab / thrust — forward lunge spike ───────────────────── */
+/* ── Stab / thrust — forward lunge spike, leading tip --c2 ───── */
 .fx-stab {
 	position: absolute;
 	left: 0;
@@ -325,9 +342,9 @@
 	background: linear-gradient(to right,
 			transparent 0%,
 			color-mix(in srgb, var(--c) 40%, transparent) 30%,
-			color-mix(in srgb, #fff 50%, var(--c)) 100%);
+			color-mix(in srgb, transparent, var(--c2, var(--c))) 100%);
 	clip-path: polygon(0 38%, 78% 12%, 100% 50%, 78% 88%, 0 62%);
-	filter: drop-shadow(0 0 5px var(--c));
+	filter: drop-shadow(0 0 5px var(--c2, var(--c)));
 	transform: scaleX(0);
 	animation: fx-stab-thrust 0.26s cubic-bezier(0.3, 0, 0.1, 1) forwards;
 }
@@ -354,7 +371,7 @@
 	}
 }
 
-/* ── Flurry — rapid multi-hit tick (one spark per hit) ─────── */
+/* ── Flurry — rapid multi-hit tick (one spark per hit), ramp ─── */
 .fx-tick {
 	position: absolute;
 	width: 20px;
@@ -376,12 +393,14 @@
 	height: 2.5px;
 	margin: -1.25px 0 0 -50%;
 	border-radius: 2px;
-	background: linear-gradient(to right, transparent, color-mix(in srgb, #fff 50%, var(--c)), transparent);
+	background: linear-gradient(to right, transparent, color-mix(in srgb, transparent, var(--c)), transparent);
 	box-shadow: 0 0 5px var(--c);
 }
 
 .fx-tick::after {
 	transform: rotate(90deg);
+	background: linear-gradient(to right, transparent, color-mix(in srgb, transparent, var(--c2, var(--c))), transparent);
+	box-shadow: 0 0 5px var(--c2, var(--c));
 }
 
 @keyframes fx-tick {
@@ -410,7 +429,7 @@
 	height: 26px;
 	margin: -13px 0 0 -13px;
 	border-radius: 30% 70% 64% 36% / 40% 38% 62% 60%;
-	background: radial-gradient(circle at 36% 30%, color-mix(in srgb, #fff 30%, var(--c)), color-mix(in srgb, var(--c) 70%, #000));
+	background: radial-gradient(circle at 36% 30%, color-mix(in srgb, transparent, var(--c2, var(--c))), color-mix(in srgb, var(--c) 70%, #000));
 	box-shadow: 0 0 12px 2px var(--c);
 	transform: translateY(-46px) scale(0.7);
 	opacity: 0;
@@ -425,7 +444,7 @@
 	height: 30px;
 	margin: -15px 0 0 -30px;
 	border-radius: 50%;
-	border: 3px solid var(--c);
+	border: 3px solid var(--c2, var(--c));
 	box-shadow: 0 0 14px 1px color-mix(in srgb, var(--c) 60%, transparent);
 	opacity: 0;
 	transform: scale(0.2);
@@ -440,8 +459,8 @@
 	height: 5px;
 	margin: -2.5px 0 0 -2.5px;
 	border-radius: 50%;
-	background: color-mix(in srgb, #fff 35%, var(--c));
-	box-shadow: 0 0 5px var(--c);
+	background: color-mix(in srgb, transparent, var(--c2, var(--c)));
+	box-shadow: 0 0 5px var(--c2, var(--c));
 	opacity: 0;
 	animation: fx-debris 0.5s ease-out 0.24s forwards;
 }
@@ -507,9 +526,9 @@
 	border-radius: 50% 50% 40% 40%;
 	background: linear-gradient(to top,
 			var(--c) 0%,
-			color-mix(in srgb, #fff 40%, var(--c)) 45%,
+			color-mix(in srgb, transparent, var(--c2, var(--c))) 50%,
 			transparent 100%);
-	filter: drop-shadow(0 0 8px var(--c));
+	filter: drop-shadow(0 0 8px var(--c2, var(--c)));
 	transform: scaleY(0);
 	transform-origin: bottom center;
 	opacity: 0;
@@ -524,7 +543,8 @@
 	height: 18px;
 	margin: -9px 0 0 -22px;
 	border-radius: 50%;
-	border: 2.5px solid var(--c);
+	border: 2.5px solid var(--c2, var(--c));
+	box-shadow: 0 0 8px 1px color-mix(in srgb, var(--c) 55%, transparent);
 	opacity: 0;
 	transform: scale(0.3);
 	animation: fx-crater 0.42s ease-out forwards;
@@ -538,8 +558,8 @@
 	height: 4px;
 	margin: -2px 0 0 -2px;
 	border-radius: 50%;
-	background: color-mix(in srgb, #fff 40%, var(--c));
-	box-shadow: 0 0 5px var(--c);
+	background: color-mix(in srgb, transparent, var(--c2, var(--c)));
+	box-shadow: 0 0 5px var(--c2, var(--c));
 	opacity: 0;
 	animation: fx-rise 0.5s ease-out forwards;
 	animation-delay: var(--d, 0ms);
@@ -582,7 +602,7 @@
    RANGED — NEW
    ════════════════════════════════════════════════════════════ */
 
-/* ── Bullet — muzzle flash + instant tracer ────────────────── */
+/* ── Bullet — muzzle flash + instant tracer (hot --c2 origin) ── */
 .fx-tracer {
 	position: absolute;
 	left: 0;
@@ -593,7 +613,7 @@
 	transform-origin: 0 50%;
 	transform: rotate(var(--rot));
 	background: linear-gradient(to right,
-			color-mix(in srgb, #fff 70%, var(--c)) 0%,
+			color-mix(in srgb, transparent, var(--c2, var(--c))) 0%,
 			var(--c) 55%,
 			transparent 100%);
 	box-shadow: 0 0 6px var(--c);
@@ -637,13 +657,15 @@
 	position: absolute;
 	inset: 0;
 	background: conic-gradient(from -20deg at 0% 50%,
-			color-mix(in srgb, #fff 60%, var(--c)), transparent 45%);
+			color-mix(in srgb, transparent, var(--c)), transparent 45%);
 	clip-path: polygon(0 50%, 100% 18%, 70% 50%, 100% 82%);
-	filter: drop-shadow(0 0 4px var(--c));
+	filter: drop-shadow(0 0 4px var(--c2, var(--c)));
 }
 
 .fx-muzzle::after {
 	transform: scaleY(-1);
+	background: conic-gradient(from -20deg at 0% 50%,
+			color-mix(in srgb, transparent, var(--c2, var(--c))), transparent 45%);
 }
 
 @keyframes fx-muzzle {
@@ -663,7 +685,7 @@
 	}
 }
 
-/* ── Beam / laser — instant channel line ───────────────────── */
+/* ── Beam / laser — instant channel: --c2 sheath, white core, --c glow ── */
 .fx-beam {
 	position: absolute;
 	left: 0;
@@ -675,7 +697,7 @@
 	transform: rotate(var(--rot)) scaleX(0);
 	z-index: 5;
 	background: linear-gradient(to bottom,
-			transparent, color-mix(in srgb, var(--c) 80%, transparent), transparent);
+			transparent, color-mix(in srgb, var(--c2, var(--c)) 80%, transparent), transparent);
 	animation: fx-beam-grow 0.42s ease-out forwards;
 }
 
@@ -721,7 +743,7 @@
 	margin: -5px 0 0 -5px;
 	border-radius: 50%;
 	background: #fff;
-	box-shadow: 0 0 8px 3px var(--c), 0 0 18px 8px color-mix(in srgb, var(--c) 55%, transparent);
+	box-shadow: 0 0 8px 3px var(--c), 0 0 18px 8px color-mix(in srgb, var(--c2, var(--c)) 55%, transparent);
 	z-index: 6;
 	opacity: 0;
 	transform: scale(0.2);
@@ -745,7 +767,7 @@
 	}
 }
 
-/* ── Chain / lightning — jagged SVG arc between targets ────── */
+/* ── Chain / lightning — jagged SVG arc: --c2 glow halo, --c arc, white core ── */
 .fx-chain {
 	position: absolute;
 	inset: 0;
@@ -761,7 +783,7 @@
 	stroke-width: 2;
 	stroke-linejoin: round;
 	stroke-linecap: round;
-	filter: drop-shadow(0 0 4px var(--c)) drop-shadow(0 0 8px var(--c));
+	filter: drop-shadow(0 0 4px var(--c)) drop-shadow(0 0 8px var(--c2, var(--c)));
 }
 
 .fx-chain path.core {
@@ -796,11 +818,11 @@
 	}
 }
 
-/* ── Construct pulse ring ──────────────────────────────────────────────────── */
+/* ── Construct pulse ring — --c2 rim, --c inner glow ───────────────────────── */
 .fx-construct-ring {
     position: absolute;
     border-radius: 50%;
-    border: 2px solid var(--c);
+    border: 2px solid var(--c2, var(--c));
     box-shadow: 0 0 8px var(--c), inset 0 0 6px color-mix(in srgb, var(--c) 35%, transparent);
     animation: fx-construct-ring 450ms ease-out forwards;
     pointer-events: none;
@@ -814,4 +836,72 @@
     0%   { transform: scale(0.12); opacity: 0.85; }
     60%  { opacity: 0.5; }
     100% { transform: scale(1);    opacity: 0;    }
+}
+/* ─── Carla: channel stream (placeholder — swap with Claude Design) ───────── */
+/* A pulsing energy beam per channel shot. Reuses beam geometry: anchored at the
+   caster, rotated --rot, length --len. Body fades --c -> --c2 toward the tip. */
+.fx-stream {
+	position: absolute;
+	height: 4px;
+	width: var(--len);
+	transform-origin: 0 50%;
+	transform: rotate(var(--rot));
+	background: linear-gradient(90deg,
+		color-mix(in srgb, var(--c) 90%, white) 0%,
+		var(--c) 50%,
+		var(--c2, var(--c)) 85%,
+		transparent 100%);
+	border-radius: 2px;
+	filter: drop-shadow(0 0 6px var(--c2, var(--c)));
+	animation: fx-stream-pulse 220ms ease-out forwards;
+}
+@keyframes fx-stream-pulse {
+	0%   { opacity: 0; transform: rotate(var(--rot)) scaleY(0.4); }
+	30%  { opacity: 1; transform: rotate(var(--rot)) scaleY(1.4); }
+	100% { opacity: 0; transform: rotate(var(--rot)) scaleY(0.8); }
+}
+
+/* ─── Carla: detonate thread (placeholder — swap with Claude Design) ──────── */
+/* A thread whips from Carla to a marked target during Protocol Override. Draws
+   outward, holds, snaps. Staggered per-target via spawn delay (in FxLayer). */
+.fx-thread {
+	position: absolute;
+	height: 2px;
+	width: var(--len);
+	transform-origin: 0 50%;
+	transform: rotate(var(--rot));
+	background: linear-gradient(90deg,
+		var(--c) 0%,
+		color-mix(in srgb, var(--c2, var(--c)) 80%, white) 50%,
+		var(--c2, var(--c)) 100%);
+	box-shadow: 0 0 8px var(--c), 0 0 14px color-mix(in srgb, var(--c2, var(--c)) 50%, transparent);
+	animation: fx-thread-whip 360ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+@keyframes fx-thread-whip {
+	0%   { opacity: 0; clip-path: inset(0 100% 0 0); }
+	35%  { opacity: 1; clip-path: inset(0 0 0 0); }
+	75%  { opacity: 1; }
+	100% { opacity: 0; }
+}
+
+/* ─── Carla: signature ambient threads (placeholder — swap with Claude Design) */
+/* Faint puppeteer filaments at rest around her gem. Applied to .gem-root.sig-threads
+   via theme.signatureFx. Subtle, looping, behind the body. Now driven by --c/--c2
+   (falls back to Carla's purple if unset). */
+.sig-threads::before {
+	content: '';
+	position: absolute;
+	inset: -6px;
+	border-radius: 4px;
+	pointer-events: none;
+	background:
+		radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--c, #c084fc) 40%, transparent), transparent 60%),
+		radial-gradient(circle at 0% 100%, color-mix(in srgb, var(--c2, var(--c, #c084fc)) 35%, transparent), transparent 55%);
+	opacity: 0.5;
+	animation: sig-threads-drift 3s ease-in-out infinite;
+	z-index: -1;
+}
+@keyframes sig-threads-drift {
+	0%, 100% { opacity: 0.35; transform: scale(1) rotate(0deg); }
+	50%      { opacity: 0.6; transform: scale(1.06) rotate(2deg); }
 }

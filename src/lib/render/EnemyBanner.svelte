@@ -118,6 +118,7 @@
 		flex-direction: column;
 		gap: 5px; /* tight */
 		/* padding-right: 6px; */
+		flex: 1;
 	}
 
 	.enemy-portrait {

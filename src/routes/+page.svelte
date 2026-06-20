@@ -16,7 +16,10 @@
 		gameNow,
 		isPaused,
 		setPaused,
-		resetClock
+		resetClock,
+
+		togglePause
+
 	} from '$lib/input/intent-state';
 	import { focusTarget, nearestEnemy } from '$lib/combat/query';
 	import { tryAbility } from '$lib/combat/ability-resolver';
@@ -36,7 +39,15 @@
 
 	const ROSTER = getAllCharacters();
 
-	const DEFAULT_PARTY = ['carla', 'maria_elena', 'midorima', 'frosty', 'june9', 'sefyra'];
+	const DEFAULT_PARTY = [
+		'carla',
+		'maria_elena',
+		'midorima',
+		'frosty',
+		'june9',
+		'sefyra',
+		'nepthys'
+	];
 
 	const ENEMY_OPTIONS = {
 		dragon: [getEnemy('dragon')!],
@@ -170,7 +181,7 @@
 							now,
 							char.pos,
 							ability.delivery?.aimRange ?? ability.delivery?.shapeParams?.range ?? 0,
-							ability.delivery?.chargeMsPerTile, 
+							ability.delivery?.chargeMsPerTile,
 							ability.delivery?.chargeMaxRange,
 							trackPos
 						);
@@ -243,62 +254,68 @@
 						<div class="overlay defeat"><h1>DEFEAT</h1></div>
 					{/if}
 					{#if paused && !gs.over}
-						<div class="overlay paused"><h1>PAUSED</h1></div>
+						<div class="overlay paused">
+							<h1>PAUSED</h1>
+
+							<div class="keys-area">
+								<div class="keys-grid">
+									<kbd>WASD</kbd><span>Move</span>
+									<kbd>↑↓←→</kbd><span>Move</span>
+									<kbd>Spc</kbd><span>Basic</span>
+									<kbd>X C V</kbd><span>Skills</span>
+									<kbd>1 2 3 ..</kbd><span>Swap</span>
+									<kbd>P</kbd><span>Pause</span>
+									<kbd>Z</kbd><span>Look (hold)</span>
+									<kbd>Shift</kbd><span>Aim</span>
+									<kbd>F</kbd><span>Lock-On</span>
+									<kbd>H</kbd><span>Hide HUD</span>
+									<kbd>0 − =</kbd><span>Zoom</span>
+								</div>
+							</div>
+
+							<div class="skin-area">
+								{#each SKINS as s (s.url)}
+									<button
+										class="skin"
+										class:on={selectedSkin === s.url}
+										title={s.label}
+										aria-label={s.label}
+										style="background-image: url('{s.url}')"
+										onclick={() => (selectedSkin = s.url)}
+									></button>
+								{/each}
+							</div>
+						</div>
 					{/if}
-					{#if gs.party[gs.activeSlot].stunnedUntil > now}
+					<!-- {#if gs.party[gs.activeSlot].stunnedUntil > now}
 						<div class="overlay stun">STUNNED</div>
-					{/if}
+					{/if} -->
+					<AbilityBar
+						state={gs}
+						{now}
+						onability={(slot) => {
+							if (slot === 'basic') tryBasicAttack(gs, now, false);
+							else tryAbility(gs, slot, now);
+						}}
+					/>
 				</div>
-				<AbilityBar
-					state={gs}
-					{now}
-					onability={(slot) => {
-						if (slot === 'basic') tryBasicAttack(gs, now, false);
-						else tryAbility(gs, slot, now);
-					}}
-				/>
 			</div>
 		</div>
 
 		<div class="sidebar">
 			<div class="log-wrap">
-				<button class="codex-btn" onclick={() => (isCodexOpen = true)}>Character Archive</button>
+				<button class="codex-btn" onclick={() => (isCodexOpen = true)}> Archive // Help</button>
 				<CombatLog bind:this={logComponent} />
 			</div>
-			<div class="keys-area">
-				<div class="top-controls">
-					<select bind:value={selectedEnemy} onchange={resetFight}>
-						{#each Object.keys(ENEMY_OPTIONS) as key}
-							<option value={key}>{ENCOUNTER_LABELS[key] ?? key}</option>
-						{/each}
-					</select>
-					<button onclick={resetFight}>Reset</button>
-					<button onclick={toSelect}>Team</button>
-				</div>
-				<div class="keys-grid">
-					<kbd>WASD</kbd><span>Move</span>
-					<kbd>↑↓←→</kbd><span>Move</span>
-					<kbd>Spc</kbd><span>Basic</span>
-					<kbd>X C V</kbd><span>Skills</span>
-					<kbd>1 2 3 ..</kbd><span>Swap</span>
-					<kbd>P</kbd><span>Pause</span>
-					<kbd>Z</kbd><span>Auto-look</span>
-					<kbd>Shift</kbd><span>Aim</span>
-					<kbd>F</kbd><span>Lock-On</span>
-					<kbd>H</kbd><span>Hide HUD</span>
-				</div>
-			</div>
-			<div class="skin-area">
-				{#each SKINS as s (s.url)}
-					<button
-						class="skin"
-						class:on={selectedSkin === s.url}
-						title={s.label}
-						aria-label={s.label}
-						style="background-image: url('{s.url}')"
-						onclick={() => (selectedSkin = s.url)}
-					></button>
-				{/each}
+			<div class="top-controls">
+				<select bind:value={selectedEnemy} onchange={resetFight}>
+					{#each Object.keys(ENEMY_OPTIONS) as key}
+						<option value={key}>{ENCOUNTER_LABELS[key] ?? key}</option>
+					{/each}
+				</select>
+				<button onclick={resetFight}>Reset</button>
+				<button onclick={toSelect}>Team</button>
+				<button onclick={togglePause}>{paused ? 'Unpause' : 'Pause'}</button>
 			</div>
 		</div>
 	</div>
@@ -329,7 +346,7 @@
 		column-gap: 24px;
 		align-items: stretch;
 		justify-content: center;
-		padding: 0.75rem 2.5rem 3.5rem 2.5rem;
+		padding: 2rem 2.5rem 3.5rem 2.5rem;
 		border-radius: 24px;
 		background-color: #415a77;
 		background-image: var(--arena-bg, url('/characters/group2.png'));
@@ -412,8 +429,10 @@
 		gap: 8px;
 	}
 	.board-wrap {
+		position: relative;
 		background-color: var(--panel-raised);
 		padding: 0.5rem 1.5rem 2rem 1.5rem;
+		/* padding-top: 4rem; */
 		border-radius: 18px;
 		box-shadow:
 			0 0 0px 4px rgba(0, 0, 0, 0.4) inset,
@@ -432,8 +451,9 @@
 		gap: 8px;
 	}
 	.log-wrap {
-		flex: 1 0 0;
+		/* flex: 1 0 0;
 		min-height: 250px;
+		overflow: hidden; */
 	}
 	.keys-area {
 		flex: 0 0 auto;
@@ -441,7 +461,7 @@
 		flex-direction: column;
 		gap: 8px;
 		padding: 8px;
-		margin-top: 4rem;
+		/* margin-top: 4rem; */
 		background: var(--panel);
 		border: 3px solid var(--panel-raised);
 		border-radius: 8px;
@@ -458,7 +478,7 @@
 		color: var(--text);
 		padding: 3px 6px;
 		font-size: 12px;
-		font-weight: 600;
+		/* font-weight: 600; */
 		font-family: 'Andale Mono';
 		cursor: pointer;
 		border-radius: 4px;
@@ -478,8 +498,8 @@
 		border: 1px solid #00000056;
 		padding: 2px 6px;
 		border-radius: 4px;
-		font-size: 12px;
-		font-weight: 600;
+		font-size: 14px;
+		font-weight: 400;
 		font-family: 'Andale Mono';
 		text-align: center;
 		box-shadow: 0 1px 1px 1px #00000056;
@@ -498,6 +518,9 @@
 		background: var(--panel);
 		border: 3px solid var(--panel-raised);
 		border-radius: 8px;
+		/* flex: 1; */
+		width: 50%;
+		/* height: fit-content; */
 	}
 	.skin {
 		flex: 1;
@@ -542,12 +565,14 @@
 		justify-content: center;
 		z-index: 100;
 		border-radius: 8px;
-		width: 200px;
-		height: 150px;
+		/* height: fit-content; */
+		/* width: fit-content; */
+		padding-block: 1rem 2rem;
+		padding-inline: 4rem;
 	}
 	.overlay.victory,
 	.overlay.defeat {
-		background: rgba(26, 17, 42, 0.88);
+		background: rgba(0, 0, 0, 0.5);
 	}
 	.overlay.victory h1 {
 		color: var(--hp);
@@ -560,14 +585,18 @@
 		letter-spacing: 4px;
 	}
 	.overlay.paused {
-		inset: 0;
-		background: rgba(10, 7, 16, 0.8);
+		background: rgba(0, 0, 0, 0.5);
+		backdrop-filter: blur(2px);
 		z-index: 120;
+		display: flex;
+		gap: 1rem;
+		flex-direction: column;
 	}
 	.overlay.paused h1 {
 		color: var(--gold);
 		font-size: 28px;
 		letter-spacing: 6px;
+		font-family: "DePixel";
 	}
 	.overlay.stun {
 		background: rgba(196, 66, 58, 0.15);

@@ -12,15 +12,20 @@ import {
 	setLockedEnemy,
 	getLockedEnemyId,
 	wasdVec,
+	isDown,
 	gameNow,
 	isPaused,
-	togglePause
+	togglePause,
+	zoomIn,
+	zoomOut,
+	zoomReset
 } from './intent-state';
 import { tryBasicAttack } from '$lib/combat/basic-attack';
 import { tryAbility } from '$lib/combat/ability-resolver';
 import { trySwap } from '$lib/combat/swap';
 import { nearestEnemy } from '$lib/combat/query';
 import { chebyshev } from '$lib/combat/board';
+import { startChannel, stopChannel } from '$lib/combat/channel';
 
 /**
  * Bind keyboard and mouse event listeners.
@@ -39,11 +44,13 @@ export function bindInputEvents(
 	const BA_HOLD_MS = 200; // tap < 200ms → base; hold ≥ 200ms → enhanced (feel knob)
 	let baHolding = false;
 	let baHoldStart = 0;
+	let channelTimer: ReturnType<typeof setTimeout> | null = null;
 
 	function baUsesHold(state: EngineState): boolean {
 		const char = state.party[state.activeSlot];
 		if (char?.def.basicStyle === 'contextual' && char.def.contextualBasic?.selectBy === 'hold') return true;
 		if (char?.def.enhancedBasic?.requireHold) return true;
+		if (char?.def.channelBasic) return true;
 		return false;
 	}
 	function press(raw: string, isRepeat: boolean): void {
@@ -59,6 +66,7 @@ export function bindInputEvents(
 				if (isPaused()) {
 					resetHoldState(); // cancel any in-progress charge/aim
 					baHolding = false;
+					if (channelTimer) { clearTimeout(channelTimer); channelTimer = null; }
 				}
 			}
 			return;
@@ -77,6 +85,11 @@ export function bindInputEvents(
 		setDown(intent);
 		if (isRepeat) return;
 
+		// Camera zoom (view-only, one step per press)
+		if (intent === 'zoomIn') zoomIn();
+		if (intent === 'zoomOut') zoomOut();
+		if (intent === 'zoomReset') zoomReset();
+
 		// Swap
 		if (intent === 'swap1') trySwap(state, 0, now);
 		if (intent === 'swap2') trySwap(state, 1, now);
@@ -84,12 +97,23 @@ export function bindInputEvents(
 		if (intent === 'swap4') trySwap(state, 3, now);
 		if (intent === 'swap5') trySwap(state, 4, now);
 		if (intent === 'swap6') trySwap(state, 5, now);
+		if (intent === 'swap7') trySwap(state, 6, now);
 
 		// Basic attack
 		if (intent === 'basicAttack') {
 			if (baUsesHold(state)) {
 				baHolding = true;
 				baHoldStart = now; // defer: decide tap vs hold on release
+				// Channel chars: if still held at the threshold, start channeling.
+				const c = state.party[state.activeSlot];
+				if (c.def.channelBasic) {
+					channelTimer = setTimeout(() => {
+						const s2 = getState();
+						if (s2 && isDown('basicAttack') && canAct()) {
+							startChannel(s2.party[s2.activeSlot], gameNow());
+						}
+					}, BA_HOLD_MS);
+				}
 			} else {
 				tryBasicAttack(state, now); // legacy: fire immediately
 			}
@@ -120,7 +144,19 @@ export function bindInputEvents(
 		// Basic attack (tap vs hold) — fire on release for hold-select characters
 		if (intent === 'basicAttack' && baHolding) {
 			baHolding = false;
-			if (state) tryBasicAttack(state, now, now - baHoldStart >= BA_HOLD_MS);
+			if (channelTimer) { clearTimeout(channelTimer); channelTimer = null; }
+			if (state) {
+				const c = state.party[state.activeSlot];
+				if (c.channeling) {
+					stopChannel(c); // was channeling → stop
+				} else if (c.def.channelBasic) {
+					// channel char, never started (quick tap or no fuel) → tap fires chain
+					if (now - baHoldStart < BA_HOLD_MS) tryBasicAttack(state, now, false);
+				} else {
+					// non-channel hold-select char: tap vs hold as before
+					tryBasicAttack(state, now, now - baHoldStart >= BA_HOLD_MS);
+				}
+			}
 			return;
 		}
 
@@ -287,5 +323,6 @@ export function bindInputEvents(
 			boardEl.removeEventListener('mousedown', onMouseDown);
 			boardEl.removeEventListener('contextmenu', onContextMenu);
 		}
+		if (channelTimer) { clearTimeout(channelTimer); channelTimer = null; }
 	};
 }

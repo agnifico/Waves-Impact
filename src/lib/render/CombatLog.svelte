@@ -6,6 +6,7 @@
 	let entries = $state<LogEntry[]>([]);
 	let logId = 0;
 	let scrollEl: HTMLDivElement;
+	let isHidden = $state(false);
 
 	function addLog(kind: string, msg: string) {
 		const t = new Date();
@@ -74,8 +75,18 @@
 </script>
 
 <div class="log-panel">
-	<div class="log-header">◆ Combat Log</div>
-	<div class="log-scroll" bind:this={scrollEl}>
+	<div class="panel-head">
+		<div class="log-header">◆ Combat Log</div>
+		<button
+			class="hide-btn"
+			onclick={() => {
+				isHidden = !isHidden;
+			}}
+		>
+			Hide
+		</button>
+	</div>
+	<div class="log-scroll" bind:this={scrollEl} class:isHidden={isHidden}>
 		{#each entries as entry (entry.id)}
 			<div class="log-line {entry.kind}">
 				<span class="time">{entry.time}</span>{entry.msg}
@@ -84,11 +95,11 @@
 	</div>
 </div>
 
-
 <style>
 	.log-panel {
-		height: 100%;
-		min-height: 0;
+		/* height: 100%; */
+		/* flex: 1; */
+		/* min-height: 0; */
 		background: var(--panel);
 		/* border: 1px solid var(--border); */
 		border-radius: 12px;
@@ -98,8 +109,8 @@
 		width: 100%;
 		padding: 10px 12px 20px 12px;
 		box-shadow:
-			0 0 0px 4px rgba(0, 0, 0, 0.4) inset,
-			0 -8px 0 8px rgba(0, 0, 0, 0.37) inset;
+		0 0 0px 4px rgba(0, 0, 0, 0.4) inset,
+		0 -8px 0 8px rgba(0, 0, 0, 0.37) inset;
 	}
 	.log-header {
 		color: var(--panel-raised);
@@ -109,8 +120,23 @@
 		margin-bottom: 8px;
 		font-family: 'DePixel';
 	}
+	.panel-head {
+		display: flex;
+		justify-content: space-between;
+	}
+	.hide-btn {
+		margin-block: auto;
+		height: fit-content;
+		background-color: transparent;
+		border: none;
+		color: #d49060;
+		font-family: 'DePixel';
+		cursor: pointer;
+	}
 
 	.log-scroll {
+		height: 200px;
+		display: block;
 		background-color: var(--panel);
 		overflow-y: auto;
 		font-size: 12px;
@@ -166,5 +192,9 @@
 		color: var(--panel-raised);
 		font-size: 9px;
 		margin-right: 6px;
+	}
+	.isHidden {
+		visibility: hidden;
+		position: absolute;
 	}
 </style>

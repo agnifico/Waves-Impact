@@ -39,15 +39,15 @@ export const midorima: Character = {
 		X: {
 			id: 'sakura_rush',
 			name: 'Sakura Rush',
-			behavior: 'dash',
-			cooldownMs: 4000,
+			behavior: 'damage_first_in_line',
+			cooldownMs: 8000,
 			delivery: {
-				damage: 12,
-				energyGain: 30,
+				damage: 100,
+				energyGain: 15,
 				grantsStack: 'gale',
 				shape: 'line',
-				shapeParams: { range: 4, respectsObstacles: true }
-			}
+				shapeParams: { range: 3, respectsObstacles: true },
+			},
 		},
 
 		// C — Wind Tower: 4-tower diagonal multi-construct
@@ -97,7 +97,7 @@ export const midorima: Character = {
 	stratum: 'ground',
 
 	art: {
-		gem: '/characters/midorima1.png',
+		gem: '/characters/gem-midorima.png',
 		profile: '/characters/avatars2/midorima.png',
 		poster: '/characters/midorima_poster.png',
 		bannerPoster: '/characters/midorima_poster3.png'

@@ -31,6 +31,7 @@ export type BehaviorId =
 	| 'summon'
 	| 'construct'
 	| 'multi_construct'
+	| 'tactical_detonate'
 	| 'dash'
 	| 'zone'
 	| 'channel_beam'
@@ -69,7 +70,6 @@ export interface ShapeParams {
 	dir?: 'forward' | 'back' | 'away' | 'toward';
 	tiles?: number;
 	throughObstacles?: boolean;
-	allInLine?: boolean;
 	iframesMs?: number;
 	blastDamage?: number;
 	blastRadius?: number;
@@ -145,9 +145,9 @@ export interface Ability {
 
 export interface FxSpec {
 	strike?:
-	| 'swipe' | 'reverseswipe' | 'claw' | 'stab' | 'flurry' | 'slam' | 'uppercut'
-	| 'projectile' | 'bullet' | 'beam' | 'chain'
-	| 'zone';
+		| 'swipe' | 'reverseswipe' | 'claw' | 'stab' | 'flurry' | 'slam' | 'uppercut'
+		| 'projectile' | 'bullet' | 'beam' | 'chain' | 'stream'
+		| 'zone';
 	zone?: string;
 	shape?: 'bolt' | 'arrow' | 'orb' | 'leaf' | 'wave';
 	size?: 's' | 'm' | 'l';
@@ -157,6 +157,6 @@ export interface FxSpec {
 	gashes?: number;
 	hits?: number;
 	skin?:
-	| 'default' | 'mecha' | 'flame' | 'wind' | 'void' | 'water'
-	| 'slashes' | 'pulse' | 'earth' | 'poison' | 'frost' | 'holy' | 'storm';
+		| 'default' | 'mecha' | 'flame' | 'wind' | 'void' | 'water'
+		| 'slashes' | 'pulse' | 'earth' | 'poison' | 'frost' | 'holy' | 'storm';
 }

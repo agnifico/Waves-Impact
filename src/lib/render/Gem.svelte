@@ -9,7 +9,8 @@
 		summon = null,
 		construct = null,
 		locked = false,
-		now = 0
+		now = 0,
+		party = []
 	}: {
 		type: GemType;
 		character?: CharacterState | null;
@@ -18,9 +19,73 @@
 		construct?: ConstructState | null;
 		locked?: boolean;
 		now?: number;
+		party?: CharacterState[];
 	} = $props();
 
 	let hasShield = $derived(type === 'player' && !!character?.activeEffects?.['shield']);
+	// Marked-enemy bracket: if this enemy carries a 'thread' mark, show corner brackets
+	// in the marking character's primary colour. (source = who applied the mark.)
+	let markColor = $derived.by(() => {
+		if (type !== 'enemy' || !enemy?.activeEffects?.['thread']) return null;
+		const src = party.find((p) => p.id === enemy.activeEffects['thread'].source);
+		return src?.def.theme?.primary ?? 'var(--gold)';
+	});
+	// Enemy attack wind-up: style + lunge direction (enemies lunge TOWARD the player,
+	// i.e. along their facing — opposite of the player's pull-back-from-facing).
+	let enemyWindUp = $derived.by(() => {
+		if (type !== 'enemy' || !enemy?.pendingAttack) return null;
+		const style = enemy.pendingAttack.windUpStyle ?? 'charge';
+		// const motion = style === 'melee' || style === 'pistol' || style === 'ranged' || style === 'bow';
+		const motion = style !== 'charge';
+		return { style, motion };
+	});
+	let enemyWindUpVars = $derived.by(() => {
+		if (!enemyWindUp?.motion || !enemy?.pendingAttack) return '';
+		const dx = enemy.pendingAttack.dirX ?? 0;
+		const dy = enemy.pendingAttack.dirY ?? 1;
+		const mag = 8;
+		// lunge toward the target: small anticipation pull-back, then strike toward player
+		return `--pull-x:${-dx * 4}px;--pull-y:${-dy * 4}px;--push-x:${dx * mag}px;--push-y:${dy * mag}px;`;
+	});
+	// Wind-up: gem charges while a committed cast OR basic-attack swing is pending.
+	let windingUp = $derived(type === 'player' && (!!character?.pendingCast || !!character?.pendingBasic));
+	// Which fx-wu-* variant + how long. Abilities read the pending ability's delivery;
+	// BA wind-ups read the deferred basic's delivery (rhythmic swing telegraph).
+	let windUp = $derived.by(() => {
+		if (type !== 'player' || !character) return null;
+		let d: { windUpStyle?: string; windUpMs?: number } | undefined;
+		if (character.pendingCast) {
+			d = character.def.abilities?.[character.pendingCast.slot]?.delivery;
+		} else if (character.pendingBasic) {
+			d = (character.pendingBasic.ba as { delivery?: { windUpStyle?: string; windUpMs?: number } })?.delivery;
+		} else {
+			return null;
+		}
+		const style = d?.windUpStyle ?? 'charge';
+		// melee/pistol/ranged/bow animate the BODY (recoil/pull-back); charge/fire are OVERLAY visuals.
+		// const motion = style === 'melee' || style === 'pistol' || style === 'ranged' || style === 'bow';
+		const motion = style !== 'charge';
+		return { style, motion, ms: d?.windUpMs ?? 500 };
+	});
+	// Recoil direction for body wind-ups. Prefer the stored direction toward the
+	// actual target (set at defer time) so omni/auto-target attacks point correctly;
+	// fall back to facing only when no target direction was captured.
+	let windUpVars = $derived.by(() => {
+		if (!windUp?.motion || !character) return '';
+		const pb = character.pendingBasic;
+		let dx: number, dy: number;
+		if (pb && (pb.dirX !== undefined || pb.dirY !== undefined)) {
+			dx = pb.dirX ?? 0;
+			dy = pb.dirY ?? 0;
+		} else {
+			const f = character.facing ?? { x: 0, y: -1 };
+			dx = f.x; dy = f.y;
+		}
+		const mag = 7;
+		return `--pull-x:${-dx * mag}px;--pull-y:${-dy * mag}px;--push-x:${dx * mag}px;--push-y:${dy * mag}px;--cd:${windUp.ms}ms;`;
+	});
+	// Per-unit signature ambient FX class (theme.signatureFx), applied to the player gem.
+	let signature = $derived(type === 'player' ? (character?.def.theme?.signatureFx ?? '') : '');
 
 	const ELEMENT_COLOR: Record<string, string> = {
 		water: 'var(--frost)',
@@ -45,11 +110,11 @@
 	{@const rim = rimOf(character.def.element)}
 	{@const img = character.def.art?.gem}
 	{@const lift = character.stratum === 'flying' ? -10 : 0}
-	<div class="gem-root" class:hit>
+	<div class="gem-root" class:hit class:winding-up={windingUp} class:{signature}>
 		<div class="shadow" class:swimming={character.stratum === 'swimming'}></div>
 		<div
-			class="body square"
-			style="border-color:{rim}; transform:translateY({lift}px); {img
+			class="body square {windUp?.motion ? `fx-wu-${windUp.style}` : ''}"
+			style="border:none; transform:translateY({lift}px); {windUp?.motion ? windUpVars : ''} {img
 				? `background-image:url(${img});`
 				: `background-color:${rim};`}"
 		>
@@ -72,20 +137,35 @@
 		{#if hasShield}
 			<div class="shield-ring" style="transform:translateY({lift}px)"></div>
 		{/if}
+		{#if windingUp && windUp && !windUp.motion}
+			{#key character.pendingCast?.firesAt ?? character.pendingBasic?.firesAt}
+				<div
+					class="fx-wu-{windUp.style}"
+					style="left:50%;top:50%;--c:var(--char-primary);--c2:var(--char-secondary);--cd:{windUp.ms}ms;"
+				></div>
+			{/key}
+		{/if}
 	</div>
 {:else if type === 'enemy' && enemy}
 	{@const rim = rimOf(enemy.def.element)}
 	{@const hpPct = Math.max(0, (100 * enemy.hp) / enemy.def.maxHp)}
 	{@const lift = enemy.stratum === 'flying' ? -5 : 0}
-	<div class="gem-root" class:hit class:locked class:stunned={enemy.stunnedUntil > now}>
+	<div class="gem-root" class:hit class:locked class:stunned={enemy.stunnedUntil > now} class:enemy-winding={!!enemy.pendingAttack && !enemyWindUp?.motion}>
 		<div class="shadow"></div>
+		{#if enemy.pendingAttack && (!enemyWindUp || !enemyWindUp.motion)}
+			<div class="enemy-windup-ring" style="--ewc:{rim};"></div>
+		{/if}
+		{#if markColor}
+			<div class="mark-frame" style="--mc:{markColor};">
+				<span class="mc tl"></span><span class="mc tr"></span>
+				<span class="mc bl"></span><span class="mc br"></span>
+			</div>
+		{/if}
 		<div
-			class="body square"
-			// style="border-color:#ffffff56; border-style:dashed; transform:translateY({lift}px); background-color:var(--bg);"
-			// style="border-color:{rim}; transform:translateY({lift}px); background-color:var(--bg);"
-			style="background-image: url({enemy?.def?.profileImage}); border: none;"
+			class="body square {enemyWindUp?.motion ? `fx-wu-${enemyWindUp.style}` : ''}"
+			style="background-image: url({enemy?.def?.profileImage}); border: none; {enemyWindUp?.motion ? enemyWindUpVars : ''}"
 		></div>
-		<div
+		<!-- <div
 			class="facing"
 			style="transform:translateY({lift}px) rotate({facingDeg(enemy.facing)}deg);"
 		>
@@ -98,7 +178,7 @@
 					stroke-linejoin="round"
 				/></svg
 			>
-		</div>
+		</div> -->
 		{#if locked}
 			<div class="nameplate">
 				<div class="np-bar"><i style="width:{hpPct}%; background:{rim};"></i></div>
@@ -140,6 +220,10 @@
 	}
 	.gem-root.hit {
 		animation: hit-shake 0.3s;
+	}
+	.gem-root.winding-up .body {
+		filter: brightness(1.25);
+		transition: filter 0.15s ease-in;
 	}
 	.gem-root.stunned .body {
 		animation: stunned-pulse 0.6s infinite;
@@ -205,6 +289,59 @@
 		width: 100%;
 		height: 100%;
 		overflow: visible;
+	}
+
+	/* ── Enemy attack wind-up telegraph ───────────────────────────────────────── */
+	.enemy-windup-ring {
+		position: absolute;
+		left: 50%;
+		top: 50%;
+		width: 40px;
+		height: 40px;
+		transform: translate(-50%, -50%);
+		border-radius: 50%;
+		border: 2px solid var(--ewc, #ff5a5a);
+		box-shadow: 0 0 10px var(--ewc, #ff5a5a), inset 0 0 8px var(--ewc, #ff5a5a);
+		opacity: 0;
+		pointer-events: none;
+		z-index: 8;
+		animation: enemy-windup 0.45s ease-in infinite;
+	}
+	@keyframes enemy-windup {
+		0% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); }
+		70% { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
+		100% { opacity: 0.4; transform: translate(-50%, -50%) scale(0.92); }
+	}
+	.gem-root.enemy-winding .body {
+		animation: enemy-tell 0.4s ease-in-out infinite;
+	}
+	@keyframes enemy-tell {
+		0%, 100% { filter: brightness(1); }
+		60% { filter: brightness(1.5) saturate(1.3); }
+	}
+
+	/* ── Marked-enemy corner brackets (Carla's thread, etc.) ──────────────────── */
+	.mark-frame {
+		position: absolute;
+		inset: 2px;
+		pointer-events: none;
+		z-index: 7;
+		animation: mark-pulse 1.6s ease-in-out infinite;
+	}
+	.mark-frame .mc {
+		position: absolute;
+		width: 8px;
+		height: 8px;
+		border: 2px solid var(--mc);
+		filter: drop-shadow(0 0 3px var(--mc));
+	}
+	.mark-frame .tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+	.mark-frame .tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+	.mark-frame .bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+	.mark-frame .br { bottom: 0; right: 0; border-left: none; border-top: none; }
+	@keyframes mark-pulse {
+		0%, 100% { opacity: 0.7; transform: scale(1); }
+		50% { opacity: 1; transform: scale(1.06); }
 	}
 
 	/* ── Shield ring ────────────────────────────────────────────────────────── */

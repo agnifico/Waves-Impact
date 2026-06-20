@@ -27,6 +27,9 @@ export type SummonTargeting =
  * because the construct-tick and summon-tick loops read them on different paths.
  */
 export interface CreationDef {
+    /** @deprecated denormalized stun — prefer onHit.stunMs. Kept optional for the
+     *  construct placement path that still reads it; resolves to 0 when absent. */
+    stunMs?: number;
     id: string;
     name: string;
     kind: CreationKind;

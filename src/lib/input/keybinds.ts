@@ -17,10 +17,15 @@ export const KEYBINDS: Record<string, string[]> = {
 	swap4: ['4'],
 	swap5: ['5'],
 	swap6: ['6'],
+	swap7: ['7'],
 	lockOn: ['f', 'mouse2'],
-	autoLook: ['z', 'mouse1'],
+	autoLook: ['mouse1'],
 	manualLook: ['shift'],
 	pause: ['p'],
+	cameraLook: ['z'],
+	zoomIn: ['='],
+	zoomOut: ['-'],
+	zoomReset: ['0'],
 };
 
 /** Reverse map: raw key/button → intent name. Built once at init. */

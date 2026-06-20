@@ -1,9 +1,11 @@
-import type { EngineState } from '$lib/types/state';
+import type { CharacterState, EnemyState, EngineState } from '$lib/types/state';
 import type { AbilitySlot } from '$lib/types/ability';
 import { resolveBehavior } from './behaviors';
 import { hasEffect, removeEffect } from './effects';
 import { publish } from './events';
 import type { Vector } from '$lib/types';
+import { applyBasicHit } from './basic-attack';
+import { fireEnemyAttacks } from './ai/utils';
 
 export interface AbilityOpts {
 	reticle?: { x: number; y: number } | null;
@@ -80,30 +82,85 @@ export function tryAbility(
 		removeEffect(char, 'unchained');
 	}
 
-	// Dispatch to the behavior handler.
+	// ── Wind-up branch: commit cost/cooldown NOW, defer the behavior ──────────
+	const windUpMs = ability.delivery?.windUpMs ?? 0;
+	if (windUpMs > 0) {
+		commitCast(state, char, slot, ability, isCharge, maxCharges, rechargeMs, now);
+		char.pendingCast = {
+			slot,
+			firesAt: now + windUpMs,
+			opts: opts as Record<string, unknown>
+		};
+		publish('cast:windup', { caster: char.id, slot, durationMs: windUpMs });
+		return;
+	}
+
+	// Dispatch to the behavior handler (instant cast).
 	const fired = resolveBehavior(state, char, abilityWithBonus, now, opts as Record<string, unknown>);
 	if (!fired) return;
 
-	// Post-resolution bookkeeping.
-	// Energy COST is spent on cast (behaviors grant energy GAIN via applyDelivery/applyOnHit).
-	if (ability.energyCost) {
-		char.energy -= ability.energyCost;
-	}
+	commitCast(state, char, slot, ability, isCharge, maxCharges, rechargeMs, now);
+	publish('ability:cast', { caster: char.id, abilityId: ability.id, slot });
+}
 
-	// Cooldowns and charges
+/** Spend energy cost + start cooldown/charge clock + timestamp. Shared by instant
+ *  and wind-up casts (a committed wind-up pays up front, then fires later). */
+function commitCast(
+	state: EngineState,
+	char: EngineState['party'][number],
+	slot: AbilitySlot,
+	ability: NonNullable<EngineState['party'][number]['def']['abilities'][AbilitySlot]>,
+	isCharge: boolean,
+	maxCharges: number,
+	rechargeMs: number,
+	now: number
+): void {
+	if (ability.energyCost) char.energy -= ability.energyCost;
+
 	if (isCharge) {
 		const entry = char.charges[slot]!;
 		const wasFull = entry.count === maxCharges;
 		entry.count -= 1;
-		if (wasFull) entry.rechargeAt = now + rechargeMs; // start clock only when leaving full
-		char.cooldowns[slot] = entry.count > 0 ? 0 : entry.rechargeAt; // mirror for the CD overlay
+		if (wasFull) entry.rechargeAt = now + rechargeMs;
+		char.cooldowns[slot] = entry.count > 0 ? 0 : entry.rechargeAt;
 	} else {
 		char.cooldowns[slot] = now + (ability.cooldownMs ?? 0);
 	}
 
-	// Timestamp
 	char.lastActionTimestamp = now;
 	char.lastAction = { tag: 'cast_' + slot, at: now };
+}
 
-	publish('ability:cast', { caster: char.id, abilityId: ability.id, slot });
+/**
+ * Fire any wind-up cast whose timer has elapsed. Called once per engine tick.
+ * The committed behavior resolves here, windUpMs after the original press.
+ */
+export function fireWindUpCasts(state: EngineState, now: number): void {
+	for (const char of state.party) {
+		// ── Ability wind-ups ──
+		const pending = char.pendingCast;
+		if (pending && now >= pending.firesAt) {
+			char.pendingCast = undefined;
+			if (char.hp > 0) {
+				const ability = char.def.abilities[pending.slot];
+				if (ability) {
+					resolveBehavior(state, char, ability, now, pending.opts);
+					publish('ability:cast', { caster: char.id, abilityId: ability.id, slot: pending.slot });
+				}
+			}
+		}
+
+		// ── Basic-attack wind-ups (rhythmic) ──
+		const pb = char.pendingBasic;
+		if (pb && now >= pb.firesAt) {
+			char.pendingBasic = undefined;
+			if (char.hp > 0) {
+				const enemy = state.enemies.find((e) => e.id === pb.enemyId && e.hp > 0);
+				if (enemy) applyBasicHit(state, char, pb.ba as any, enemy, now);
+			}
+		}
+	}
+
+	// ── Enemy attack wind-ups (telegraph) — drained in the same tick ──
+	fireEnemyAttacks(state, now);
 }

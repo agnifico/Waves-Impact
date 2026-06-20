@@ -31,6 +31,19 @@ export function resolveTheme(def: Character): ResolvedTheme {
 	};
 }
 
+/**
+ * Canonical element → [primary, secondary] colour ramp. The single source of
+ * truth for element-tinted visuals (enemy strikes, construct/summon rings, gem
+ * rims). Unknown / `normal` elements fall back to the gold default.
+ *
+ * Players resolve colour via resolveTheme(); element-only entities (enemies,
+ * creations) resolve here. Same element now reads the SAME hues on both sides.
+ */
+export function elementRamp(element: string | undefined): [string, string] {
+	const el = ELEMENT_DEFAULTS[element ?? ''] ?? ELEMENT_DEFAULTS.default;
+	return [el.primary, el.secondary];
+}
+
 /** Flatten a resolved theme into a CSS-var string for a wrapper's `style`. */
 export function themeVars(def: Character): string {
 	const t = resolveTheme(def);

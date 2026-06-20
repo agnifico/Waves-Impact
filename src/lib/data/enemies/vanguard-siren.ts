@@ -8,6 +8,10 @@ export const vanguard_siren: Enemy = {
     profileImage: '/enemies/vanguard_siren.png',
     attacks: [{
         id: 'trident_throw', name: 'Trident Throw',
-        range: 4, damage: 5, cooldownMs: 1800, priority: 1,
+        range: 4, damage: 5, cooldownMs: 1300, priority: 1,
+        windUpMs: 500,
+        windUpStyle: 'fire',
+        fx: { strike: 'chain', colors: ['#4361ee', '#4cc9f0'] }
+
     }]
 };

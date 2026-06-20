@@ -1,0 +1,218 @@
+/* ============================================================================
+   DJv2 — Cast / Status / Set-piece / Wind-up FX  (TWO-TONE build)
+   Generated via Claude Design. CSS-only, transparent, 1 tile = 36px.
+   Contract: inline custom props
+     --c   primary color
+     --c2  secondary color (OPTIONAL — falls back to --c everywhere)
+     --rot (deg, 8-dir snapped), --len (px), --d (stagger delay),
+     --mx/--my (px offsets), --l (px length).
+   Multi-tile effects use child elements (.fx-tile, .ctile, .mote, .fil,
+   .shard, .bow-*) laid out by FxLayer. Staggered parts ramp --c -> --c2.
+   ============================================================================ */
+
+   /* ── Generic cast flash: cool ring (--c) + hot core (--c2) ───────────────── */
+   .fx-cast{position:absolute;width:36px;height:36px;transform:translate(-50%,-50%);pointer-events:none;}
+   .fx-cast::before{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--c,#5ad1ff);box-shadow:0 0 10px var(--c,#5ad1ff);animation:fx-cast-ring .4s cubic-bezier(.2,.7,.3,1) forwards;}
+   .fx-cast::after{content:"";position:absolute;inset:18%;border-radius:50%;background:radial-gradient(circle,var(--c2,var(--c,#5ad1ff)) 0%,var(--c,#5ad1ff) 42%,transparent 70%);animation:fx-cast-flare .4s ease-out forwards;}
+   @keyframes fx-cast-ring{0%{transform:scale(.5);opacity:0;}20%{opacity:1;}100%{transform:scale(2.3);opacity:0;}}
+   @keyframes fx-cast-flare{0%{transform:scale(.3);opacity:0;filter:brightness(2.2);}30%{transform:scale(1);opacity:.95;}100%{transform:scale(1.5);opacity:0;}}
+
+   /* container fades the whole row out after the tiles light up */
+   .fx-cast-line{position:absolute;animation:fx-grid-fade .65s ease-in forwards;}
+
+   /* shared grid tile — also used by .fx-cast-pcone / .fx-cast-circle.
+      Fill rides the per-tile ramped --c (set inline by FxLayer); the rim +
+      glow pick up the container's --c2 so each tile reads core(--c)/edge(--c2). */
+   .fx-tile{position:absolute;top:0;left:0;width:36px;height:36px;}
+   .fx-tile::before{content:"";position:absolute;inset:2px;border-radius:3px;
+     background:color-mix(in srgb,var(--c,#5ad1ff) 30%,transparent);
+     border:1px solid var(--c2,var(--c,#5ad1ff));
+     box-shadow:0 0 10px color-mix(in srgb,var(--c2,var(--c,#5ad1ff)) 60%,transparent),
+                inset 0 0 8px color-mix(in srgb,var(--c,#5ad1ff) 35%,transparent);
+     opacity:0;animation:fx-tile-pop .3s ease-out var(--d,0ms) forwards;}
+   @keyframes fx-tile-pop{0%{opacity:0;transform:scale(.5);}40%{opacity:1;transform:scale(1.14);filter:brightness(1.7);}70%{transform:scale(1);filter:brightness(1);}100%{opacity:1;transform:scale(1);}}
+   @keyframes fx-grid-fade{0%,62%{opacity:1;}100%{opacity:0;}}
+
+   /* JS lays out the .fx-tile children: for each tile i=1..N forward along the
+      8-dir facing, set transform:translate(.. i*dx*36px .. i*dy*36px) and a
+      staggered --d (e.g. (i-1)*70ms). --c is ramped primary->secondary inline. */
+
+   .fx-cast-aoe{position:absolute;width:var(--d,108px);height:var(--d,108px);transform:translate(-50%,-50%) scale(0);border-radius:50%;border:3px solid var(--c2,var(--c,#5ad1ff));background:radial-gradient(circle,color-mix(in srgb,var(--c,#5ad1ff) 18%,transparent) 0%,transparent 70%);box-shadow:0 0 16px var(--c2,var(--c,#5ad1ff)),inset 0 0 16px color-mix(in srgb,var(--c,#5ad1ff) 40%,transparent);pointer-events:none;animation:fx-cast-aoe .55s cubic-bezier(.1,.6,.3,1) forwards;}
+   @keyframes fx-cast-aoe{0%{transform:translate(-50%,-50%) scale(0);opacity:0;}15%{opacity:1;}100%{transform:translate(-50%,-50%) scale(1);opacity:0;}}
+
+   /* uses the shared .fx-tile + fx-tile-pop + fx-grid-fade from .fx-cast-line */
+   .fx-cast-pcone{position:absolute;animation:fx-grid-fade .7s ease-in forwards;}
+
+   /* JS lays out .fx-tile children from the Pascal pattern:
+      ORTHOGONAL facing  -> ring r (1..range): tiles = r*dir + k*perp, k=-(r-1)..(r-1)  => 1,3,5
+      DIAGONAL facing    -> ring r (1..range): cx=1..r, cy=cx-(r+1); tile=(cx*dx, cy*-dy) => 1,2,3
+      each tile gets --d = (ring-1)*70ms */
+
+   /* Twin orbiting stars: one --c, one --c2 */
+   .fx-stun{position:absolute;width:28px;height:28px;transform:translate(-50%,-165%);pointer-events:none;animation:fx-stun-spin 1.6s linear infinite;}
+   .fx-stun::before,.fx-stun::after{content:"";position:absolute;top:50%;left:50%;width:7px;height:7px;margin:-3.5px;clip-path:polygon(50% 0,61% 39%,100% 50%,61% 61%,50% 100%,39% 61%,0 50%,39% 39%);animation:fx-stun-twinkle .9s ease-in-out infinite;}
+   .fx-stun::before{transform:translateX(11px);background:var(--c,#e8b84a);box-shadow:0 0 6px var(--c,#e8b84a);}
+   .fx-stun::after{transform:translateX(-11px);background:var(--c2,var(--c,#e8b84a));box-shadow:0 0 6px var(--c2,var(--c,#e8b84a));animation-delay:.45s;}
+   @keyframes fx-stun-spin{to{transform:translate(-50%,-165%) rotate(360deg);}}
+   @keyframes fx-stun-twinkle{0%,100%{opacity:.5;}50%{opacity:1;}}
+
+   .fx-slow{position:absolute;width:34px;height:16px;transform:translate(-50%,44%);border-radius:50%;background:radial-gradient(ellipse at center,color-mix(in srgb,var(--c,#9a7bd0) 50%,transparent) 0%,transparent 72%);box-shadow:0 0 12px color-mix(in srgb,var(--c,#9a7bd0) 45%,transparent);pointer-events:none;animation:fx-slow-pulse 2.2s ease-in-out infinite;}
+   .fx-slow::before{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid color-mix(in srgb,var(--c2,var(--c,#9a7bd0)) 70%,transparent);animation:fx-slow-ring 2.2s ease-in-out infinite;}
+   @keyframes fx-slow-pulse{0%,100%{opacity:.5;transform:translate(-50%,44%) scale(.9);}50%{opacity:.95;transform:translate(-50%,44%) scale(1.12);}}
+   @keyframes fx-slow-ring{0%,100%{opacity:.3;transform:scale(.8);}50%{opacity:.7;transform:scale(1.18);}}
+
+   .fx-knockback{position:absolute;width:64px;height:36px;transform:translate(-50%,-50%) rotate(var(--rot,0deg));transform-origin:50% 50%;pointer-events:none;}
+   .fx-knockback::before{content:"";position:absolute;top:50%;left:50%;width:22px;height:22px;margin:-11px;border-radius:50%;background:radial-gradient(circle,var(--c2,var(--c,#f07167)) 0%,var(--c,#f07167) 45%,transparent 70%);animation:fx-kb-flash .35s ease-out forwards;}
+   .fx-knockback::after{content:"";position:absolute;top:50%;left:50%;width:50px;height:18px;margin-top:-9px;background:repeating-linear-gradient(0deg,var(--c,#f07167) 0 2px,transparent 2px 7px);-webkit-mask:linear-gradient(90deg,transparent 0%,#000 45%,transparent 100%);mask:linear-gradient(90deg,transparent 0%,#000 45%,transparent 100%);animation:fx-kb-streak .35s cubic-bezier(.1,.7,.2,1) forwards;}
+   @keyframes fx-kb-flash{0%{transform:scale(.3);opacity:0;filter:brightness(2.2);}25%{transform:scale(1);opacity:1;}100%{transform:scale(1.6);opacity:0;}}
+   @keyframes fx-kb-streak{0%{opacity:0;transform:translate(-12px,-50%) scaleX(.4);}30%{opacity:1;}100%{opacity:0;transform:translate(30px,-50%) scaleX(1);}}
+
+   /* Bow: ramp arc(--c) -> string(mix) -> arrow leading edge(--c2) */
+   .fx-bow{position:absolute;top:0;left:0;width:0;height:0;transform:translate(0,0) rotate(var(--rot,0deg));transform-origin:0 0;pointer-events:none;}
+   .fx-bow .bow-arc{position:absolute;left:0;top:0;width:54px;height:108px;margin-top:-54px;border:3px solid var(--c,#ffce5c);border-radius:50%;clip-path:inset(0 0 0 50%);box-shadow:0 0 12px var(--c,#ffce5c);opacity:0;transform-origin:50% 50%;animation:fx-bow-arc .6s ease-out forwards;}
+   .fx-bow .bow-string{position:absolute;left:27px;top:0;width:2px;height:96px;margin-top:-48px;background:color-mix(in srgb,var(--c2,var(--c,#ffce5c)) 50%,transparent);box-shadow:0 0 6px var(--c,#ffce5c);opacity:0;animation:fx-bow-arc .6s ease-out forwards;}
+   .fx-bow .bow-arrow{position:absolute;left:27px;top:0;width:30px;height:3px;margin-top:-1.5px;background:linear-gradient(to right,color-mix(in srgb,var(--c,#ffce5c) 70%,transparent),var(--c2,var(--c,#ffce5c)));box-shadow:0 0 8px var(--c2,var(--c,#ffce5c));opacity:0;animation:fx-bow-arrow .6s cubic-bezier(.4,0,.2,1) forwards;}
+   .fx-bow .bow-arrow::after{content:"";position:absolute;right:-1px;top:-3px;border-left:8px solid var(--c2,var(--c,#ffce5c));border-top:4px solid transparent;border-bottom:4px solid transparent;}
+   @keyframes fx-bow-arc{0%{opacity:0;transform:scale(.55);}22%{opacity:1;transform:scale(1);}65%{opacity:1;}100%{opacity:0;transform:scale(1.04);}}
+   @keyframes fx-bow-arrow{0%{opacity:0;transform:translateX(0);}18%{opacity:1;}42%{opacity:1;transform:translateX(0);}80%{opacity:1;transform:translateX(var(--len,108px));}100%{opacity:0;transform:translateX(calc(var(--len,108px) + 12px));}}
+
+   /* Frost cast: shard tips ramp toward --c2, glints flash --c2 */
+   .fx-frost-cast{position:absolute;top:0;left:0;width:0;height:0;transform:translate(0,0) rotate(var(--rot,0deg));transform-origin:0 0;pointer-events:none;}
+   .fx-frost-cast .shard{position:absolute;left:0;top:0;width:var(--l,30px);height:7px;margin-top:-3.5px;background:linear-gradient(to right,color-mix(in srgb,var(--c,#bfe9ff) 92%,transparent),color-mix(in srgb,var(--c2,var(--c,#bfe9ff)) 55%,transparent),transparent);clip-path:polygon(100% 50%,0 0,0 100%);transform-origin:0 50%;opacity:0;filter:drop-shadow(0 0 4px var(--c2,var(--c,#bfe9ff)));animation:fx-frost-shard .5s cubic-bezier(.2,.7,.3,1) var(--d,0ms) forwards;}
+   .fx-frost-cast .glint{position:absolute;left:0;top:0;width:16px;height:16px;margin:-8px;background:color-mix(in srgb,var(--c2,var(--c,transparent)) 60%,transparent);clip-path:polygon(50% 0,58% 42%,100% 50%,58% 58%,50% 100%,42% 58%,0 50%,42% 42%);opacity:0;filter:drop-shadow(0 0 6px var(--c2,var(--c,#bfe9ff)));animation:fx-frost-glint .5s ease-out forwards;}
+   @keyframes fx-frost-shard{0%{opacity:0;transform:rotate(var(--a,0deg)) scaleX(.15);}25%{opacity:1;}55%{opacity:1;transform:rotate(var(--a,0deg)) scaleX(1);}100%{opacity:0;transform:rotate(var(--a,0deg)) scaleX(1.05);}}
+   @keyframes fx-frost-glint{0%{opacity:0;transform:scale(0) rotate(0);}30%{opacity:1;transform:scale(1.2) rotate(40deg);}60%{opacity:.8;transform:scale(.9) rotate(70deg);}100%{opacity:0;transform:scale(1) rotate(90deg);}}
+
+   /* ─── Construct spawn — CENTER-FIXED ─────────────────────────────────────────
+      Mirrors .fx-cast-circle's centering: the full-tile .ctile box carries the
+      -50% centering transform (so its box centers on the container origin), and
+      the converge motion lives on the box's OWN keyframe (consistent -50%, no
+      fight). The inset ::before is purely visual (scale/opacity/filter only),
+      so it can never drift off-center. Tiles ramp --c -> --c2 by converge order.
+      Contract unchanged: .ctile gets inline transform + --mx/--my/--d, .core and
+      .settle get translate(-50%,-50%). ───────────────────────────────────────── */
+   .fx-construct-spawn{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;}
+   .fx-construct-spawn .ctile{position:absolute;left:0;top:0;width:36px;height:36px;transform:translate(-50%,-50%);animation:fx-construct-converge .42s ease-in var(--d,0ms) both;}
+   .fx-construct-spawn .ctile::before{content:"";position:absolute;inset:4px;border-radius:3px;
+     background:color-mix(in srgb,var(--tc,var(--c,#5ad1ff)) 34%,transparent);
+     border:1px solid var(--tc,var(--c,#5ad1ff));
+     box-shadow:0 0 10px color-mix(in srgb,var(--tc,var(--c,#5ad1ff)) 60%,transparent);
+     opacity:0;animation:fx-construct-pop .42s ease-in var(--d,0ms) both;}
+   /* converge-order ramp across the 4 side tiles (ctiles are the first children) */
+   .fx-construct-spawn .ctile:nth-child(1){--tc:var(--c,#5ad1ff);}
+   .fx-construct-spawn .ctile:nth-child(2){--tc:color-mix(in srgb,var(--c2,var(--c,#5ad1ff)) 34%,var(--c,#5ad1ff));}
+   .fx-construct-spawn .ctile:nth-child(3){--tc:color-mix(in srgb,var(--c2,var(--c,#5ad1ff)) 67%,var(--c,#5ad1ff));}
+   .fx-construct-spawn .ctile:nth-child(4){--tc:var(--c2,var(--c,#5ad1ff));}
+   .fx-construct-spawn .core{position:absolute;left:0;top:0;width:30px;height:30px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(circle,transparent 0%,var(--c2,var(--c,#5ad1ff)) 30%,var(--c,#5ad1ff) 60%,transparent 74%);opacity:0;animation:fx-construct-core .42s ease-out forwards;}
+   .fx-construct-spawn .settle{position:absolute;left:0;top:0;width:30px;height:30px;transform:translate(-50%,-50%);border:2px solid var(--c2,var(--c,#5ad1ff));border-radius:3px;box-shadow:0 0 12px var(--c,#5ad1ff);opacity:0;animation:fx-construct-settle .42s ease-out forwards;}
+   /* position-only converge on the centered box (−50% = −18px, matches the 36px box) */
+   @keyframes fx-construct-converge{0%{transform:translate(calc(-50% + var(--mx,0px)),calc(-50% + var(--my,0px)));}72%{transform:translate(-50%,-50%);}100%{transform:translate(-50%,-50%);}}
+   /* visual-only pop on the inset child — no translate, so centering is never disturbed */
+   @keyframes fx-construct-pop{0%{opacity:0;transform:scale(.9);}30%{opacity:1;}72%{opacity:1;transform:scale(1);filter:brightness(1.7);}100%{opacity:0;transform:scale(1.1);}}
+   @keyframes fx-construct-core{0%,52%{opacity:0;transform:translate(-50%,-50%) scale(.2);}70%{opacity:.95;transform:translate(-50%,-50%) scale(1);}100%{opacity:0;transform:translate(-50%,-50%) scale(1.3);}}
+   @keyframes fx-construct-settle{0%,58%{opacity:0;transform:translate(-50%,-50%) scale(1.4);}74%{opacity:1;transform:translate(-50%,-50%) scale(.92);}88%{transform:translate(-50%,-50%) scale(1.04);}100%{opacity:.9;transform:translate(-50%,-50%) scale(1);}}
+
+   /* ─── Team heal — CENTER-FIXED ───────────────────────────────────────────────
+      Glow + motes both center on the container origin via baked offsets (the
+      glow via left/top:-22px, the motes via margin:-3px). Mote keyframes build
+      ONLY on that centered baseline (horizontal --mx spread + vertical rise) and
+      never reintroduce a -50% that would fight it. Motes ramp --c -> --c2.
+      Contract unchanged: motes get inline transform + --mx/--d. ─────────────── */
+   .fx-teamheal{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none;}
+   .fx-teamheal::before{content:"";position:absolute;left:-22px;top:-22px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--c2,var(--c,#5fc26a)) 50%,transparent),color-mix(in srgb,var(--c,#5fc26a) 45%,transparent) 45%,transparent 72%);opacity:0;animation:fx-heal-glow .6s ease-out forwards;}
+   .fx-teamheal .mote{position:absolute;left:0;top:0;width:6px;height:6px;margin:-3px;border-radius:50%;background:var(--mc,var(--c,#7fd98a));box-shadow:0 0 6px var(--mc,var(--c,#7fd98a));opacity:0;animation:fx-heal-mote .6s ease-out var(--d,0ms) forwards;}
+   .fx-teamheal .mote:nth-child(1){--mc:var(--c,#7fd98a);}
+   .fx-teamheal .mote:nth-child(2){--mc:color-mix(in srgb,var(--c2,var(--c,#7fd98a)) 25%,var(--c,#7fd98a));}
+   .fx-teamheal .mote:nth-child(3){--mc:color-mix(in srgb,var(--c2,var(--c,#7fd98a)) 50%,var(--c,#7fd98a));}
+   .fx-teamheal .mote:nth-child(4){--mc:color-mix(in srgb,var(--c2,var(--c,#7fd98a)) 75%,var(--c,#7fd98a));}
+   .fx-teamheal .mote:nth-child(5){--mc:var(--c2,var(--c,#7fd98a));}
+   @keyframes fx-heal-glow{0%{opacity:0;transform:translateY(8px) scale(.6);}35%{opacity:.85;}100%{opacity:0;transform:translateY(-8px) scale(1.1);}}
+   @keyframes fx-heal-mote{0%{opacity:0;transform:translate(var(--mx,0px),12px) scale(.5);}30%{opacity:1;}100%{opacity:0;transform:translate(var(--mx,0px),-34px) scale(1);}}
+
+   /* Stream: anchored trail (--c) -> leading tip (--c2) */
+   .fx-stream{position:absolute;top:0;left:0;height:9px;width:var(--len,108px);transform:translateY(-50%) rotate(var(--rot,0deg));transform-origin:0 50%;pointer-events:none;}
+   .fx-stream::before{content:"";position:absolute;inset:0;border-radius:5px;background:linear-gradient(90deg,color-mix(in srgb,var(--c,#ff5ec4) 60%,transparent),var(--c,#ff5ec4) 55%,var(--c2,var(--c,#ff5ec4)));box-shadow:0 0 10px var(--c2,var(--c,#ff5ec4));animation:fx-stream-pulse .22s ease-in-out infinite;}
+   .fx-stream::after{content:"";position:absolute;inset:-1px 0;border-radius:5px;background:repeating-linear-gradient(90deg,transparent 0 7px,color-mix(in srgb,transparent 5%,var(--c2,var(--c,#ff5ec4))) 7px 11px,transparent 11px 18px);background-size:18px 100%;mix-blend-mode:screen;animation:fx-stream-flow .38s linear infinite;}
+   @keyframes fx-stream-pulse{0%,100%{filter:brightness(1);opacity:.92;}50%{filter:brightness(1);opacity:1;}}
+   @keyframes fx-stream-flow{to{background-position:18px 0;}}
+
+   /* Thread: root (--c) -> snap tip (--c2) */
+   .fx-thread{position:absolute;top:0;left:0;height:3px;width:var(--len,108px);transform:translateY(-50%) rotate(var(--rot,0deg));transform-origin:0 50%;pointer-events:none;}
+   .fx-thread::before{content:"";position:absolute;inset:0;border-radius:2px;transform-origin:0 50%;background:linear-gradient(90deg,var(--c,#c46bff),var(--c2,var(--c,#c46bff)) 70%,color-mix(in srgb,var(--c2,var(--c,#c46bff)) 25%,transparent));box-shadow:0 0 8px var(--c,#c46bff);animation:fx-thread-whip .36s cubic-bezier(.2,.85,.2,1) forwards;}
+   .fx-thread::after{content:"";position:absolute;right:0;top:50%;width:14px;height:14px;margin:-7px -7px 0 0;border-radius:50%;background:radial-gradient(circle,transparent,var(--c2,var(--c,#c46bff)) 45%,transparent 72%);opacity:0;animation:fx-thread-snap .36s ease-out forwards;}
+   @keyframes fx-thread-whip{0%{transform:scaleX(0);filter:brightness(2.2);}40%{transform:scaleX(1.05);filter:brightness(2.2);}58%{transform:scaleX(1);filter:brightness(1.4);}100%{transform:scaleX(1);opacity:0;filter:brightness(1);}}
+   @keyframes fx-thread-snap{0%,42%{opacity:0;transform:scale(.3);}56%{opacity:1;transform:scale(1.1);}100%{opacity:0;transform:scale(1.6);}}
+
+   /* Ambient signature filaments — staggered sway, --c body with --c2 tips */
+   .sig-threads{position:absolute;left:0;top:0;width:0;height:0;z-index:0;pointer-events:none;}
+   .sig-threads .fil{position:absolute;left:0;top:0;width:1.5px;height:26px;margin:-13px 0 0 -0.75px;border-radius:1px;background:linear-gradient(to bottom,transparent,color-mix(in srgb,var(--c,#b07bff) 70%,transparent) 50%,color-mix(in srgb,var(--c2,var(--c,#b07bff)) 60%,transparent) 78%,transparent);transform-origin:50% 50%;opacity:.4;filter:drop-shadow(0 0 2px var(--c2,var(--c,#b07bff)));animation:sig-sway 4.2s ease-in-out var(--d,0ms) infinite;}
+   @keyframes sig-sway{0%,100%{transform:rotate(var(--a,0deg)) translateY(-17px) rotate(9deg);opacity:.18;}50%{transform:rotate(var(--a,0deg)) translateY(-20px) rotate(-9deg);opacity:.5;}}
+
+   /* the wind-up animates the GEM token itself; the fire telegraph reuses .fx-tile + fx-grid-fade from .fx-cast-line */
+   .fx-wu-fire{position:absolute;animation:fx-grid-fade 1.05s ease-in forwards;}
+   .fx-wu-charge{position:absolute;left:0;top:0;width:42px;height:42px;transform:translate(-50%,-50%);border-radius:50%;border:2px solid var(--c,#5ad1ff);box-shadow:0 0 12px color-mix(in srgb,var(--c2,var(--c,#5ad1ff)) 60%,transparent);opacity:0;pointer-events:none;animation:fx-wu-charge var(--cd,.55s) ease-in both;}
+   @keyframes fx-wu-charge{0%{opacity:0;transform:translate(-50%,-50%) scale(1.7);}55%{opacity:.85;transform:translate(-50%,-50%) scale(.95);}72%{opacity:0;transform:translate(-50%,-50%) scale(.7);}100%{opacity:0;}}
+   .fx-wu-melee{animation:fx-wu-melee var(--cd,.5s) cubic-bezier(.3,.7,.3,1) both;}
+   @keyframes fx-wu-melee{0%{transform:translate(0,0) scale(1);}30%{transform:translate(calc(0px + var(--pull-x,0px)),calc(0px + var(--pull-y,0px))) scale(.86,1.14);}46%{transform:translate(calc(0px + var(--pull-x,0px)),calc(0px + var(--pull-y,0px))) scale(.9,1.1);}62%{transform:translate(calc(0px + var(--push-x,0px)),calc(0px + var(--push-y,0px))) scale(1.16,.84);}100%{transform:translate(0,0) scale(1);}}
+
+   .fx-wu-ranged{animation:fx-wu-ranged var(--cd,.56s) ease-in-out both;}
+   @keyframes fx-wu-ranged{0%{transform:translate(0,0) scale(1);filter:brightness(1);}45%{transform:translate(0,0) scale(1.12);filter:brightness(1.7);}54%{transform:translate(calc(0px + 1.2px),0) scale(1.12);}60%{transform:translate(calc(0px - 1.2px),0) scale(1.12);}66%{transform:translate(0,0) scale(1.14);filter:brightness(2.1);}78%{transform:translate(0,0) scale(.92);filter:brightness(1.2);}100%{transform:translate(0,0) scale(1);filter:brightness(1);}}
+
+   .fx-wu-pistol{animation:fx-wu-pistol var(--cd,.34s) cubic-bezier(.2,.8,.2,1) both;}
+   @keyframes fx-wu-pistol{0%{transform:translate(0,0);}28%{transform:translate(calc(0px + var(--push-x,0px) * 0.16),calc(0px + var(--push-y,0px) * 0.16));}40%{transform:translate(calc(0px + var(--pull-x,0px) * 1.3),calc(0px + var(--pull-y,0px) * 1.3)) scale(1.06);}100%{transform:translate(0,0) scale(1);}}
+
+   .fx-wu-bow{animation:fx-wu-bow var(--cd,.6s) cubic-bezier(.25,.6,.2,1) both;}
+   @keyframes fx-wu-bow{0%{transform:translate(0,0);}38%{transform:translate(calc(0px + var(--pull-x,0px)),calc(0px + var(--pull-y,0px)));}62%{transform:translate(calc(0px + var(--pull-x,0px)),calc(0px + var(--pull-y,0px)));}74%{transform:translate(calc(0px + var(--push-x,0px) * 0.55),calc(0px + var(--push-y,0px) * 0.55));}100%{transform:translate(0,0);}}
+
+   /* --- Requested Animations --- */
+
+/* Left Sidestep */
+.fx-wu-sidestep-l {animation: fx-wu-sidestep-l var(--cd, .4s) cubic-bezier(.2,.8,.2,1) both;}
+@keyframes fx-wu-sidestep-l {0% {transform: translate(0,0);} 30% {transform: translate(-14px, 0);} 70% {transform: translate(-14px, 0);} 100% {transform: translate(0,0);}}
+
+/* Right Sidestep */
+.fx-wu-sidestep-r {animation: fx-wu-sidestep-r var(--cd, .4s) cubic-bezier(.2,.8,.2,1) both;}
+@keyframes fx-wu-sidestep-r {0% {transform: translate(0,0);} 30% {transform: translate(14px, 0);} 70% {transform: translate(14px, 0);} 100% {transform: translate(0,0);}}
+
+/* Left-Right Shuffle */
+.fx-wu-shuffle {animation: fx-wu-shuffle var(--cd, .5s) linear both;}
+@keyframes fx-wu-shuffle {0% {transform: translate(0,0);} 20% {transform: translate(-8px, 0);} 40% {transform: translate(8px, 0);} 60% {transform: translate(-6px, 0);} 80% {transform: translate(6px, 0);} 100% {transform: translate(0,0);}}
+
+/* Backward Circle */
+/* Arcs outward by adding generic pixel offsets on top of your --pull vectors */
+.fx-wu-back-circle {animation: fx-wu-back-circle var(--cd, .6s) cubic-bezier(.4, 0, .2, 1) both;}
+@keyframes fx-wu-back-circle {0% {transform: translate(0,0);} 35% {transform: translate(calc(0px + var(--pull-x,0px) * 0.7 + 12px), calc(0px + var(--pull-y,0px) * 0.7 - 8px));} 65% {transform: translate(calc(0px + var(--pull-x,0px)), calc(0px + var(--pull-y,0px)));} 85% {transform: translate(calc(0px + var(--pull-x,0px) * 0.5 - 12px), calc(0px + var(--pull-y,0px) * 0.5 + 8px));} 100% {transform: translate(0,0);}}
+
+/* Recoil */
+.fx-wu-recoil {animation: fx-wu-recoil var(--cd, .35s) cubic-bezier(0, .9, .3, 1) both;}
+@keyframes fx-wu-recoil {0% {transform: translate(0,0);} 15% {transform: translate(calc(0px + var(--pull-x,0px) * 1.6), calc(0px + var(--pull-y,0px) * 1.6));} 100% {transform: translate(0,0);}}
+
+
+/* --- Creative Additions --- */
+
+/* Tremor / Berserk */
+.fx-wu-tremor {animation: fx-wu-tremor var(--cd, .6s) linear both;}
+@keyframes fx-wu-tremor {0%, 100% {transform: translate(0,0) scale(1);} 10%, 30%, 50%, 70%, 90% {transform: translate(-3px, 2px) scale(1.02);} 20%, 40%, 60%, 80% {transform: translate(3px, -2px) scale(0.98);}}
+
+/* Pounce Prep (Squish and lift) */
+.fx-wu-pounce {animation: fx-wu-pounce var(--cd, .5s) cubic-bezier(.3,.7,.3,1) both;}
+@keyframes fx-wu-pounce {0% {transform: translate(0,0) scale(1);} 30% {transform: translate(0, 4px) scale(1.15, 0.85);} 70% {transform: translate(0, 4px) scale(1.15, 0.85);} 100% {transform: translate(calc(0px + var(--push-x,0px) * 0.2), calc(0px + var(--push-y,0px) * 0.2)) scale(0.95, 1.05);}}
+
+/* Levitate (Magic/Psychic) */
+.fx-wu-levitate {animation: fx-wu-levitate var(--cd, .75s) ease-in-out both;}
+@keyframes fx-wu-levitate {0% {transform: translateY(0) scale(1); filter: brightness(1); box-shadow: none;} 40% {transform: translateY(-12px) scale(1.08); filter: brightness(1.5); box-shadow: 0 10px 10px rgba(0,0,0,0.3);} 75% {transform: translateY(-12px) scale(1.08); filter: brightness(1.6); box-shadow: 0 10px 10px rgba(0,0,0,0.3);} 100% {transform: translateY(0) scale(1); filter: brightness(1); box-shadow: none;}}
+
+/* Heavy Drag (Axe/Greatsword) */
+.fx-wu-heavy-drag {animation: fx-wu-heavy-drag var(--cd, .8s) cubic-bezier(.5, 0, .8, .2) both;}
+@keyframes fx-wu-heavy-drag {0% {transform: translate(0,0) rotate(0deg);} 70% {transform: translate(calc(0px + var(--pull-x,0px) * 1.2), calc(0px + var(--pull-y,0px) * 1.2)) rotate(-12deg);} 85% {transform: translate(calc(0px + var(--pull-x,0px) * 1.2), calc(0px + var(--pull-y,0px) * 1.2)) rotate(-12deg);} 100% {transform: translate(calc(0px + var(--push-x,0px) * 0.3), calc(0px + var(--push-y,0px) * 0.3)) rotate(8deg);}}
+
+/* Spin (Whirlwind/Acrobatics) */
+.fx-wu-spin {animation: fx-wu-spin var(--cd, .45s) cubic-bezier(.4, 0, .2, 1) both;}
+@keyframes fx-wu-spin {0% {transform: translate(0,0) rotate(0deg);} 40% {transform: translate(calc(0px + var(--pull-x,0px)*0.4), calc(0px + var(--pull-y,0px)*0.4)) rotate(-90deg);} 100% {transform: translate(0,0) rotate(360deg);}}
+
+   /* ─── Cast Circle — area-confirm using the shared crisp tile-pop ──────────── */
+   /* Routes through the same .fx-tile + fx-tile-pop + fx-grid-fade as line/pcone,
+      so a circular AoE reads as a sharp square-tile lock-in, not a soft ring.
+      Center-out stagger + per-tile --c ramp set inline by FxLayer; rim picks
+      up --c2 from the container. */
+   .fx-cast-circle { position: absolute; animation: fx-grid-fade .52s ease-in forwards; }

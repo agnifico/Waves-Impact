@@ -13,13 +13,16 @@ export const bear: Enemy = {
 	profileImage: '/enemies/bear.png',
 	attacks: [
 		{
-			id: 'body_slam',
-			name: 'Body Slam',
+			id: 'rock_slam',
+			name: 'Rock Slam',
 			range: 1,
 			damage: 6,
 			cooldownMs: 10000,
 			priority: 2,
-			stunMs: 1000
+			stunMs: 1000,
+			windUpMs: 400,
+			windUpStyle: 'pistol',
+			fx: { strike: 'slam', colors: ['#a98467', '#6c584c'] }
 		},
 		{
 			id: 'fury_claws',
@@ -27,7 +30,10 @@ export const bear: Enemy = {
 			range: 1,
 			damage: 3,
 			cooldownMs: 1500,
-			priority: 1
+			priority: 1,
+			windUpMs: 200,
+			windUpStyle: 'melee',
+			fx: { strike: 'reverseswipe', colors: ['#a98467', '#6c584c'] }
 		}
 	]
 };

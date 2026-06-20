@@ -1,11 +1,15 @@
 import type { Character } from '$lib/types/character';
 
-// ⚠️ PLACEHOLDER UNIT — Carla is a rough draft (the Dark dealer slated for a proper
-// redesign). This file is migrated to the new delivery/onHit structure so it
-// type-checks and runs, but the kit itself is NOT balanced or final. In particular,
-// her V's original multi-stage `stages[]` scaffolding (lock → execute) doesn't exist
-// in the engine; it's been collapsed to a single board-wide damage_aoe burst so she
-// runs. Redesign properly later.
+// Carla — robotic maid, tsundere. Cold, precise, lethal, loyal. Dark element,
+// ranged. A channel-marksman built around Memory (her fuel tank): tap the chain
+// to build Memory, hold to burn it on a sustained stream (Stream Buffer), mark
+// enemies with her abilities, then detonate every mark at once (Protocol
+// Override) — dumping all Memory into a barrage divided among marked targets.
+// Spread it thin or dump it on one; her identity is the choice, never the ceiling.
+//
+// Flavor hint (no mechanic in data): an old protocol still answers to one voice
+// across the dark — when her threads cross another's light, the split stops and
+// every mark burns whole.  <- sun_mark easter egg, resolved in tactical_detonate.ts
 
 export const carla: Character = {
 	id: 'carla',
@@ -13,114 +17,134 @@ export const carla: Character = {
 	element: 'dark',
 	maxHp: 200,
 	maxEnergy: 100,
-	baCooldownMs: [50, 50, 50],
-	baChainResetMs: 1000,
+	// baCooldownMs: [100, 100, 100, 100, 100], 
+	baChainResetMs: 1200,
+
+	description: 'A robotic maid of cold precision. Builds Memory with her gunfire, burns it on a sustained stream or detonates her marks all at once. Loyal beyond reason to a master across the dark.',
 
 	basicStyle: 'chain',
 	basicChain: [
 		{
-			name: 'Tactical Draw (1)',
+			name: 'Boot Sequence',
 			range: 8,
 			omniTarget: true,
-			dashBack: 1,
-			delivery: { damage: 6, energyGain: 12, shape: 'melee' },
-			onHit: { poiseDamage: 10 },
-			fx: { strike: 'bullet', colors: ['#f35b04', '#c084fc'] }
+			delivery: { damage: 6, energyGain: 12, shape: 'melee', windUpMs: 150, windUpStyle: 'bow', },
+			fx: { strike: 'bullet', colors: ['#9b5de5', '#e63946'] }
 		},
 		{
-			name: 'Crimson Sheath (2)',
+			name: 'Process Spawn',
 			range: 8,
 			omniTarget: true,
-			delivery: { damage: 10, energyGain: 12, shape: 'melee' },
-			onHit: { poiseDamage: 12 },
-			fx: { strike: 'bullet', colors: ['#f7b801', 'var(--gold-bright)'] }
+			delivery: { damage: 8, energyGain: 12, shape: 'melee', windUpMs: 150, windUpStyle: 'pistol', },
+			fx: { strike: 'bullet', colors: ['#9b5de5', '#e63946'] }
 		},
 		{
-			name: 'Glint of Execution (3)',
+			name: 'Thread Execution',
 			range: 8,
 			omniTarget: true,
-			delivery: { damage: 18, energyGain: 15, shape: 'melee', grantsStack: 'discipline' },
-			onHit: { poiseDamage: 25, appliesEffects: ['tactical_mark'] },
-			fx: { strike: 'bullet', gashes: 7, colors: ['#7678ed', '#ff003c'] }
+			delivery: { damage: 10, energyGain: 12, shape: 'melee', windUpMs: 100, windUpStyle: 'pistol', },
+			fx: { strike: 'bullet', colors: ['#a86fe8', '#e63946'] }
+		},
+		{
+			name: 'Buffer Overflow',
+			range: 8,
+			omniTarget: true,
+			delivery: { damage: 12, energyGain: 12, shape: 'melee', windUpMs: 200, windUpStyle: 'bow', },
+			fx: { strike: 'bullet', colors: ['#a86fe8', '#e63946'] }
+		},
+		{
+			name: 'Kernel Panic',
+			range: 8,
+			omniTarget: true,
+			delivery: { damage: 16, energyGain: 14, shape: 'melee', grantsStack: 'memory', windUpMs: 300, windUpStyle: 'bow', },
+			fx: { strike: 'bullet', gashes: 5, colors: ['#e63946', '#ff003c'] }
 		}
 	],
 
-	abilities: {
-		// X — Nightshade Lunge: aimed dash that marks along its path
-		X: {
-			id: 'nightshade_lunge',
-			name: 'Nightshade Lunge',
-			behavior: 'dash',
-			cooldownMs: 5000,
-			delivery: {
-				damage: 16,
-				energyGain: 10,
-				grantsStack: 'discipline',
-				shapeParams: { range: 4, throughObstacles: false },
-				holdBehavior: 'aim'
-			},
-			onHit: { appliesEffects: ['tactical_mark'] }
-		},
+	// Hold BA -> Stream Buffer: sustained 4-shots/sec stream, 1 Memory per second.
+	channelBasic: {
+		name: 'Stream Buffer',
+		intervalMs: 250,          // 4 shots/sec
+		drainPerStackMs: 1000,    // 1 Memory = 1 second of fire
+		range: 7,
+		delivery: { damage: 15 },
+		onHit: { appliesEffects: ['thread'] }, // each shot refreshes the mark on its target
+		fx: { strike: 'stream', colors: ['#c084fc', '#ff003c'] }
+	},
 
-		// C — Command: Ominous Sweep: aimed AoE burst with stun
-		C: {
-			id: 'ominous_sweep',
-			name: 'Command: Ominous Sweep',
+	abilities: {
+		// X — Mass Indexing: mid AoE, small damage, marks everything in range.
+		X: {
+			id: 'mass_indexing',
+			name: 'Mass Indexing',
 			behavior: 'damage_aoe',
-			cooldownMs: 6000,
-			charges: 2,
+			cooldownMs: 8000,
 			delivery: {
+				windUpMs: 300, windUpStyle: 'ranged',
 				damage: 10,
-				energyGain: 15,
-				grantsStack: 'discipline',
+				energyGain: 10,
+				grantsStack: 'memory',
 				shape: 'circle',
-				shapeParams: { radius: 1, range: 4 },
+				shapeParams: { radius: 2, range: 5 },
 				autoTargetEnemy: true,
 				holdBehavior: 'aim'
 			},
-			onHit: { stunMs: 2000, poiseDamage: 20 }
+			onHit: { appliesEffects: ['thread'] }
 		},
 
-		// V — Absolute Midnight: PLACEHOLDER. Original design was a 2-stage
-		// lock-then-execute on marked targets, scaling with discipline stacks. The
-		// staged system doesn't exist yet — collapsed to a single board-wide burst.
-		// Redesign when Carla gets her proper pass.
-		V: {
-			id: 'absolute_midnight',
-			name: 'Absolute Midnight',
+		// C — Deploy Pointer: single-tile hit, marks one (locked, else first on tile).
+		C: {
+			id: 'deploy_pointer',
+			name: 'Deploy Pointer',
 			behavior: 'damage_aoe',
-			durationMs: 8000,
-			cooldownMs: 24000,
-			energyCost: 60,
-			unchainedBonus: 30,   // legacy hook retained; not the intended per-stack scaling
+			cooldownMs: 5000,
+			charges: 2,
 			delivery: {
-				damage: 60,
+				damage: 14,
+				energyGain: 10,
+				grantsStack: 'memory',
 				shape: 'circle',
-				shapeParams: { radius: 8, range: 8 },
-				autoTargetEnemy: true
-			}
+				shapeParams: { radius: 0, range: 6 },
+				autoTargetEnemy: true,
+				holdBehavior: 'aim'
+			},
+			onHit: { appliesEffects: ['thread'] }
+		},
+
+		// V — Protocol Override: dump all Memory as a barrage across all marked targets.
+		V: {
+			id: 'protocol_override',
+			name: 'Protocol Override',
+			behavior: 'tactical_detonate',
+			cooldownMs: 18000,
+			energyCost: 40,
+			delivery: { windUpMs: 1000, windUpStyle: 'melee' },   // gem charges 500ms, then the barrage
+			onHit: {},
+			fx: { strike: 'stream', colors: ['#c084fc', '#ff003c'] }   // beam to each marked enemy
 		}
 	},
 
-	stackType: 'discipline',
-	stackName: 'Tactical Discipline',
-	stackMax: 4,
-	onStackFull: 'none',
+	stackType: 'memory',
+	stackName: 'Memory',
+	stackMax: 10,
+	onStackFull: 'none',   // hold-and-spend fuel tank; never auto-converts
 
 	stratum: 'ground',
 	offFieldStackBonus: 1.2,
 
 	art: {
-		gem: '/characters/carla5.png',
+		gem: '/characters/gem-carla.png',
 		profile: '/characters/avatars2/carla.png',
 		poster: '/characters/carla1.png',
 		bannerPoster: '/characters/carla4.png'
 	},
 	theme: {
 		primary: '#9b5de5',
-		secondary: '#e26d5c',
+		secondary: '#ff003c',
 		glow: { ready: '#c084fc' },
+		signatureFx: 'sig-threads',
 		hp: 'linear-gradient(-90deg, #1f1135 0%, #4c1d95 50%, #ff003c 100%);',
-		energy: 'linear-gradient(to right, #2e1065, #7c3aed);'
+		energy: 'linear-gradient(to right, #2e1065, #7c3aed);',
+		resources: [{ id: 'memory', fill: 'linear-gradient(180deg,#c084fc,#7c3aed)', label: 'Memory' }]
 	}
 };

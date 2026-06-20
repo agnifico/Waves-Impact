@@ -3,6 +3,7 @@ import type { Ability } from '$lib/types/ability';
 import { resolveTiles } from '../shapes';
 import { samePos, chebyshev } from '../board';
 import { applyDelivery, applyOnHit, canHitStratum, type ResolveSource } from '../resolve';
+import { publish } from '../events';
 
 /**
  * damage_first_in_line: resolve line tiles sorted by distance from caster,
@@ -26,6 +27,15 @@ export function resolve(
 		state.board
 	);
 	if (tiles.length === 0) return false;
+
+	publish('cast:shape', {
+		caster: caster.id,
+		shape: ability.delivery?.shape ?? 'line',
+		center: { ...caster.pos },
+		facing: { ...caster.facing },
+		range: ability.delivery?.shapeParams?.range ?? 5,
+		color: caster.def.theme?.primary
+	});
 
 	const src: ResolveSource = {
 		owner: caster,

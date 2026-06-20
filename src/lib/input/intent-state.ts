@@ -37,9 +37,33 @@ export function wasdVec(): Vector | null {
  * or unless holding an aim ability (rooted while aiming).
  */
 export function getMoveDir(): Vector | null {
+	if (isDown('cameraLook')) return null; // hold-to-look: WASD pans the camera, not the unit
 	if (isDown('manualLook')) return null;
 	if (holdState.holdingSlot && holdState.holdBehavior === 'aim') return null;
 	return wasdVec();
+}
+
+// ─── Camera (discrete zoom + elastic look) ───────────────────────────────────
+// Zoom is a small set of fixed levels for accessibility — easy to step, never a
+// fiddly continuous scrub. The elastic-look OFFSET is owned by Board (it's pure
+// presentation, driven per-frame from wasdVec while `cameraLook` is held); here
+// we only own the zoom level, which input-handler steps and Board reads.
+
+export const ZOOM_LEVELS = [1.0, 1.15, 1.3, 1.5] as const;
+export const DEFAULT_ZOOM_INDEX = 1; // 1.5× — opens readable
+
+export const camera = {
+	zoomIndex: DEFAULT_ZOOM_INDEX
+};
+
+export function zoomIn(): void {
+	camera.zoomIndex = Math.min(ZOOM_LEVELS.length - 1, camera.zoomIndex + 1);
+}
+export function zoomOut(): void {
+	camera.zoomIndex = Math.max(0, camera.zoomIndex - 1);
+}
+export function zoomReset(): void {
+	camera.zoomIndex = DEFAULT_ZOOM_INDEX;
 }
 
 // ─── Hold-ability state ──────────────────────────────────────────────────────

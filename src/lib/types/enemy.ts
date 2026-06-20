@@ -1,5 +1,5 @@
 import type { Element, Guard, Position, Stratum, Terrain } from './common';
-import type { ShapeId } from './ability';
+import type { FxSpec, ShapeId } from './ability';
 
 /**
  * A single attack in an enemy's kit. (Data Contract §17)
@@ -20,6 +20,9 @@ export interface EnemyAttack {
 	hits?: Stratum[];
 	knockback?: number;         // tiles to push the active character on hit
 	knockbackSmart?: boolean;   // push toward nearest other enemy instead of away
+	windUpMs?: number;
+	windUpStyle?: 'charge' | 'melee' | 'ranged' | 'pistol' | 'bow' | 'fire';
+	fx?: FxSpec;
 }
 
 /**

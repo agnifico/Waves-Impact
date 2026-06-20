@@ -78,7 +78,7 @@
 		backdrop-filter: blur(3px);
 	}
 	.panel {
-		width: min(900px, 92vw);
+		width: min(700px, 92vw);
 		max-height: 88vh;
 		display: flex;
 		flex-direction: column;

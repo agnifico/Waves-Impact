@@ -260,10 +260,12 @@ function applyTargetEffects(
 	// knockback
 	if (onHit.knockback && onHit.knockback > 0) {
 		applyKnockbackTo(state, enemy, onHit.knockback, !!onHit.knockbackSmart, src);
+		publish('combat:knockback', { target: enemy.id, fromPos: { ...enemy.pos }, ownerPos: { ...(src.sourcePos ?? src.owner.pos) } });
 	}
 	// stun
 	if (onHit.stunMs && onHit.stunMs > 0) {
 		enemy.stunnedUntil = Math.max(enemy.stunnedUntil, now + onHit.stunMs);
+		publish('combat:stun', { target: enemy.id, durationMs: onHit.stunMs });
 	}
 	// applied effects
 	if (onHit.appliesEffects) {

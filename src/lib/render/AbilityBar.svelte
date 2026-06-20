@@ -159,9 +159,11 @@
 
 <style>
 	.ability-bar {
+		box-sizing: border-box;
 		display: flex;
 		gap: 8px;
-		width: 100%;
+		width: 90%;
+		margin-top: 1rem;
 		padding: 10px 12px 18px;
 		background-color: var(--ab-panel);
 		border: 2px solid rgba(255, 255, 255, 0.3);
@@ -173,6 +175,7 @@
 		transition: background-color 0.3s;
 	}
 	.ability-btn {
+		box-sizing: border-box;
 		flex: 1;
 		min-width: 0;
 		display: flex;
@@ -231,7 +234,7 @@
 		color: var(--ab-text);
 		white-space: nowrap;
 		overflow: hidden;
-		width: 13ch;
+		/* width: 13ch; */
 		text-overflow: ellipsis;
 	}
 	.ability-meta {

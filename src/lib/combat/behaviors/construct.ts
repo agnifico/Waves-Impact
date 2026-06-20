@@ -49,6 +49,7 @@ export function resolve(
         defId:         creationId,
         ownerId:       caster.id,
         pos,
+        stratum:       def.stratum ?? 'ground',
         name:          def.name,
         profileImage:  def.image,
         element:       caster.def.element,
@@ -58,12 +59,12 @@ export function resolve(
         pulseDmg:      def.pulseDmg    ?? 0,
         pulseMs,
         pulseRadius:   def.pulseRadius ?? 1,
-        stunMs: def.onHit?.stunMs ?? 0,
+        stunMs:        def.stunMs      ?? 0,
         nextPulseAt:   now + pulseMs,
         expiresAt:     now + (def.durationMs ?? 10_000),
-        stratum: def.stratum ?? 'ground',
+        footprint:     def.footprint?.map((o) => ({ x: pos.x + o.x, y: pos.y + o.y })) ?? [{ ...pos }],
     });
 
-    publish('construct:placed', { constructId: `${creationId}-${now}`, ownerId: caster.id });
+    publish('construct:placed', { constructId: `${creationId}-${now}`, ownerId: caster.id, pos: { ...pos } });
     return true;
 }

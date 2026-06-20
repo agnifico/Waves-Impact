@@ -4,6 +4,7 @@ import { resolveTiles } from '../shapes';
 import { samePos } from '../board';
 import { focusTarget } from '../query';
 import { applyDelivery, applyOnHit, canHitStratum, type ResolveSource } from '../resolve';
+import { publish } from '../events';
 
 export interface AoeOpts {
 	reticle?: { x: number; y: number } | null;
@@ -45,6 +46,17 @@ export function resolve(
 		targetPoint
 	);
 	if (tiles.length === 0) return false;
+
+	const sp = ability.delivery?.shapeParams ?? {};
+	publish('cast:shape', {
+		caster: caster.id,
+		shape: ability.delivery?.shape ?? 'circle',
+		center: { ...targetPoint },
+		facing: { ...caster.facing },
+		range: sp.range,
+		radius: sp.radius,
+		color: caster.def.theme?.primary
+	});
 
 	const src: ResolveSource = {
 		owner: caster,

@@ -10,6 +10,7 @@ import { sefyra } from './characters/sefyra';
 import { ryoma } from './characters/ryoma';
 import { carla } from './characters/carla';
 import { midorima } from './characters/midorima';
+import { nepthys } from './characters/nepthys';
 
 import { bear } from './enemies/bear';
 import { dragon } from './enemies/dragon';
@@ -26,7 +27,7 @@ import { bob } from './enemies/bob';
 // ─── Character registry ──────────────────────────────────────────────────────
 
 const characters: Record<string, Character> = {
-	frosty, june9, maria_elena, sefyra, carla, midorima
+	frosty, june9, maria_elena, sefyra, carla, midorima, nepthys
 };
 
 export function getCharacter(id: string): Character | undefined {

@@ -1,22 +1,26 @@
 /* ============================================================
-   ZONES — persistent skinned auras + spawn burst
+   ZONES — persistent skinned auras + spawn burst  (TWO-TONE build)
    Existing 7 ported from FxLayer.svelte, then 6 new skins.
    Each skin is self-contained (set on a lone .fx-zone-<skin>).
+
+   Color contract: --c primary, --c2 secondary. --c2 is OPTIONAL and
+   falls back to --c everywhere via var(--c2, var(--c)). FxLayer already
+   wires both: --c:{ramp[0]};--c2:{ramp[1] ?? ramp[0]};
    ============================================================ */
 
 /* shared spin keyframes */
 @keyframes fx-spin-fast    { to { transform: rotate(360deg); } }
 @keyframes fx-spin-reverse { to { transform: rotate(-360deg); } }
 
-/* ── Spawn burst (shared, transient) ───────────────────────── */
+/* ── Spawn burst (shared, transient) — --c2 rim, --c inner wash ── */
 .fx-zoneburst {
 	position: absolute;
 	border-radius: 50%;
 	pointer-events: none;
-	border: 3px solid var(--c);
+	border: 3px solid var(--c2, var(--c));
 	box-shadow:
 		0 0 24px 6px color-mix(in srgb, var(--c) 60%, transparent),
-		inset 0 0 30px 10px color-mix(in srgb, var(--c) 35%, transparent);
+		inset 0 0 30px 10px color-mix(in srgb, var(--c2, var(--c)) 35%, transparent);
 	opacity: 0;
 	transform: scale(0.2);
 	animation: fx-zoneburst 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
@@ -52,7 +56,7 @@
 		transparent 0 6%,
 		color-mix(in srgb, var(--c) 75%, transparent) 14%,
 		transparent 28% 56%,
-		color-mix(in srgb, var(--c2) 75%, transparent) 64%,
+		color-mix(in srgb, var(--c2, var(--c)) 75%, transparent) 64%,
 		transparent 78%);
 	-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
 	-webkit-mask-composite: xor;
@@ -90,7 +94,7 @@
 	content: '';
 	position: absolute;
 	inset: 4px;
-	border: 2px solid color-mix(in srgb, var(--c2) 80%, transparent);
+	border: 2px solid color-mix(in srgb, var(--c2, var(--c)) 80%, transparent);
 	border-radius: 50%;
 	/* clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%); */
 	animation: fx-mecha-pulse 1.5s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
@@ -121,7 +125,7 @@
 		transparent 0 6%,
 		color-mix(in srgb, var(--c) 80%, transparent) 14%,
 		transparent 28% 56%,
-		color-mix(in srgb, var(--c2) 80%, transparent) 64%,
+		color-mix(in srgb, var(--c2, var(--c)) 80%, transparent) 64%,
 		transparent 78%);
 	-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
 	-webkit-mask-composite: xor;
@@ -144,7 +148,7 @@
 	pointer-events: none;
 	border: 3px solid transparent;
 	border-left: 3px solid var(--c);
-	border-right: 3px solid color-mix(in srgb, var(--c2) 80%, transparent);
+	border-right: 3px solid color-mix(in srgb, var(--c2, var(--c)) 80%, transparent);
 	animation: fx-spin-fast 0.6s linear infinite;
 	box-shadow: inset 0 0 20px 2px color-mix(in srgb, var(--c) 20%, transparent);
 }
@@ -154,7 +158,7 @@
 	inset: 6px;
 	border-radius: 50%;
 	border: 2px solid transparent;
-	border-top: 2px solid var(--c2);
+	border-top: 2px solid var(--c2, var(--c));
 	border-bottom: 2px solid var(--c);
 	animation: fx-spin-reverse 0.4s linear infinite;
 }
@@ -165,7 +169,7 @@
 	border-radius: var(--zr, 50%);
 	pointer-events: none;
 	background: radial-gradient(circle, rgba(0,0,0,0.8) 20%, transparent 70%);
-	box-shadow: 0 0 15px 2px var(--c2), inset 0 0 25px 8px #000;
+	box-shadow: 0 0 15px 2px var(--c2, var(--c)), inset 0 0 25px 8px #000;
 	animation: fx-void-breathe 4s ease-in-out infinite alternate;
 }
 .fx-zone-void::before {
@@ -175,7 +179,7 @@
 	border-radius: inherit;
 	border: 2px solid transparent;
 	border-top: 3px solid var(--c);
-	border-bottom: 3px solid var(--c2);
+	border-bottom: 3px solid var(--c2, var(--c));
 	animation: fx-spin-fast 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 	filter: drop-shadow(0 0 6px var(--c));
 }
@@ -190,7 +194,7 @@
 	border-radius: var(--zr, 50%);
 	pointer-events: none;
 	border: 2px solid color-mix(in srgb, var(--c) 30%, transparent);
-	box-shadow: inset 0 0 30px color-mix(in srgb, var(--c2) 40%, transparent);
+	box-shadow: inset 0 0 30px color-mix(in srgb, var(--c2, var(--c)) 40%, transparent);
 }
 .fx-zone-water::before,
 .fx-zone-water::after {
@@ -202,7 +206,10 @@
 	opacity: 0;
 	animation: fx-water-ripple 2.5s cubic-bezier(0.1, 0.5, 0.3, 1) infinite;
 }
-.fx-zone-water::after { animation-delay: 1.25s; }
+.fx-zone-water::after {
+	border-color: var(--c2, var(--c));
+	animation-delay: 1.25s;
+}
 @keyframes fx-water-ripple {
 	0%   { transform: scale(0.7); opacity: 0.8; border-width: 4px; }
 	100% { transform: scale(1.1); opacity: 0; border-width: 1px; }
@@ -215,7 +222,7 @@
 	pointer-events: none;
 	border: 1px solid color-mix(in srgb, var(--c) 30%, transparent);
 	overflow: hidden;
-	box-shadow: inset 0 0 20px color-mix(in srgb, var(--c2) 30%, transparent);
+	box-shadow: inset 0 0 20px color-mix(in srgb, var(--c2, var(--c)) 30%, transparent);
 }
 .fx-zone-slashes::before,
 .fx-zone-slashes::after {
@@ -223,9 +230,9 @@
 	position: absolute;
 	inset: -20%;
 	background:
-		linear-gradient(transparent 48.5%, var(--c) 49.5%, var(--c2) 50.5%, transparent 51.5%),
+		linear-gradient(transparent 48.5%, var(--c) 49.5%, var(--c2, var(--c)) 50.5%, transparent 51.5%),
 		linear-gradient(75deg, transparent 49%, var(--c) 50%, transparent 51%),
-		linear-gradient(-35deg, transparent 49%, var(--c2) 50%, transparent 51%);
+		linear-gradient(-35deg, transparent 49%, var(--c2, var(--c)) 50%, transparent 51%);
 	background-size: 200% 200%;
 	opacity: 0;
 	animation: fx-omni-slash 0.5s steps(4) infinite;
@@ -248,13 +255,13 @@
    NEW ZONES
    ════════════════════════════════════════════════════════════ */
 
-/* ── Pulse — rhythmic expanding rings ──────────────────────── */
+/* ── Pulse — rhythmic expanding rings (alternating --c / --c2) ── */
 .fx-zone-pulse {
 	position: absolute;
 	border-radius: var(--zr, 50%);
 	pointer-events: none;
 	background: radial-gradient(circle, color-mix(in srgb, var(--c) 18%, transparent) 0%, transparent 55%);
-	box-shadow: inset 0 0 18px color-mix(in srgb, var(--c) 30%, transparent);
+	box-shadow: inset 0 0 18px color-mix(in srgb, var(--c2, var(--c)) 30%, transparent);
 }
 .fx-zone-pulse::before,
 .fx-zone-pulse::after {
@@ -267,7 +274,11 @@
 	opacity: 0;
 	animation: fx-pulse-ring 1.6s ease-out infinite;
 }
-.fx-zone-pulse::after { animation-delay: 0.8s; }
+.fx-zone-pulse::after {
+	border-color: var(--c2, var(--c));
+	box-shadow: 0 0 12px 1px color-mix(in srgb, var(--c2, var(--c)) 60%, transparent);
+	animation-delay: 0.8s;
+}
 @keyframes fx-pulse-ring {
 	0%   { transform: scale(0.45); opacity: 1; border-width: 4px; }
 	80%  { opacity: 0.15; }
@@ -279,7 +290,7 @@
 	position: absolute;
 	border-radius: 50%;
 	pointer-events: none;
-	background: radial-gradient(circle, color-mix(in srgb, var(--c2) 22%, transparent) 0%, transparent 60%);
+	background: radial-gradient(circle, color-mix(in srgb, var(--c2, var(--c)) 22%, transparent) 0%, transparent 60%);
 	box-shadow: inset 0 0 22px color-mix(in srgb, var(--c) 28%, transparent);
 }
 .fx-zone-earth::before,
@@ -305,6 +316,10 @@
 .fx-zone-earth::after {
 	inset: 10px;
 	opacity: 0.55;
+	background: linear-gradient(160deg,
+		color-mix(in srgb, #fff 18%, var(--c2, var(--c))) 0%,
+		var(--c2, var(--c)) 40%,
+		color-mix(in srgb, var(--c2, var(--c)) 55%, #000) 100%);
 	animation-delay: 0.4s;
 	animation-duration: 2.8s;
 }
@@ -320,7 +335,7 @@
 	pointer-events: none;
 	overflow: hidden;
 	background:
-		radial-gradient(circle at 30% 35%, color-mix(in srgb, var(--c2) 60%, transparent) 0%, transparent 38%),
+		radial-gradient(circle at 30% 35%, color-mix(in srgb, var(--c2, var(--c)) 60%, transparent) 0%, transparent 38%),
 		radial-gradient(circle at 70% 60%, color-mix(in srgb, var(--c) 55%, transparent) 0%, transparent 42%),
 		radial-gradient(circle, color-mix(in srgb, var(--c) 30%, transparent) 0%, transparent 70%);
 	box-shadow: inset 0 0 22px color-mix(in srgb, var(--c) 45%, transparent);
@@ -332,9 +347,9 @@
 	position: absolute;
 	inset: -20%;
 	background:
-		radial-gradient(circle at 40% 60%, color-mix(in srgb, var(--c2) 50%, transparent) 0 8%, transparent 9%),
+		radial-gradient(circle at 40% 60%, color-mix(in srgb, var(--c2, var(--c)) 50%, transparent) 0 8%, transparent 9%),
 		radial-gradient(circle at 65% 40%, color-mix(in srgb, var(--c) 45%, transparent) 0 6%, transparent 7%),
-		radial-gradient(circle at 55% 75%, color-mix(in srgb, var(--c2) 40%, transparent) 0 5%, transparent 6%);
+		radial-gradient(circle at 55% 75%, color-mix(in srgb, var(--c2, var(--c)) 40%, transparent) 0 5%, transparent 6%);
 	animation: fx-poison-bubble 3.5s linear infinite;
 }
 .fx-zone-poison::after {
@@ -360,21 +375,21 @@
 	position: absolute;
 	border-radius: var(--zr, 50%);
 	pointer-events: none;
-	background: radial-gradient(circle, color-mix(in srgb, var(--c2) 30%, transparent) 0%, transparent 62%);
-	box-shadow: inset 0 0 26px color-mix(in srgb, var(--c2) 45%, transparent);
+	background: radial-gradient(circle, color-mix(in srgb, var(--c2, var(--c)) 30%, transparent) 0%, transparent 62%);
+	box-shadow: inset 0 0 26px color-mix(in srgb, var(--c2, var(--c)) 45%, transparent);
 }
 .fx-zone-frost::before {
 	content: '';
 	position: absolute;
 	inset: -3px;
 	background: linear-gradient(135deg,
-		color-mix(in srgb, #fff 40%, var(--c2)), var(--c));
+		color-mix(in srgb, #fff 40%, var(--c2, var(--c))), var(--c));
 	/* 6-point crystalline star */
 	clip-path: polygon(
 		50% 0%, 60% 35%, 98% 35%, 68% 57%, 79% 91%,
 		50% 70%, 21% 91%, 32% 57%, 2% 35%, 40% 35%
 	);
-	filter: drop-shadow(0 0 5px var(--c2));
+	filter: drop-shadow(0 0 5px var(--c2, var(--c)));
 	opacity: 0.85;
 	animation: fx-spin-fast 14s linear infinite;
 }
@@ -400,7 +415,7 @@
 		color-mix(in srgb, #fff 30%, var(--c)) 0%,
 		color-mix(in srgb, var(--c) 22%, transparent) 35%,
 		transparent 68%);
-	box-shadow: 0 0 22px 2px color-mix(in srgb, var(--c) 45%, transparent);
+	box-shadow: 0 0 22px 2px color-mix(in srgb, var(--c2, var(--c)) 45%, transparent);
 	animation: fx-holy-breathe 3.2s ease-in-out infinite;
 }
 .fx-zone-holy::before {
@@ -410,9 +425,9 @@
 	border-radius: 50%;
 	background: conic-gradient(from 0deg,
 		transparent 0 4%, color-mix(in srgb, var(--c) 40%, transparent) 6%, transparent 10%,
-		transparent 22%, color-mix(in srgb, var(--c) 40%, transparent) 24%, transparent 28%,
+		transparent 22%, color-mix(in srgb, var(--c2, var(--c)) 40%, transparent) 24%, transparent 28%,
 		transparent 47%, color-mix(in srgb, var(--c) 40%, transparent) 49%, transparent 53%,
-		transparent 72%, color-mix(in srgb, var(--c) 40%, transparent) 74%, transparent 78%);
+		transparent 72%, color-mix(in srgb, var(--c2, var(--c)) 40%, transparent) 74%, transparent 78%);
 	-webkit-mask: radial-gradient(farthest-side, transparent 30%, #000 70%);
 	mask: radial-gradient(farthest-side, transparent 30%, #000 70%);
 	animation: fx-spin-fast 12s linear infinite;
@@ -423,7 +438,7 @@
 	position: absolute;
 	inset: 4px;
 	border-radius: inherit;
-	border: 2px solid color-mix(in srgb, #fff 30%, var(--c));
+	border: 2px solid color-mix(in srgb, #fff 30%, var(--c2, var(--c)));
 	box-shadow: 0 0 10px color-mix(in srgb, var(--c) 60%, transparent);
 	animation: fx-holy-ring 3.2s ease-in-out infinite;
 }
@@ -453,7 +468,7 @@
 	inset: -25%;
 	background:
 		linear-gradient(72deg, transparent 48%, color-mix(in srgb, #fff 60%, var(--c)) 50%, transparent 52%),
-		linear-gradient(-48deg, transparent 48%, var(--c2) 50%, transparent 52%),
+		linear-gradient(-48deg, transparent 48%, var(--c2, var(--c)) 50%, transparent 52%),
 		linear-gradient(15deg, transparent 49%, var(--c) 50%, transparent 51%);
 	background-size: 180% 180%;
 	opacity: 0;
@@ -465,7 +480,7 @@
 	position: absolute;
 	inset: 2px;
 	border-radius: inherit;
-	border: 1px solid color-mix(in srgb, var(--c2) 70%, transparent);
+	border: 1px solid color-mix(in srgb, var(--c2, var(--c)) 70%, transparent);
 	animation: fx-spin-reverse 1.2s steps(8) infinite;
 	opacity: 0.5;
 }

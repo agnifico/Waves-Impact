@@ -3,6 +3,7 @@ import * as meleeRush   from './melee-rush';
 import * as rangedKiter from './ranged-kiter';
 import * as flanker     from './flanker';
 import * as tankBlocker from './tank-blocker';
+export { fireEnemyAttacks } from './utils';
 
 type AiTickFn = (state: EngineState, enemy: EnemyState, now: number) => void;
 

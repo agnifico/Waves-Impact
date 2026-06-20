@@ -41,4 +41,11 @@ export interface Delivery extends ResourcePayload {
 	aimRange?: number;
 	chargeMaxRange?: number;
 	chargeMsPerTile?: number;
+
+	/** Committed wind-up: ms the cast charges before resolving. The gem plays a
+	 *  charge/pull-back telegraph during this window; the behavior fires when it
+	 *  elapses. Cannot be cancelled. Omit = instant. For heavy/nuke abilities. */
+	windUpMs?: number;
+	/** Which fx-wu-* gem animation plays during the wind-up. Default 'charge'. */
+	windUpStyle?: 'charge' | 'melee' | 'ranged' | 'pistol' | 'bow' | 'fire';
 }

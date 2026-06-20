@@ -1,5 +1,5 @@
 import type { Position, EntityId } from './common';
-import type { AbilitySlot } from './ability';
+import type { AbilitySlot, FxSpec } from './ability';
 
 /**
  * Typed event payloads for the combat event bus. (Data Contract §12)
@@ -86,6 +86,7 @@ export type CombatEventMap = {
 	'summon:spawned': {
 		summonId: string;
 		owner: EntityId;
+		pos?: Position;
 	};
 	'summon:expired': {
 		summonId: string;
@@ -107,6 +108,7 @@ export type CombatEventMap = {
 	'construct:placed': {
 		constructId: string;
 		ownerId: EntityId;
+		pos?: Position;
 	};
 	'construct:expired': {
 		constructId: string;
@@ -116,7 +118,23 @@ export type CombatEventMap = {
 	'construct:catalyst': { constructId: string; pos: Position; element?: string; radius: number; };
 	'construct:turret': { constructId: string; pos: Position; targetPos: Position; element?: string; };
 	'summon:attack': { summonId: string; ownerId: string; fromPos: Position; toPos: Position; isRanged: boolean; element?: string; };
-
+	'cast:windup': { caster: string; slot: string; durationMs: number };
+	'combat:stun': { target: EntityId; durationMs: number };
+	'combat:knockback': { target: EntityId; fromPos: Position; ownerPos: Position };
+	'enemy:windup': { enemy: EntityId; durationMs: number; attackName: string };
+	'enemy:strike': { enemy: string; target: string; fx?: FxSpec };
+	'detonate:thread': { caster: string; casterPos: Position; targetPos: Position; index: number; total: number; color?: string };
+	/** Cast-time shape telegraph. Published by damaging behaviors at resolve with the
+	 *  geometry they computed, so FxLayer can erupt the affected area in its shape. */
+	'cast:shape': {
+		caster: string;
+		shape: 'circle' | 'line' | 'wide_line' | 'pcone' | string;
+		center: Position;          // erupt origin (caster for self-centered, reticle for aimed)
+		facing: Position;          // direction unit vector (for line/cone orientation)
+		range?: number;            // tiles outward (line/cone length)
+		radius?: number;           // tiles (circle)
+		color?: string;
+	};
 };
 
 export type CombatEventName = keyof CombatEventMap;

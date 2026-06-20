@@ -15,22 +15,22 @@ export const frosty: Character = {
 			name: 'Snowball (1)',
 			range: 5,
 			omniTarget: true,
-			delivery: { damage: 5, energyGain: 10, shape: 'melee' },
-			fx: { strike: 'projectile', shape: 'orb', colors: ['#ade8f4', '#ffffff'] }
+			delivery: { damage: 5, energyGain: 10, shape: 'melee', windUpMs: 200, windUpStyle: 'pistol' },
+			fx: { strike: 'projectile', shape: 'bolt', colors: ['#ade8f4', '#ffffff'] }
 		},
 		{
 			name: 'Snowball (2)',
 			range: 5,
 			omniTarget: true,
-			delivery: { damage: 10, energyGain: 10, shape: 'melee' },
-			fx: { strike: 'projectile', shape: 'orb', colors: ['#ade8f4', '#ffffff'] }
+			delivery: { damage: 10, energyGain: 10, shape: 'melee', windUpMs: 200, windUpStyle: 'pistol' },
+			fx: { strike: 'projectile', shape: 'bolt', colors: ['#ade8f4', '#ffffff'] }
 		},
 		{
 			name: 'Giant Snowball',
 			range: 5,
 			omniTarget: true,
-			delivery: { damage: 15, energyGain: 10, shape: 'melee', grantsStack: 'eclipse' },
-			fx: { strike: 'projectile', shape: 'orb', size: 'l', colors: ['#00b4d8', '#ffffff'] }
+			delivery: { damage: 15, energyGain: 10, shape: 'melee', grantsStack: 'eclipse', windUpMs: 200, windUpStyle: 'recoil' },
+			fx: { strike: 'projectile', shape: 'bolt', size: 'l', colors: ['#00b4d8', '#ffffff'] }
 		}
 	],
 
@@ -38,16 +38,17 @@ export const frosty: Character = {
 		X: {
 			id: 'ice_on_fire',
 			name: 'Ice on Fire',
-			behavior: 'damage_first_in_line',
+			behavior: 'damage_aoe',
 			cooldownMs: 4000,
 			unchainedBonus: 10,
 			delivery: {
-				damage: 15,
+				damage: 100,
 				energyGain: 15,
 				grantsStack: 'eclipse',
-				shape: 'line',
+				shape: 'pcone',
 				shapeParams: { range: 5 },
-				hitsStrata: ['ground']
+				hitsStrata: ['ground', 'flying'],
+				windUpMs: 200, windUpStyle: 'levitate'
 			},
 			fx: { strike: 'projectile', shape: 'wave', size: 'l', colors: ['#219ebc', '#ffffff'] }
 		},
@@ -71,7 +72,8 @@ export const frosty: Character = {
 				grantsStack: 'eclipse',
 				aimRange: 5,
 				holdBehavior: 'aim',
-				autoTargetEnemy: true
+				autoTargetEnemy: true,
+				windUpMs: 300, windUpStyle: 'tremor'
 			},
 			fx: { shape: 'orb', colors: ['#eaf6ff', 'var(--frost)', '#00b4d8'] }
 		},
@@ -85,6 +87,7 @@ export const frosty: Character = {
 				grantsStack: 'eclipse',
 				aimRange: 4,
 				holdBehavior: 'aim',
+				windUpMs: 200, windUpStyle: 'heavy-drag'
 			}
 		}
 	},
@@ -95,7 +98,7 @@ export const frosty: Character = {
 	onStackFull: 'unchained',
 	onStackFullTarget: 'self',
 	art: {
-		gem: '/characters/frosty_gem.png',
+		gem: '/characters/gem-frosty.png',
 		profile: '/characters/avatars2/frosty.png',
 		poster: '/characters/frosty4.png',
 		bannerPoster: '/characters/frosty_poster101.png',
