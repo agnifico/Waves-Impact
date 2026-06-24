@@ -1,6 +1,7 @@
 import type { EngineState, CharacterState, EnemyState } from '$lib/types/state';
 import type { Ability } from '$lib/types/ability';
-import { getStatModifier } from './effects';
+import type { DamageTag } from '$lib/types/effect';
+import { getStatModifier, getAuraModifier } from './effects';
 import { chebyshev } from './board';
 import type { Position } from '$lib/types';
 
@@ -16,13 +17,28 @@ export interface DamageContext {
 	originZoneId?: string;
 	state: EngineState;
 	sourcePos?: Position;   // overrides source.pos for zone proximity checks
+	/** Damage taxonomy tags for this hit. Buffs filter on these. Omit = untagged
+	 *  (only unfiltered buffs apply). e.g. ['ba'], ['ability','ult'], ['creation']. */
+	tags?: DamageTag[];
 }
 
 type PipelineStage = (amount: number, ctx: DamageContext) => number;
 
-// ─── Stage 2: source effects (bloomstride, buff stacks, etc.) ────────────────
+// ─── Stage 2: source effects (typed buffs, stack auras, etc.) ────────────────
 function applySourceEffects(amount: number, ctx: DamageContext): number {
-	const bonus = getStatModifier(ctx.source, 'damageBonus');
+	// Tag resolution: explicit tags win; otherwise a hit carrying an ability is
+	// ability damage by default (behaviors can set explicit tags to refine, e.g.
+	// ['ability','ult'] / ['ability','zone']). BA/creation/zone set tags explicitly.
+	const tags = ctx.tags ?? (ctx.ability ? (['ability'] as DamageTag[]) : undefined);
+	let bonus = getStatModifier(ctx.source, 'damageBonus', { tags, state: ctx.state });
+
+	// Cross-entity: benched party members broadcasting target:'active' auras buff
+	// whoever is on field (Frosty's per-stack BA aura). Only applies to the active unit.
+	const active = ctx.state.party[ctx.state.activeSlot];
+	if (active && active.id === ctx.source.id) {
+		bonus += getAuraModifier(ctx.state, ctx.source, 'damageBonus', tags);
+	}
+
 	return Math.round(amount * (1 + bonus));
 }
 

@@ -26,35 +26,35 @@ export const carla: Character = {
 	basicChain: [
 		{
 			name: 'Boot Sequence',
-			range: 8,
+			range: 10,
 			omniTarget: true,
 			delivery: { damage: 6, energyGain: 12, shape: 'melee', windUpMs: 150, windUpStyle: 'bow', },
 			fx: { strike: 'bullet', colors: ['#9b5de5', '#e63946'] }
 		},
-		{
-			name: 'Process Spawn',
-			range: 8,
-			omniTarget: true,
-			delivery: { damage: 8, energyGain: 12, shape: 'melee', windUpMs: 150, windUpStyle: 'pistol', },
-			fx: { strike: 'bullet', colors: ['#9b5de5', '#e63946'] }
-		},
-		{
-			name: 'Thread Execution',
-			range: 8,
-			omniTarget: true,
-			delivery: { damage: 10, energyGain: 12, shape: 'melee', windUpMs: 100, windUpStyle: 'pistol', },
-			fx: { strike: 'bullet', colors: ['#a86fe8', '#e63946'] }
-		},
-		{
-			name: 'Buffer Overflow',
-			range: 8,
-			omniTarget: true,
-			delivery: { damage: 12, energyGain: 12, shape: 'melee', windUpMs: 200, windUpStyle: 'bow', },
-			fx: { strike: 'bullet', colors: ['#a86fe8', '#e63946'] }
-		},
+		// {
+		// 	name: 'Process Spawn',
+		// 	range: 8,
+		// 	omniTarget: true,
+		// 	delivery: { damage: 8, energyGain: 12, shape: 'melee', windUpMs: 150, windUpStyle: 'pistol', },
+		// 	fx: { strike: 'bullet', colors: ['#9b5de5', '#e63946'] }
+		// },
+		// {
+		// 	name: 'Thread Execution',
+		// 	range: 8,
+		// 	omniTarget: true,
+		// 	delivery: { damage: 10, energyGain: 12, shape: 'melee', windUpMs: 100, windUpStyle: 'pistol', },
+		// 	fx: { strike: 'bullet', colors: ['#a86fe8', '#e63946'] }
+		// },
+		// {
+		// 	name: 'Buffer Overflow',
+		// 	range: 8,
+		// 	omniTarget: true,
+		// 	delivery: { damage: 12, energyGain: 12, shape: 'melee', windUpMs: 200, windUpStyle: 'bow', },
+		// 	fx: { strike: 'bullet', colors: ['#a86fe8', '#e63946'] }
+		// },
 		{
 			name: 'Kernel Panic',
-			range: 8,
+			range: 10,
 			omniTarget: true,
 			delivery: { damage: 16, energyGain: 14, shape: 'melee', grantsStack: 'memory', windUpMs: 300, windUpStyle: 'bow', },
 			fx: { strike: 'bullet', gashes: 5, colors: ['#e63946', '#ff003c'] }
@@ -64,8 +64,8 @@ export const carla: Character = {
 	// Hold BA -> Stream Buffer: sustained 4-shots/sec stream, 1 Memory per second.
 	channelBasic: {
 		name: 'Stream Buffer',
-		intervalMs: 250,          // 4 shots/sec
-		drainPerStackMs: 1000,    // 1 Memory = 1 second of fire
+		intervalMs: 250, // 4 shots/sec
+		drainPerStackMs: 1000, // 1 Memory = 1 second of fire
 		range: 7,
 		delivery: { damage: 15 },
 		onHit: { appliesEffects: ['thread'] }, // each shot refreshes the mark on its target
@@ -118,16 +118,16 @@ export const carla: Character = {
 			behavior: 'tactical_detonate',
 			cooldownMs: 18000,
 			energyCost: 40,
-			delivery: { windUpMs: 1000, windUpStyle: 'melee' },   // gem charges 500ms, then the barrage
+			delivery: { windUpMs: 1000, windUpStyle: 'melee' }, // gem charges 500ms, then the barrage
 			onHit: {},
-			fx: { strike: 'stream', colors: ['#c084fc', '#ff003c'] }   // beam to each marked enemy
+			fx: { strike: 'stream', colors: ['#c084fc', '#ff003c'] } // beam to each marked enemy
 		}
 	},
 
 	stackType: 'memory',
 	stackName: 'Memory',
 	stackMax: 10,
-	onStackFull: 'none',   // hold-and-spend fuel tank; never auto-converts
+	onStackFull: 'none', // hold-and-spend fuel tank; never auto-converts
 
 	stratum: 'ground',
 	offFieldStackBonus: 1.2,
@@ -135,7 +135,7 @@ export const carla: Character = {
 	art: {
 		gem: '/characters/gem-carla.png',
 		profile: '/characters/avatars2/carla.png',
-		poster: '/characters/carla1.png',
+		poster: '/characters/carla_v.png',
 		bannerPoster: '/characters/carla4.png'
 	},
 	theme: {
@@ -146,5 +146,6 @@ export const carla: Character = {
 		hp: 'linear-gradient(-90deg, #1f1135 0%, #4c1d95 50%, #ff003c 100%);',
 		energy: 'linear-gradient(to right, #2e1065, #7c3aed);',
 		resources: [{ id: 'memory', fill: 'linear-gradient(180deg,#c084fc,#7c3aed)', label: 'Memory' }]
-	}
+	},
+	baCooldownMs: 0
 };

@@ -20,6 +20,12 @@ export interface EnemyAttack {
 	hits?: Stratum[];
 	knockback?: number;         // tiles to push the active character on hit
 	knockbackSmart?: boolean;   // push toward nearest other enemy instead of away
+	/** Leap adjacent to the target as part of this attack (per-attack, so a lunge
+	 *  can leap while the same enemy's other attacks don't). */
+	gapClose?: boolean;
+	/** Max Chebyshev distance the leap triggers from; beyond it the enemy approaches
+	 *  normally. Omit = leap from any distance the attack is otherwise ready. */
+	gapCloseRange?: number;
 	windUpMs?: number;
 	windUpStyle?: 'charge' | 'melee' | 'ranged' | 'pistol' | 'bow' | 'fire';
 	fx?: FxSpec;

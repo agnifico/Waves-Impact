@@ -1,8 +1,9 @@
 <script lang="ts">
 	import type { CharacterState, EngineState } from '$lib/types/state';
 	import type { Position } from '$lib/types/common';
-	import { samePos, chebyshev, step8Toward } from '$lib/combat/board';
+	import { samePos, chebyshev, step8Toward, occupies, inBounds } from '$lib/combat/board';
 	import { resolveTiles } from '$lib/combat/shapes';
+	import { CREATIONS } from '$lib/data/creations';
 	import { holdState, camera, ZOOM_LEVELS, zoomIn, zoomOut, zoomReset, isDown, wasdVec } from '$lib/input/intent-state';
 	import { subscribe, clear } from '$lib/combat/events';
 	import { onMount } from 'svelte';
@@ -244,6 +245,22 @@
 					}
 				}
 			}
+		} else if (shape === 'footprint' && ability.creationId) {
+			// Auto-derive placement preview from the construct/summon's footprint.
+			let center: Position = active.pos;
+			if (holdState.holdBehavior === 'aim' && holdState.reticle) {
+				center = holdState.reticle;
+			} else if (d?.autoTargetEnemy) {
+				const enemy = gs.enemies.find(
+					(e) => e.hp > 0 && chebyshev(active.pos, e.pos) <= (aimRange ?? 99)
+				);
+				if (enemy) center = enemy.pos;
+			}
+			const creationDef = CREATIONS[ability.creationId];
+			const offsets = creationDef?.footprint ?? [{ x: 0, y: 0 }];
+			tiles = offsets
+				.map((o) => ({ x: center.x + o.x, y: center.y + o.y }))
+				.filter((p) => inBounds(gs.board, p));
 		} else if (shape) {
 			tiles = resolveTiles(shape, active.pos, active.facing, sp, gs.board);
 		}
@@ -425,20 +442,44 @@
 	}
 
 	// ─── Entity lookups per tile ─────────────────────────────────────────────
+	// Movers (player/enemy/summon). Footprint-aware; isHead marks the icon cell.
 	function entityAt(x: number, y: number) {
 		const pos = { x, y };
 		const active = gs.party[gs.activeSlot];
-		if (active && samePos(active.pos, pos)) return { type: 'player' as const, data: active };
+		if (active && occupies(active, pos))
+			return { type: 'player' as const, data: active, isHead: samePos(active.pos, pos) };
 		for (const enemy of gs.enemies) {
-			if (enemy.hp > 0 && samePos(enemy.pos, pos)) return { type: 'enemy' as const, data: enemy };
+			if (enemy.hp > 0 && occupies(enemy, pos))
+				return { type: 'enemy' as const, data: enemy, isHead: samePos(enemy.pos, pos) };
 		}
 		for (const summon of gs.summons) {
-			if (samePos(summon.pos, pos)) return { type: 'summon' as const, data: summon };
-		}
-		for (const summon of gs.constructs) {
-			if (samePos(summon.pos, pos)) return { type: 'construct' as const, data: summon };
+			if (occupies(summon, pos))
+				return { type: 'summon' as const, data: summon, isHead: samePos(summon.pos, pos) };
 		}
 		return null;
+	}
+
+	// Constructs render in their own sub-layer, beneath movers — so the icon is
+	// never hidden by anything standing on (or transiently over) a footprint cell.
+	function constructCellAt(x: number, y: number) {
+		const pos = { x, y };
+		for (const c of gs.constructs) {
+			if (occupies(c, pos)) return { c, isHead: samePos(c.pos, pos) };
+		}
+		return null;
+	}
+
+	/** Bounding-box span of a footprint (in tiles) + its top-left origin offset. */
+	function fpSpan(offs: { x: number; y: number }[] | undefined) {
+		if (!offs || offs.length === 0) return { w: 1, h: 1, ox: 0, oy: 0 };
+		let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+		for (const o of offs) {
+			if (o.x < minX) minX = o.x;
+			if (o.x > maxX) maxX = o.x;
+			if (o.y < minY) minY = o.y;
+			if (o.y > maxY) maxY = o.y;
+		}
+		return { w: maxX - minX + 1, h: maxY - minY + 1, ox: minX, oy: minY };
 	}
 
 	// owner is a party member (zones are player-cast); party holds all defs, on- or off-field
@@ -463,6 +504,7 @@
 		{#each { length: gs.board.size.width } as _, x}
 			<!-- {@const extra = tileClass(x, y, now)} -->
 			{@const entity = entityAt(x, y)}
+			{@const con = constructCellAt(x, y)}
 			{@const pv = !!preview && preview.keys.has(`${x},${y}`)}
 			{@const inRange = !pv && !!baRange && baRange.has(`${x},${y}`)}
 			{@const edge = pv
@@ -484,7 +526,22 @@
 				{#if trackCrosshair && trackCrosshair.x === x && trackCrosshair.y === y}
 					<div class="track-crosshair"></div>
 				{/if}
-				{#if entity?.type === 'player'}
+				{#if con}
+					{@const mode = con.c.footprintRender ?? 'all'}
+					{@const multi = (con.c.footprint?.length ?? 1) > 1}
+					{#if !multi || mode === 'all'}
+						<Gem type="construct" construct={con.c} {now} />
+					{:else if mode === 'head'}
+						{#if con.isHead}
+							<Gem type="construct" construct={con.c} {now} />
+						{:else}
+							<div class="fp-slab"></div>
+						{/if}
+					{:else if mode === 'scaled'}
+						<!-- rendered in scaled overlay above the grid -->
+					{/if}
+				{/if}
+				{#if entity?.type === 'player' && entity.isHead}
 					{#if chargeAura && chargeAura.x === x && chargeAura.y === y}
 						<div class="charge-aura tier-{chargeAura.tier}">
 							<span class="charge-pips">
@@ -495,7 +552,7 @@
 						</div>
 					{/if}
 					<Gem type="player" character={entity.data} {now} />
-				{:else if entity?.type === 'enemy'}
+				{:else if entity?.type === 'enemy' && entity.isHead}
 					<Gem
 						type="enemy"
 						enemy={entity.data}
@@ -504,12 +561,43 @@
 						locked={entity.data.id === gs.focusTargetId}
 					/>
 				{:else if entity?.type === 'summon'}
-					<Gem type="summon" summon={entity.data} {now} />
-				{:else if entity?.type === 'construct'}
-					<Gem type="construct" construct={entity.data} {now} />
+					{@const s = entity.data}
+					{@const mode = s.footprintRender ?? 'all'}
+					{@const multi = (s.footprint?.length ?? 1) > 1}
+					{#if !multi || mode === 'all'}
+						<Gem type="summon" summon={s} {now} />
+					{:else if mode === 'head'}
+						{#if entity.isHead}
+							<Gem type="summon" summon={s} {now} />
+						{:else}
+							<div class="fp-slab"></div>
+						{/if}
+					{:else if mode === 'scaled'}
+						<!-- rendered in scaled overlay above the grid -->
+					{/if}
 				{/if}
 			</div>
 		{/each}
+	{/each}
+
+	<!-- Scaled multi-tile entities — rendered above the grid to avoid stacking-context clipping -->
+	{#each gs.constructs as c}
+		{#if (c.footprint?.length ?? 1) > 1 && (c.footprintRender ?? 'all') === 'scaled'}
+			{@const sp = fpSpan(c.footprint)}
+			<div
+				class="scaled-entity"
+				style="left:{(c.pos.x + sp.ox) * 36}px; top:{(c.pos.y + sp.oy) * 36}px; width:{sp.w * 36}px; height:{sp.h * 36}px;{c.profileImage ? ` background-image:url(${c.profileImage});` : ''}"
+			></div>
+		{/if}
+	{/each}
+	{#each gs.summons as s}
+		{#if (s.footprint?.length ?? 1) > 1 && (s.footprintRender ?? 'all') === 'scaled'}
+			{@const sp = fpSpan(s.footprint)}
+			<div
+				class="scaled-entity"
+				style="left:{(s.pos.x + sp.ox) * 36}px; top:{(s.pos.y + sp.oy) * 36}px; width:{sp.w * 36}px; height:{sp.h * 36}px;{s.profileImage ? ` background-image:url(${s.profileImage});` : ''}"
+			></div>
+		{/if}
 	{/each}
 
 	<!-- Floating text layer -->
@@ -691,6 +779,30 @@
 	.tile.range-ring-far {
 		background: rgba(14, 37, 41, 0.5);
 	}
+	/* Non-icon footprint cell ('head' render mode): a raised, glowing slab. */
+	.fp-slab {
+		position: absolute;
+		inset: 2px;
+		border-radius: 3px;
+		background: color-mix(in srgb, var(--gold) 14%, transparent);
+		box-shadow:
+			0 0 8px color-mix(in srgb, var(--gold) 35%, transparent),
+			0 1px 0 rgba(255, 255, 255, 0.18) inset,
+			0 -1px 2px rgba(0, 0, 0, 0.4) inset;
+		pointer-events: none;
+	}
+	/* Scaled multi-tile entity rendered in an overlay above the grid. */
+	.scaled-entity {
+		position: absolute;
+		z-index: 15;
+		pointer-events: none;
+		background-size: contain;
+		background-position: center;
+		background-repeat: no-repeat;
+		border-radius: 4px;
+		box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+	}
+
 	.reticle-cursor {
 		position: absolute;
 		margin: auto;

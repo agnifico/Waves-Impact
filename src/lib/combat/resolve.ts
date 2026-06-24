@@ -4,6 +4,7 @@ import type { OnHit, Splash } from '$lib/types/onhit';
 import type { Delivery } from '$lib/types/delivery';
 import type { HealAmount, ResourcePayload } from '$lib/types/resource';
 import type { Position, Stratum } from '$lib/types/common';
+import type { DamageTag } from '$lib/types/effect';
 import { chebyshev, step8Toward, step8Away, samePos, clamp } from './board';
 import { calculateDamage } from './pipeline';
 import { grantShield, applyEffect, getEffect } from './effects';
@@ -51,6 +52,9 @@ export interface ResolveSource {
 	 *  receiveBuffs:false — the owner's damageBonus/zone buffs must NOT apply. Owner-bound
 	 *  resources (energy/stack/heal) still route normally. Default false (pipelined). */
 	flatDamage?: boolean;
+	/** Damage taxonomy tags for hits from this source. The pipeline filters buffs on
+	 *  these. e.g. ['ba'], ['ability'], ['ability','ult'], ['creation'], ['creation','reaction']. */
+	tags?: DamageTag[];
 }
 
 // ─── heal resolution ───────────────────────────────────────────────────────────
@@ -209,6 +213,7 @@ function dealDamageTo(state: EngineState, enemy: EnemyState, base: number, src: 
 			element: src.element,
 			originZoneId: src.originZoneId,
 			sourcePos: src.sourcePos,
+			tags: src.tags,
 			state
 		});
 	enemy.hp = Math.max(0, enemy.hp - dmg);

@@ -111,7 +111,7 @@ export const sefyra: Character = {
     art: {
         gem: '/characters/gem-sefyra.png',
         profile: '/characters/avatars2/sefyra.png',
-        poster: '/characters/sefyra_poster3.png',
+        poster: '/characters/sefyra_v.png',
         bannerPoster: '/characters/sefyra100.png'
     },
     theme: {

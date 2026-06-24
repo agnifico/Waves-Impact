@@ -20,7 +20,7 @@ export const maria_elena: Character = {
 			range: 1,
 			omniTarget: true,
 			advanceOnlyIfMelee: true,
-			delivery: { damage: 18, energyGain: 8, shape: 'melee', hitsStrata: ['ground'], windUpMs: 150, windUpStyle: 'bow' },
+			delivery: { damage: 18, energyGain: 2, shape: 'melee', hitsStrata: ['ground'], windUpMs: 150, windUpStyle: 'bow' },
             onHit: {
                 splash: {radius: 1},
             },
@@ -32,7 +32,7 @@ export const maria_elena: Character = {
 			range: 1,
 			omniTarget: true,
 			advanceOnlyIfMelee: true,
-			delivery: { damage: 22, energyGain: 8, shape: 'melee', hitsStrata: ['ground'], windUpMs: 150, },
+			delivery: { damage: 22, energyGain: 2, shape: 'melee', hitsStrata: ['ground'], windUpMs: 150, },
             onHit: {
                 splash: {radius: 1},
             },
@@ -43,7 +43,7 @@ export const maria_elena: Character = {
 			range: 1,
 			omniTarget: true,
 			advanceOnlyIfMelee: true,
-			delivery: { damage: 22, energyGain: 8, shape: 'melee', hitsStrata: ['ground'], windUpMs: 200,},
+			delivery: { damage: 22, energyGain: 3, shape: 'melee', hitsStrata: ['ground'], windUpMs: 200,},
             onHit: {
                 splash: {radius: 1},
             },
@@ -53,7 +53,7 @@ export const maria_elena: Character = {
 			name: 'Flash Fire (4)',
 			range: 1,
 			omniTarget: true,
-			delivery: { damage: 45, energyGain: 14, shape: 'melee', grantsStack: 'immortal_flame', hitsStrata: ['ground'], windUpMs: 350, windUpStyle: 'pistol' },
+			delivery: { damage: 45, energyGain: 3, shape: 'melee', grantsStack: 'immortal_flame', hitsStrata: ['ground'], windUpMs: 350, windUpStyle: 'pistol' },
             onHit: {
                 splash: {radius: 1},
             },
@@ -68,7 +68,7 @@ export const maria_elena: Character = {
 			omniTarget: true,
 			consumesStack: 'immortal_flame',
 			gapClose: true,
-			delivery: { damage: 5, energyGain: 10, shape: 'melee',windUpMs: 500, windUpStyle: 'bow' },
+			delivery: { damage: 60, energyGain: 10, shape: 'melee',windUpMs: 500, windUpStyle: 'bow' },
             onHit: {
                 splash: {radius: 1},
             },
@@ -89,7 +89,7 @@ export const maria_elena: Character = {
 			charges: 2,
 			delivery: {
 				damage: 100,
-				energyGain: 7,
+				energyGain: 10,
 				grantsStack: 'immortal_flame',
 				shield: { amount: 20, target: 'self' },     // cast-time self shield
 				shape: 'line',
@@ -113,7 +113,7 @@ export const maria_elena: Character = {
 			charges: 3,
 			delivery: {
 				windUpMs: 200, windUpStyle: 'melee',
-				damage: 100,
+				damage: 50,
 				energyGain: 7,
 				grantsStack: 'immortal_flame',
 				shield: { amount: 20, target: 'self' },
@@ -123,7 +123,7 @@ export const maria_elena: Character = {
 					tiles: 4,
 					throughObstacles: true,
 					allInLine: true,        // hit every enemy along the path (was first-only)
-					blastDamage: 50,
+					blastDamage: 75,
 					blastRadius: 2
 				},
 				holdBehavior: 'track',
@@ -138,20 +138,20 @@ export const maria_elena: Character = {
 			id: 'here_we_stand',
 			name: 'Here We Stand',
 			behavior: 'zone',
-			durationMs: 20_000,
+			durationMs: 60_000,
 			cooldownMs: 1_000,
-			energyCost: 0,
+			energyCost: 30,
 			zoneFollows: 'active',
 			persistsAfterDeath: false,
 			zoneBuff: {
 				damageBonus: 0.2,
 				dmgPerTick: 50,
-				ownerEnergyDrainPerTick: 5,
-				upkeepReductionPerStack: 0.05,
+				ownerEnergyDrainPerTick: 10,
+				upkeepReductionPerStack: 0.1,
 				tickMs: 1000
 			},
 			delivery: {
-				damage: 50,                 // one-time cast burst
+				damage: 20,                 // one-time cast burst
 				grantsStack: 'immortal_flame',
 				shape: 'circle',
 				shapeParams: { radius: 1 },
@@ -176,12 +176,12 @@ export const maria_elena: Character = {
 	art: {
 		gem: '/characters/gem-maria_elena.png',
 		profile: '/characters/avatars2/maria_elena.png',
-		poster: '/characters/maria_poster77.png',
+		poster: '/characters/maria_v.png',
 		bannerPoster: '/characters/maria_poster2.png'
 	},
 	theme: {
 		primary: '#f83600',
-		secondary: '#e9c46a',
+		secondary: '#22223b',
 		glow: { ready: '#e9c46a' },
 		hp: 'linear-gradient(to left, #f83600 0%, #f9d423 100%);',
 		energy: 'linear-gradient(to top, #ff0844 0%, #ffb199 100%);',

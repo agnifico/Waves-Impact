@@ -118,6 +118,11 @@ export interface SummonState {
 	stickyUntil?: number;      // timestamp; don't switch before this
 	element?: string;
 	stratum: Stratum;
+	/** Footprint offsets relative to pos. Omit/empty = 1×1. occupiedTiles maps to absolute. */
+	footprint?: Position[];
+	footprintRender?: 'all' | 'head' | 'scaled';
+	/** Multi-tile movers shove units aside instead of being blocked by them. */
+	juggernaut?: boolean;
 }
 
 /**
@@ -144,6 +149,9 @@ export interface ConstructState {
 	name?: string;
 	receiveBuffs?: boolean;
 	stratum: Stratum;
+	/** Footprint offsets relative to pos. Omit/empty = 1×1. occupiedTiles maps to absolute. */
+	footprint?: Position[];
+	footprintRender?: 'all' | 'head' | 'scaled';
 }
 
 

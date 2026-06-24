@@ -17,9 +17,7 @@
 		isPaused,
 		setPaused,
 		resetClock,
-
 		togglePause
-
 	} from '$lib/input/intent-state';
 	import { focusTarget, nearestEnemy } from '$lib/combat/query';
 	import { tryAbility } from '$lib/combat/ability-resolver';
@@ -240,12 +238,17 @@
 
 		<div class="center">
 			<div class="board-col">
-				<div class="hud-col">
-					<div class="banner banner-ally"><UnitBanner side="ally" state={gs} {now} /></div>
-					<div class="banner banner-enemy"><UnitBanner side="enemy" state={gs} {now} /></div>
-				</div>
+				{#if !hudHidden}
+					<div class="console-name">Chessboard Combat</div>
+				{/if}
 				<div class="board-wrap">
-					<div class="console-name">Chessboard Battlefield</div>
+					{#if hudHidden}
+						<div class="console-name">Chessboard Combat</div>
+					{/if}
+					<div class="hud-col">
+						<div class="banner banner-ally"><UnitBanner side="ally" state={gs} {now} /></div>
+						<div class="banner banner-enemy"><UnitBanner side="enemy" state={gs} {now} /></div>
+					</div>
 					<Board bind:this={boardComponent} {gs} {now} />
 					{#if gs.over && gs.outcome === 'victory'}
 						<div class="overlay victory"><h1>VICTORY</h1></div>
@@ -255,7 +258,8 @@
 					{/if}
 					{#if paused && !gs.over}
 						<div class="overlay paused">
-							<h1>PAUSED</h1>
+							<h1 >PAUSED</h1>
+							
 
 							<div class="keys-area">
 								<div class="keys-grid">
@@ -273,7 +277,8 @@
 								</div>
 							</div>
 
-							<div class="skin-area">
+							<button onclick={togglePause}>{paused ? 'Unpause' : 'Pause'}</button>
+							<!-- <div class="skin-area">
 								{#each SKINS as s (s.url)}
 									<button
 										class="skin"
@@ -284,7 +289,7 @@
 										onclick={() => (selectedSkin = s.url)}
 									></button>
 								{/each}
-							</div>
+							</div> -->
 						</div>
 					{/if}
 					<!-- {#if gs.party[gs.activeSlot].stunnedUntil > now}
@@ -371,6 +376,7 @@
 		justify-content: space-between;
 		width: 100%;
 		z-index: 1;
+		margin-block: 0.5rem 0.75rem;
 	}
 
 	.party-row {
@@ -430,7 +436,7 @@
 	}
 	.board-wrap {
 		position: relative;
-		background-color: var(--panel-raised);
+		background-color: var(--panel-2);
 		padding: 0.5rem 1.5rem 2rem 1.5rem;
 		/* padding-top: 4rem; */
 		border-radius: 18px;
@@ -462,8 +468,8 @@
 		gap: 8px;
 		padding: 8px;
 		/* margin-top: 4rem; */
-		background: var(--panel);
-		border: 3px solid var(--panel-raised);
+		/* background: var(--panel); */
+		/* border: 3px solid var(--panel-raised); */
 		border-radius: 8px;
 	}
 	.top-controls {
@@ -516,7 +522,7 @@
 		gap: 6px;
 		padding: 6px;
 		background: var(--panel);
-		border: 3px solid var(--panel-raised);
+		/* border: 3px solid var(--panel-raised); */
 		border-radius: 8px;
 		/* flex: 1; */
 		width: 50%;
@@ -585,8 +591,7 @@
 		letter-spacing: 4px;
 	}
 	.overlay.paused {
-		background: rgba(0, 0, 0, 0.5);
-		backdrop-filter: blur(2px);
+		background: rgba(0, 0, 0, 0.9);
 		z-index: 120;
 		display: flex;
 		gap: 1rem;
@@ -596,7 +601,7 @@
 		color: var(--gold);
 		font-size: 28px;
 		letter-spacing: 6px;
-		font-family: "DePixel";
+		font-family: 'DePixel';
 	}
 	.overlay.stun {
 		background: rgba(196, 66, 58, 0.15);

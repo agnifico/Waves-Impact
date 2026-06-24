@@ -31,7 +31,8 @@
 		for (let i = 1; i <= n; i++) out.push({ tx: i * d.dx * TILE, ty: i * d.dy * TILE, d: (i - 1) * 70 });
 		return out;
 	}
-	/** Pascal cone tiles (fx-cast-pcone): orthogonal 1·3·5, diagonal 1·2·3. */
+	/** Cone tiles: orthogonal → Pascal fan (1·3·5), diagonal → filled square quadrant.
+	 *  Must match pconeFrom in combat/shapes/pcone.ts exactly. */
 	function coneTiles(d: { dx: number; dy: number }, range: number): TilePart[] {
 		const out: TilePart[] = [];
 		if (d.dx === 0 || d.dy === 0) {
@@ -40,10 +41,12 @@
 				for (let k = -(r - 1); k <= r - 1; k++)
 					out.push({ tx: (r * d.dx + k * px) * TILE, ty: (r * d.dy + k * py) * TILE, d: (r - 1) * 70 });
 		} else {
-			for (let r = 1; r <= range; r++)
-				for (let cxi = 1; cxi <= r; cxi++) {
-					const cyi = cxi - (r + 1);
-					out.push({ tx: cxi * d.dx * TILE, ty: cyi * -d.dy * TILE, d: (r - 1) * 70 });
+			// Filled quadrant: all tiles in the dir.x/dir.y quadrant out to range
+			for (let i = 0; i <= range; i++)
+				for (let j = 0; j <= range; j++) {
+					if (i === 0 && j === 0) continue;
+					const ring = Math.max(i, j);
+					out.push({ tx: i * d.dx * TILE, ty: j * d.dy * TILE, d: (ring - 1) * 70 });
 				}
 		}
 		return out;
@@ -483,6 +486,23 @@
 				spawn({
 					kind: 'wave',
 					ttl: path.length * STEP + 320,
+					tiles: path.map((p, i) => ({
+						x: p.x,
+						y: p.y,
+						color: mix(ramp, path.length > 1 ? i / (path.length - 1) : 0),
+						delay: i * STEP
+					}))
+				});
+			}),
+			subscribe('entity:dash', (e) => {
+				// Gap-close leap (summon / enemy) — same dash-trail as the player, in
+				// the entity's own ramp, a touch snappier.
+				const ramp = rampOf(e.id);
+				const path = lineTiles(e.from, e.to);
+				const STEP = 36;
+				spawn({
+					kind: 'wave',
+					ttl: path.length * STEP + 260,
 					tiles: path.map((p, i) => ({
 						x: p.x,
 						y: p.y,

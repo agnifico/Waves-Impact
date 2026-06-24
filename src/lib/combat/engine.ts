@@ -1,11 +1,13 @@
 import type { CharacterState, EnemyState, EngineState, SummonState } from '$lib/types/state';
 import { tickEffects } from './effects';
+import { reconcileStackBuffs } from './stacks';
 import { fireEnemyAttacks, tickEnemyAi } from './ai';
-import { chebyshev, samePos, clamp, step8Toward } from './board';
+import { tileBlockedByConstruct } from './ai/utils';
+import { chebyshev, samePos, clamp, step8Toward, occupies } from './board';
 import { checkAutoSwap } from './swap';
 import { publish } from './events';
 import { nearestEnemy } from './query';
-import { canEnter } from './spatial';
+import { canEnter, gapCloseLanding, canJuggernautStep, juggerShove } from './spatial';
 import { OFF_FIELD_REGEN_MS, regenOffField } from './energy';
 import { calculateDamage } from './pipeline';
 import { getCreationDef } from '$lib/data/creations';
@@ -54,8 +56,10 @@ export function tick(
 			y: active.pos.y + Math.sign(moveDir.y)
 		});
 
-		// Don't walk into enemies
-		const blocked = state.enemies.some((e) => e.hp > 0 && samePos(next, e.pos));
+		// Don't walk into enemies, constructs, or summons
+		const blocked = state.enemies.some((e) => e.hp > 0 && samePos(next, e.pos))
+			|| tileBlockedByConstruct(state, next, active.stratum, active.def.ignoresConstructs)
+			|| state.summons.some((s) => occupies(s, next));
 		const passable = canEnter(active.stratum, next, state.board, active.def.traversal);
 		if (!blocked && passable && !samePos(next, active.pos)) {
 			const from = { ...active.pos };
@@ -95,6 +99,8 @@ export function tick(
 	// 5. Effect expiry / tick hooks for all entities
 	for (const pc of state.party) tickEffects(state, pc, now);
 	for (const enemy of state.enemies) tickEffects(state, enemy, now);
+	// Stack-gated persistent buffs (e.g. Frosty's per-stack aura / 5-stack creation buff)
+	for (const pc of state.party) reconcileStackBuffs(pc, now);
 
 	// 6. Death checks
 	if (!checkAutoSwap(state)) {
@@ -205,6 +211,24 @@ function tickSummons(state: EngineState, now: number): void {
 
 		// Movement
 		if (now >= summon.nextMoveAt) {
+			/** Step toward `toward` only if the target tile is clear.
+			 *  Juggernauts shove units aside; normal summons are blocked. */
+			const tryStep = (toward: Position) => {
+				const next = clamp(state.board, step8Toward(summon.pos, toward));
+				if (samePos(next, summon.pos)) return;
+				const fp = summon.footprint ?? [{ x: 0, y: 0 }];
+				if (summon.juggernaut) {
+					if (!canJuggernautStep(state, fp, next, summon.stratum)) return;
+					const newTiles = fp.map((o) => ({ x: next.x + o.x, y: next.y + o.y }));
+					juggerShove(state, summon.id, newTiles, publish);
+					summon.pos = next;
+				} else {
+					if (state.board.obstacles.some((o) => samePos(o, next))) return;
+					if (tileBlockedByConstruct(state, next, summon.stratum)) return;
+					summon.pos = next;
+				}
+			};
+
 			if (targeting === 'guardian') {
 				const owner = state.party.find((p) => p.id === summon.ownerId);
 				const distToOwner = owner ? chebyshev(summon.pos, owner.pos) : 999;
@@ -213,20 +237,36 @@ function tickSummons(state: EngineState, now: number): void {
 					? state.enemies.some((e) => e.hp > 0 && chebyshev(e.pos, owner.pos) <= guardRadius)
 					: false;
 				if (distToOwner > 2) {
-					summon.pos = clamp(state.board, step8Toward(summon.pos, owner!.pos));
+					tryStep(owner!.pos);
 				} else if (!threatNear && target && chebyshev(summon.pos, target.pos) > attackRange) {
-					summon.pos = clamp(state.board, step8Toward(summon.pos, target.pos));
+					tryStep(target.pos);
 				}
 			} else if (targeting !== 'stationary' && target) {
-				if (chebyshev(summon.pos, target.pos) > attackRange) {
-					summon.pos = clamp(state.board, step8Toward(summon.pos, target.pos));
+				// A gap-close summon within leap range holds position and waits to
+				// pounce (the leap fires on the attack beat); otherwise it walks in.
+				const willLeap = !!def?.gapClose &&
+					chebyshev(summon.pos, target.pos) <= (def.gapCloseRange ?? Infinity);
+				if (!willLeap && chebyshev(summon.pos, target.pos) > attackRange) {
+					tryStep(target.pos);
 				}
 			}
 			summon.nextMoveAt = now + moveMs;
 		}
 
-		// Attack
-		const inRange = target && chebyshev(summon.pos, target.pos) <= attackRange;
+		// Attack (with optional gap-close leap on the attack beat)
+		let inRange = !!target && chebyshev(summon.pos, target.pos) <= attackRange;
+		if (
+			target && !inRange && def?.gapClose && now >= summon.nextAttackAt &&
+			chebyshev(summon.pos, target.pos) <= (def.gapCloseRange ?? Infinity)
+		) {
+			const landing = gapCloseLanding(state, summon, target.pos, attackRange);
+			if (landing) {
+				const from = { ...summon.pos };
+				summon.pos = landing;
+				inRange = chebyshev(summon.pos, target.pos) <= attackRange;
+				publish('entity:dash', { id: summon.id, from, to: { ...landing } });
+			}
+		}
 		if (inRange && now >= summon.nextAttackAt) {
 			let baseDmg = def?.attackDamage ?? 0;
 			if (def?.mirrorsOwnerBA) {
@@ -250,6 +290,7 @@ function tickSummons(state: EngineState, now: number): void {
 					abilityName: 'Summon attack',
 					element: summon.element,
 					sourcePos: summon.pos,
+					tags: ['creation'],
 					flatDamage: !summon.receiveBuffs   // unbuffed unless the def opts into pipeline
 				};
 				applyOnHit(state, target!, baseDmg, onHit, src, now);
@@ -297,6 +338,7 @@ function tickConstructs(state: EngineState, now: number): void {
 			abilityName: 'Construct pulse',
 			element: construct.element,
 			sourcePos: construct.pos,
+			tags: ['creation'],
 			flatDamage: !construct.receiveBuffs
 		};
 
@@ -336,7 +378,7 @@ function tickConstructs(state: EngineState, now: number): void {
 			);
 			for (const source of sources) {
 				publish('construct:catalyst', { constructId: construct.id, pos: { ...construct.pos }, element: source.element, radius: construct.pulseRadius });
-				const catSrc: ResolveSource = { ...src, abilityName: 'Catalyst pulse', element: source.element };
+				const catSrc: ResolveSource = { ...src, abilityName: 'Catalyst pulse', element: source.element, tags: ['creation', 'reaction'] };
 				for (const enemy of state.enemies) {
 					if (enemy.hp <= 0) continue;
 					if (chebyshev(enemy.pos, construct.pos) > construct.pulseRadius) continue;
@@ -403,6 +445,7 @@ function tickZones(state: EngineState, now: number): void {
 							source: owner,
 							target: enemy,
 							originZoneId: zone.id,
+							tags: ['ability', 'zone'],
 							state
 						});
 						enemy.hp = Math.max(0, enemy.hp - dmg);
@@ -465,6 +508,8 @@ function tickZones(state: EngineState, now: number): void {
 					if (samePos(ep, zone.center)) break;
 					const next = clamp(state.board, step8Toward(ep, zone.center));
 					if (samePos(next, ep)) break;
+					if (state.board.obstacles.some((o) => samePos(o, next))) break;
+					if (tileBlockedByConstruct(state, next, enemy.stratum)) break;
 					ep = next;
 				}
 				if (!samePos(efrom, ep)) {

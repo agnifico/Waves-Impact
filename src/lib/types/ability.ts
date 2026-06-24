@@ -19,6 +19,7 @@ export type ShapeId =
 	| 'perpendicular_line'
 	| 'circle_follows_caster'
 	| 'melee'
+	| 'footprint'
 	| (string & {}); // extensible
 
 /**

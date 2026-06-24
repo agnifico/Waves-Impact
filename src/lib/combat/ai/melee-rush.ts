@@ -2,7 +2,7 @@ import type { EngineState, EnemyState } from '$lib/types/state';
 import { chebyshev, step4Toward, step8Toward, step8Away, samePos, clamp } from '../board';
 import { publish } from '../events';
 import { canEnter } from '../spatial';
-import { resolveTarget, tileBlockedByConstruct, tryAttacks } from './utils';
+import { resolveTarget, tileBlockedForEnemy, tryAttacks } from './utils';
 
 /**
  * melee_rush: close to melee range and attack. Backs off slightly if too close
@@ -32,14 +32,14 @@ export function tick(state: EngineState, enemy: EnemyState, now: number): void {
                     : step4Toward(enemy.pos, target)
             );
             // Try to route around constructs on the direct path
-            if (tileBlockedByConstruct(state, raw, enemy)) {
+            if (tileBlockedForEnemy(state, raw, enemy)) {
                 // Try 8 neighbours, pick closest to target that isn't construct-blocked
                 const alternatives = [
                     { x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 },
                     { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }
                 ]
                     .map(o => clamp(state.board, { x: enemy.pos.x + o.x, y: enemy.pos.y + o.y }))
-                    .filter(p => !tileBlockedByConstruct(state, p, enemy) && canEnter(enemy.stratum, p, state.board, def.traversal))
+                    .filter(p => !tileBlockedForEnemy(state, p, enemy) && canEnter(enemy.stratum, p, state.board, def.traversal))
                     .sort((a, b) => chebyshev(a, target) - chebyshev(b, target));
                 candidate = alternatives[0] ?? raw; // fall back to raw if all blocked
             } else {

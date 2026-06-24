@@ -31,7 +31,7 @@ export const dragon: Enemy = {
 			priority: 2,
 			windUpMs: 400,
 			windUpStyle: 'melee',
-			fx: { strike: 'swipe', colors: ['#a7c957', '#386641'] }
+			fx: { strike: 'swipe', colors: ['#a7c957', '#386641'] },
 		}
 	],
 	// stratum: 'flying',

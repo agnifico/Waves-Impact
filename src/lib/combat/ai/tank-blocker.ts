@@ -3,7 +3,7 @@ import type { Position } from '$lib/types/common';
 import { chebyshev, step4Toward, step8Toward, samePos, clamp } from '../board';
 import { publish } from '../events';
 import { canEnter } from '../spatial';
-import { resolveTarget, tileBlockedByConstruct, tryAttacks } from './utils';
+import { resolveTarget, tileBlockedForEnemy, tryAttacks } from './utils';
 
 /**
  * tank_blocker: physically screen for allied enemies by positioning
@@ -46,13 +46,13 @@ export function tick(state: EngineState, enemy: EnemyState, now: number): void {
                 ? step8Toward(enemy.pos, moveTarget)
                 : step4Toward(enemy.pos, moveTarget)
         );
-        const candidate = tileBlockedByConstruct(state, raw, enemy)
+        const candidate = tileBlockedForEnemy(state, raw, enemy)
             ? ([
                 { x: -1, y: 0 }, { x: 1, y: 0 }, { x: 0, y: -1 }, { x: 0, y: 1 },
                 { x: -1, y: -1 }, { x: 1, y: -1 }, { x: -1, y: 1 }, { x: 1, y: 1 }
             ]
                 .map(o => clamp(state.board, { x: enemy.pos.x + o.x, y: enemy.pos.y + o.y }))
-                .filter(p => !tileBlockedByConstruct(state, p, enemy) && canEnter(enemy.stratum, p, state.board, def.traversal))
+                .filter(p => !tileBlockedForEnemy(state, p, enemy) && canEnter(enemy.stratum, p, state.board, def.traversal))
                 .sort((a, b) => chebyshev(a, moveTarget) - chebyshev(b, moveTarget))[0] ?? raw)
             : raw;
 

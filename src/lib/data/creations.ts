@@ -13,7 +13,7 @@ import type { CreationDef } from '$lib/types/creation';
  * stays named (`attackDamage` / `pulseDmg`); geometry stays flat (`attackRange`
  * / `pulseRadius`).
  */
-const CREATIONS: Record<string, CreationDef> = {
+export const CREATIONS: Record<string, CreationDef> = {
 
     // ── Summons ──────────────────────────────────────────────────────────────
 
@@ -27,6 +27,8 @@ const CREATIONS: Record<string, CreationDef> = {
         attackCooldownMs: 1000,
         attackDamage: 75,
         attackRange: 1,
+        gapClose: true,
+        gapCloseRange: 5,        // lurks until within 5 tiles, then pounces
         receiveBuffs: true,
         onHit: { energyGain: 5, grantsStack: 'eclipse' },
     },
@@ -36,10 +38,14 @@ const CREATIONS: Record<string, CreationDef> = {
         durationMs: 30_000,
         targeting: 'nearest',
         stickyTargetMs: 1500,
-        moveCooldownMs: 5000,
+        moveCooldownMs: 3000,
         attackCooldownMs: 5000,
         attackDamage: 300,
-        attackRange: 10,
+        attackRange: 7,
+        footprint: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }],
+        // footprint: [{ x: 0, y: 0 }, { x: 1, y: 0 },],
+        footprintRender: 'scaled',
+        juggernaut: true,
         receiveBuffs: true,
         onHit: {
             energyGain: 5,
@@ -48,6 +54,7 @@ const CREATIONS: Record<string, CreationDef> = {
             knockback: 2,            // heavy cannon — shoves the target back
             splash: { radius: 3 },
         },
+        guardianRadius: 1,
     },
     leviathan: {
         id: 'leviathan', name: 'Leviathan', kind: 'summon',
@@ -81,12 +88,14 @@ const CREATIONS: Record<string, CreationDef> = {
         pulseDmg: 25,
         pulseMs: 2_000,
         pulseRadius: 3,
+        // footprint: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }],
+        // footprintRender: 'scaled',
         receiveBuffs: true,
         onHit: {
             stunMs: 1000,
             energyGain: 5,
             grantsStack: 'eclipse',
-            knockback: 1,            // pulse shoves enemies off the pylon
+            // knockback: 1,            // pulse shoves enemies off the pylon
         },
     },
 

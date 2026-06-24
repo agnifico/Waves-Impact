@@ -45,6 +45,16 @@ export interface CreationDef {
      *  cells for pathfinding. The origin {0,0} is the visual head (icon tile). */
     footprint?: Position[];
 
+    /** How a multi-tile footprint draws:
+     *   'all'    – the icon on every cell (the four-pillar look).
+     *   'head'   – the icon on the origin only; other cells a glowing slab.
+     *   'scaled' – one icon stretched across the whole footprint (neat for 2×2/3×3).
+     *  Omit = 'all'. Ignored for 1×1. */
+    footprintRender?: 'all' | 'head' | 'scaled';
+
+    /** Multi-tile movers shove units aside instead of being blocked by them. */
+    juggernaut?: boolean;
+
     // ── Shared on-hit (pulse / attack consequences) ──────────────
     /** What happens to each enemy this creation's pulse/attack strikes — and what
      *  the OWNER gets back (energyGain → owner, grantsStack → owner). Replaces the
@@ -64,6 +74,13 @@ export interface CreationDef {
     attackRange?: number;     // stop moving when within this range (default 1)
     aoeRadius?: number;       // splash radius around primary target
     mirrorsOwnerBA?: boolean;
+
+    /** Leap to the target on the attack beat instead of crawling — closing to
+     *  within attackRange in one move, then striking. */
+    gapClose?: boolean;
+    /** Max Chebyshev distance the leap triggers from; beyond it the summon walks
+     *  closer normally until within leap range. Omit = leap from any distance. */
+    gapCloseRange?: number;
 
     // ── Construct ─────────────────────────────────────────────────
     constructType?: 'inert' | 'source' | 'catalyst';

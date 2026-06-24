@@ -165,8 +165,8 @@
 		align-items: center;
 		gap: 14px;
 		width: max(300px, 100%);
-		padding: 11px 11px 11px 11px;
-		border-radius: 15px;
+		padding: 11px 11px 20px 11px;
+		border-radius: 9px;
 		background:
 			linear-gradient(
 				135deg,
@@ -182,12 +182,11 @@
 				),
 				transparent 46%
 			);
-		backdrop-filter: blur(10px);
-		-webkit-backdrop-filter: blur(10px);
-		box-shadow:
-			0 6px 26px rgba(0, 0, 0, 0.45),
-			inset 0 1px 0 rgba(255, 255, 255, 0.1);
-		/* border: 4px solid #747474; */
+		/* backdrop-filter: blur(10px); */
+		/* -webkit-backdrop-filter: blur(10px); */
+		/* border: 4px solid rgba(0, 0, 0, .5) ; */
+		background-color: #202020;
+		box-shadow: 0px -6px 0 3px rgba(0, 0, 0, .5) inset,  0px 3px 0 0px rgba(0, 0, 0, .5) inset;
 	}
 
 	/* portrait disc wrapped by the V-charge ring (conic fill = how close to ult) */
@@ -237,7 +236,7 @@
 		/* left: 50%; */
 		left: 14px;
 		transform: translateX(-50%);
-		font-family: "DePixel";
+		font-family: 'DePixel';
 		font-size: 8px;
 		letter-spacing: 0.5px;
 		color: #1a120c;
@@ -246,7 +245,7 @@
 			var(--char-glow, var(--gold-bright)),
 			var(--char-primary, var(--coral))
 		);
-		background: color-mix(in srgb, var(--char-primary) 70%, black) ;
+		background: color-mix(in srgb, var(--char-primary) 70%, black);
 		/* font-weight: 600; */
 		color: var(--text);
 		border-radius: 8px;

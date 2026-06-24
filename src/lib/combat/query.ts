@@ -1,6 +1,6 @@
 import type { Position } from '$lib/types/common';
 import type { EngineState, CharacterState, EnemyState } from '$lib/types/state';
-import { chebyshev } from './board';
+import { chebyshev, occupiedTiles } from './board';
 
 /** An entity that can be returned by a query. */
 export type QueryEntity = (CharacterState | EnemyState) & { pos: Position };
@@ -10,6 +10,17 @@ export type Predicate = (entity: QueryEntity) => boolean;
 
 /** Sort key for ordering query results. */
 export type SortKey = 'distance' | 'hp_asc' | 'hp_desc' | 'random';
+
+/** Min Chebyshev distance from `origin` to any tile the entity occupies.
+ *  Footprint-aware: a 2×2 is "adjacent" when you're next to any of its cells. */
+function distTo(origin: Position, e: QueryEntity): number {
+	let min = Infinity;
+	for (const t of occupiedTiles(e)) {
+		const d = chebyshev(origin, t);
+		if (d < min) min = d;
+	}
+	return min;
+}
 
 /**
  * Query criteria. (Data Contract §13)
@@ -44,7 +55,7 @@ export function query(state: EngineState, criteria: QueryCriteria): QueryEntity[
 	if (criteria.within !== undefined && criteria.origin) {
 		const origin = criteria.origin;
 		const maxDist = criteria.within;
-		pool = pool.filter((e) => chebyshev(e.pos, origin) <= maxDist);
+		pool = pool.filter((e) => distTo(origin, e) <= maxDist);
 	}
 
 	// Apply custom predicates
@@ -59,7 +70,7 @@ export function query(state: EngineState, criteria: QueryCriteria): QueryEntity[
 		const origin = criteria.origin;
 		switch (criteria.sort) {
 			case 'distance':
-				pool.sort((a, b) => chebyshev(a.pos, origin) - chebyshev(b.pos, origin));
+				pool.sort((a, b) => distTo(origin, a) - distTo(origin, b));
 				break;
 			case 'hp_asc':
 				pool.sort((a, b) => a.hp - b.hp);

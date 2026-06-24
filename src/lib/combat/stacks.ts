@@ -1,5 +1,5 @@
 import type { EngineState, CharacterState } from '$lib/types/state';
-import { applyEffect, hasEffect } from './effects';
+import { applyEffect, removeEffect, hasEffect } from './effects';
 import { publish } from './events';
 import { getEffectDef } from '$lib/data/registry';
 
@@ -11,7 +11,8 @@ export function grantStack(
 	state: EngineState,
 	char: CharacterState,
 	stackType: string,
-	now: number
+	now: number,
+	opts?: { external?: boolean }
 ): void {
 	if (char.def.stackType !== stackType) return;
 
@@ -20,6 +21,12 @@ export function grantStack(
 
 	// Convert-at-max characters can't gain while their buff is up
 	if (converts && hasEffect(char, fullEffect)) return;
+
+	// Self-grant cap: a character's OWN sources build only to selfStackCap; stacks
+	// beyond it require an external grant (opts.external) from a teammate's mechanic.
+	// Default selfStackCap = stackMax (no special cap). Frosty: 3 own, 2 external → 5.
+	const cap = opts?.external ? char.def.stackMax : (char.def.selfStackCap ?? char.def.stackMax);
+	if (char.stacks.current >= cap) return;
 
 	char.stacks.current = Math.min(char.def.stackMax, char.stacks.current + 1);
 
@@ -34,6 +41,29 @@ export function grantStack(
 	if (converts && char.stacks.current >= char.def.stackMax) {
 		char.stacks.current = 0;
 		triggerStackFull(state, char, now);
+	}
+
+	reconcileStackBuffs(char, now);
+}
+
+/**
+ * Apply/remove persistent stack-gated buffs to match the character's current
+ * stack count. Declared on the character as `stackEffects: [{ effectId, minStacks }]`.
+ * Portable: any character can gate effects on stacks (Frosty's per-stack BA aura
+ * at ≥1, her creation buff at 5). Driven each tick + on every stack change.
+ */
+export function reconcileStackBuffs(char: CharacterState, now: number): void {
+	const specs = char.def.stackEffects;
+	if (!specs) return;
+	for (const spec of specs) {
+		const shouldHave = char.stacks.current >= spec.minStacks;
+		const has = hasEffect(char, spec.effectId);
+		if (shouldHave && !has) {
+			const def = getEffectDef(spec.effectId);
+			applyEffect(char, spec.effectId, char.id, def?.durationMs ?? -1, now);
+		} else if (!shouldHave && has) {
+			removeEffect(char, spec.effectId);
+		}
 	}
 }
 

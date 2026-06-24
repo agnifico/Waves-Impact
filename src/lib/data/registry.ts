@@ -16,6 +16,8 @@ import { bear } from './enemies/bear';
 import { dragon } from './enemies/dragon';
 import { unchained } from './effects/unchained';
 import { bloomstride } from './effects/bloomstride';
+import { glacial_resonance } from './effects/glacial-resonance';
+import { frost_aura } from "./effects/frost-aura";
 
 import { shield } from './effects/shield';
 import { forest_prowler } from './enemies/forest-prowler';
@@ -63,7 +65,9 @@ export function getAllEnemies(): Enemy[] {
 const effects: Record<string, Effect> = {
 	unchained,
 	bloomstride,
-	shield
+	shield,
+	frost_aura,
+	glacial_resonance
 };
 
 export function getEffectDef(id: string): Effect | undefined {

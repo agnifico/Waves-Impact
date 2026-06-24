@@ -10,7 +10,8 @@
 		construct = null,
 		locked = false,
 		now = 0,
-		party = []
+		party = [],
+		span = null
 	}: {
 		type: GemType;
 		character?: CharacterState | null;
@@ -20,6 +21,8 @@
 		locked?: boolean;
 		now?: number;
 		party?: CharacterState[];
+		/** Footprint span (tiles) for 'scaled' construct rendering; null = 1×1. */
+		span?: { w: number; h: number; ox: number; oy: number } | null;
 	} = $props();
 
 	let hasShield = $derived(type === 'player' && !!character?.activeEffects?.['shield']);
@@ -35,8 +38,7 @@
 	let enemyWindUp = $derived.by(() => {
 		if (type !== 'enemy' || !enemy?.pendingAttack) return null;
 		const style = enemy.pendingAttack.windUpStyle ?? 'charge';
-		// const motion = style === 'melee' || style === 'pistol' || style === 'ranged' || style === 'bow';
-		const motion = style !== 'charge';
+		const motion = style === 'melee' || style === 'pistol' || style === 'ranged' || style === 'bow';
 		return { style, motion };
 	});
 	let enemyWindUpVars = $derived.by(() => {
@@ -63,8 +65,7 @@
 		}
 		const style = d?.windUpStyle ?? 'charge';
 		// melee/pistol/ranged/bow animate the BODY (recoil/pull-back); charge/fire are OVERLAY visuals.
-		// const motion = style === 'melee' || style === 'pistol' || style === 'ranged' || style === 'bow';
-		const motion = style !== 'charge';
+		const motion = style === 'melee' || style === 'pistol' || style === 'ranged' || style === 'bow';
 		return { style, motion, ms: d?.windUpMs ?? 500 };
 	});
 	// Recoil direction for body wind-ups. Prefer the stored direction toward the
@@ -114,7 +115,7 @@
 		<div class="shadow" class:swimming={character.stratum === 'swimming'}></div>
 		<div
 			class="body square {windUp?.motion ? `fx-wu-${windUp.style}` : ''}"
-			style="border:none; transform:translateY({lift}px); {windUp?.motion ? windUpVars : ''} {img
+			style="border:2px solid var(--gold); transform:translateY({lift}px); {windUp?.motion ? windUpVars : ''} {img
 				? `background-image:url(${img});`
 				: `background-color:${rim};`}"
 		>
@@ -165,7 +166,7 @@
 			class="body square {enemyWindUp?.motion ? `fx-wu-${enemyWindUp.style}` : ''}"
 			style="background-image: url({enemy?.def?.profileImage}); border: none; {enemyWindUp?.motion ? enemyWindUpVars : ''}"
 		></div>
-		<!-- <div
+		<div
 			class="facing"
 			style="transform:translateY({lift}px) rotate({facingDeg(enemy.facing)}deg);"
 		>
@@ -178,7 +179,7 @@
 					stroke-linejoin="round"
 				/></svg
 			>
-		</div> -->
+		</div>
 		{#if locked}
 			<div class="nameplate">
 				<div class="np-bar"><i style="width:{hpPct}%; background:{rim};"></i></div>
@@ -202,9 +203,16 @@
 {:else if type === 'construct' && construct}
 	{@const img = construct.profileImage}
 	{@const elColor = ELEMENT_COLOR[construct.element ?? ''] ?? 'var(--gold)'}
+	{@const scaled = !!span && (span.w > 1 || span.h > 1)}
 	<div class="gem-root construct-root" style="--cel:{elColor}">
-		<div class="construct-shadow"></div>
-		<div class="construct-body square" style={img ? `background-image:url(${img});` : ''}>
+		{#if !scaled}<div class="construct-shadow"></div>{/if}
+		<div
+			class="construct-body square"
+			class:scaled
+			style="{img ? `background-image:url(${img});` : ''}{scaled
+				? ` left:${span!.ox * 36 + span!.w * 18}px; top:${span!.oy * 36 + span!.h * 18}px; width:${span!.w * 36 - 6}px; height:${span!.h * 36 - 6}px; transform:translate(-50%, -50%);`
+				: ''}"
+		>
 			{#if !img}<span class="construct-glyph">◼</span>{/if}
 		</div>
 	</div>
@@ -455,6 +463,10 @@
 		opacity: 0.9;
 		color: var(--cel, var(--frost));
 		text-shadow: 0 0 6px var(--cel, var(--frost));
+	}
+	.construct-body.scaled {
+		animation: none;
+		background-color: color-mix(in srgb, #0d2a3a 80%, transparent);
 	}
 	@keyframes construct-idle {
 		0%,

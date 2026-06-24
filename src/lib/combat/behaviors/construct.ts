@@ -2,6 +2,7 @@ import type { EngineState, CharacterState } from '$lib/types/state';
 import type { Ability } from '$lib/types/ability';
 import { samePos, clamp } from '../board';
 import { publish } from '../events';
+import { shoveEnemiesOff } from '../spatial';
 import { getCreationDef } from '$lib/data/creations';
 
 /**
@@ -62,8 +63,14 @@ export function resolve(
         stunMs:        def.stunMs      ?? 0,
         nextPulseAt:   now + pulseMs,
         expiresAt:     now + (def.durationMs ?? 10_000),
-        footprint:     def.footprint?.map((o) => ({ x: pos.x + o.x, y: pos.y + o.y })) ?? [{ ...pos }],
+        footprint:     def.footprint,   // offsets; occupiedTiles maps to absolute
+        footprintRender: def.footprintRender,
     });
+
+    // Push same-stratum enemies off the construct's footprint
+    const cstratum = def.stratum ?? 'ground';
+    const cTiles = (def.footprint ?? [{ x: 0, y: 0 }]).map((o) => ({ x: pos.x + o.x, y: pos.y + o.y }));
+    shoveEnemiesOff(state, cTiles, cstratum, publish);
 
     publish('construct:placed', { constructId: `${creationId}-${now}`, ownerId: caster.id, pos: { ...pos } });
     return true;

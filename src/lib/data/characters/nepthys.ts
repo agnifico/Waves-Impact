@@ -15,21 +15,21 @@ export const nepthys: Character = {
 			name: 'Dark Waves (1)',
 			range: 4,
 			// omniTarget: true,
-			delivery: { damage: 5, energyGain: 2, shape: 'pcone', windUpMs:150, windUpStyle: 'pistol'},
+			delivery: { damage: 5, energyGain: 20, shape: 'pcone', windUpMs:150, windUpStyle: 'pistol'},
 			fx: { strike: 'projectile', shape: 'orb', size: 'l', colors: ['#06d6a0', '#00a7e1'] }
 		},
 		{
 			name: 'Dark Waves (2)',
 			range: 4,
 			omniTarget: true,
-			delivery: { damage: 25, energyGain: 3, shape: 'pcone', windUpMs:250, windUpStyle: 'pistol' },
+			delivery: { damage: 25, energyGain: 30, shape: 'pcone', windUpMs:250, windUpStyle: 'pistol' },
 			fx: { strike: 'projectile', shape: 'orb', size: 'l', colors: ['#06d6a0', '#00a7e1'] }
 		},
 		{
 			name: 'Dark Waves (3)',
 			range: 4,
 			omniTarget: true,
-			delivery: { damage: 30, energyGain:  4, shape: 'pcone', windUpMs:350, windUpStyle: 'melee' },
+			delivery: { damage: 30, energyGain:  40, shape: 'pcone', windUpMs:350, windUpStyle: 'melee' },
 			fx: { strike: 'projectile', shape: 'bolt', size: 'l', colors: ['#4361ee', '#3a0ca3'] }
 		}
 	],
@@ -64,6 +64,7 @@ export const nepthys: Character = {
 				grantsStack: 'eclipse',
 				aimRange: 4,
 				holdBehavior: 'aim',
+				shape: 'footprint',
 			}
 		},
 		
@@ -93,7 +94,7 @@ export const nepthys: Character = {
 	art: {
 		gem: '/characters/gem-nepthys.png',
 		profile: '/characters/avatars2/nepthys.png',
-		poster: '/characters/nepthys5.png',
+		poster: '/characters/nepthys_v.png',
 		bannerPoster: '/characters/nepthys4.png'
 	},
 	theme: {

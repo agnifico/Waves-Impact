@@ -1,7 +1,8 @@
 import type { EngineState, EnemyState } from '$lib/types/state';
-import type { Position } from '$lib/types/common';
+import type { Position, Stratum } from '$lib/types/common';
 import type { FxSpec } from '$lib/types/ability';
-import { chebyshev, step8Toward, step8Away, samePos, clamp } from '../board';
+import { chebyshev, step8Toward, step8Away, samePos, clamp, occupies } from '../board';
+import { gapCloseLanding } from '../spatial';
 import { publish } from '../events';
 import { absorbDamage, getStatModifier } from '../effects';
 
@@ -49,7 +50,20 @@ export function tryAttacks(
 
     for (const atk of sorted) {
         if ((enemy.attackCooldowns[atk.id] ?? 0) > now) continue;
-        if (chebyshev(enemy.pos, target) > atk.range) continue;
+
+        const dist = chebyshev(enemy.pos, target);
+        const canLeap = !!atk.gapClose && dist <= (atk.gapCloseRange ?? Infinity);
+        if (dist > atk.range && !canLeap) continue; // out of range and can't leap → skip
+
+        // Gap-close: leap adjacent to the target before committing this attack.
+        if (dist > atk.range) {
+            const landing = gapCloseLanding(state, enemy, target, atk.range);
+            if (!landing) continue; // nowhere free to land → can't use this attack now
+            const from = { ...enemy.pos };
+            enemy.pos = landing;
+            publish('movement:enemy', { enemyId: enemy.id, from, to: landing });
+            publish('entity:dash', { id: enemy.id, from, to: { ...landing } });
+        }
 
         enemy.attackCooldowns[atk.id] = now + atk.cooldownMs;
 
@@ -159,6 +173,8 @@ export function applyKnockback(
             ? clamp(state.board, step8Toward(active.pos, pushToward))
             : clamp(state.board, step8Away(active.pos, enemy.pos));
         if (samePos(next, active.pos)) break;
+        if (state.board.obstacles.some((o) => samePos(o, next))) break;
+        if (tileBlockedByConstruct(state, next, active.stratum, active.def.ignoresConstructs)) break;
         active.pos = next;
     }
 
@@ -171,13 +187,26 @@ export function applyKnockback(
  * Returns true if a construct on this tile should block this enemy's pathing.
  * Flying enemies pass over ground constructs freely.
  */
+/** Is `pos` blocked by a construct on the same stratum? Respects ignoresConstructs. */
 export function tileBlockedByConstruct(
+    state: EngineState,
+    pos: Position,
+    stratum: Stratum,
+    ignoresConstructs?: boolean
+): boolean {
+    if (ignoresConstructs) return false;
+    return state.constructs.some((c) => occupies(c, pos) && c.stratum === stratum);
+}
+
+/** Full movement check for enemies: same-stratum constructs + same-stratum enemies. */
+export function tileBlockedForEnemy(
     state: EngineState,
     pos: Position,
     enemy: EnemyState
 ): boolean {
-    if (enemy.stratum === 'flying') return false;
-    return state.constructs.some((c) => 
-        samePos(c.pos, pos) && c.stratum === enemy.stratum
+    if (tileBlockedByConstruct(state, pos, enemy.stratum)) return true;
+    // Two enemies of the same stratum can't share a tile
+    return state.enemies.some((e) =>
+        e.hp > 0 && e.id !== enemy.id && e.stratum === enemy.stratum && samePos(e.pos, pos)
     );
 }

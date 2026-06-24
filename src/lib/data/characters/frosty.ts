@@ -72,6 +72,7 @@ export const frosty: Character = {
 				grantsStack: 'eclipse',
 				aimRange: 5,
 				holdBehavior: 'aim',
+				shape: 'footprint',
 				autoTargetEnemy: true,
 				windUpMs: 300, windUpStyle: 'tremor'
 			},
@@ -94,13 +95,17 @@ export const frosty: Character = {
 
 	stackType: 'eclipse',
 	stackName: 'Eclipse',
-	stackMax: 2,
-	onStackFull: 'unchained',
-	onStackFullTarget: 'self',
+	stackMax: 5,
+	selfStackCap: 5,          // 3 from her own casts; the last 2 need teammate grants
+	onStackFull: 'none',      // hold-and-express — stacks drive persistent buffs, no convert
+	stackEffects: [
+		{ effectId: 'frost_aura', minStacks: 1 },        // +10% BA to active unit, per stack
+		{ effectId: 'glacial_resonance', minStacks: 5 }  // +20% creation dmg to self, at full
+	],
 	art: {
 		gem: '/characters/gem-frosty.png',
 		profile: '/characters/avatars2/frosty.png',
-		poster: '/characters/frosty4.png',
+		poster: '/characters/frosty_v.png',
 		bannerPoster: '/characters/frosty_poster101.png',
 	},
 	theme: {

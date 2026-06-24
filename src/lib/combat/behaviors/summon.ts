@@ -3,6 +3,7 @@ import type { Ability } from '$lib/types/ability';
 import { step8Toward, samePos, clamp } from '../board';
 import { nearestEnemy } from '../query';
 import { publish } from '../events';
+import { shoveEnemiesOff } from '../spatial';
 import { getCreationDef } from '$lib/data/creations';
 
 /**
@@ -59,7 +60,15 @@ export function resolve(
         nextMoveAt:   now + (def.moveCooldownMs ?? 500),
         nextAttackAt: now + (def.attackCooldownMs ?? 1000),
         element: caster.def.element,
+        footprint: def.footprint,   // offsets; occupiedTiles maps to absolute
+        footprintRender: def.footprintRender,
+        juggernaut: def.juggernaut,
     });
+
+    // Push same-stratum enemies off the summon's footprint
+    const sstratum = def.stratum ?? 'ground';
+    const sTiles = (def.footprint ?? [{ x: 0, y: 0 }]).map((o) => ({ x: pos.x + o.x, y: pos.y + o.y }));
+    shoveEnemiesOff(state, sTiles, sstratum, publish);
 
     publish('summon:spawned', { summonId: `${creationId}-${now}`, owner: caster.id, pos: { ...pos } });
     return true;

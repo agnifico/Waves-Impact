@@ -182,7 +182,8 @@ export function applyBasicHit(
 	const src: ResolveSource = {
 		owner: char,
 		abilityName: ba.name,
-		element: char.def.element
+		element: char.def.element,
+		tags: ['ba']
 	};
 
 	// Guaranteed floor — cast-time energy/heal/shield/stack from delivery (with

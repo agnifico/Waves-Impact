@@ -96,18 +96,25 @@
 		/* flex-direction: row-reverse; */
 		grid-template-columns: 1fr;
 		isolation: isolate;
-		padding: 0.5rem;
+		padding: 6px 11px 20px 11px;
 		position: relative;
 		/* left: -60px; */
-		border-radius: 15px;
+		box-sizing: border-box;
+		border-radius: 9px;
 		background:
 			linear-gradient(135deg, var(--accent), transparent 42%),
-			linear-gradient(315deg, color-mix(in srgb, var(--accent) 50%, transparent), rgba(0, 0, 0, 0.626) 50%);
-		backdrop-filter: blur(10px);
-		-webkit-backdrop-filter: blur(10px);
+			linear-gradient(
+				315deg,
+				color-mix(in srgb, var(--accent) 50%, transparent),
+				rgba(0, 0, 0, 0.626) 50%
+			);
+		/* backdrop-filter: blur(10px); */
+		/* -webkit-backdrop-filter: blur(10px); */
+
 		box-shadow:
-			0 6px 26px rgba(0, 0, 0, 0.45),
-			inset 0 1px 0 rgba(255, 255, 255, 0.1);
+			0px -6px 0 3px rgba(0, 0, 0, 0.5) inset,
+			0px 3px 0 0px rgba(0, 0, 0, 0.5) inset;
+		background-color: #2d2d2d;
 	}
 
 	.content {
@@ -129,7 +136,8 @@
 		width: 80px;
 		height: 80px;
 		padding-bottom: 2rem;
-		margin-left: -20px;
+		margin-left: -0rem;
+		margin-bottom: -0.5rem;
 		pointer-events: none;
 		/* vignette layer over the portrait darkens its base; PNG underneath */
 		background:
@@ -144,8 +152,8 @@
 		font-family: var(--font-family-pixel);
 		font-size: 9px;
 		letter-spacing: 2px;
-		color: color-mix(in srgb, var(--accent) 70%, white);
-		opacity: 0.8;
+		color: rgba(255, 255, 255, 0.6);
+		font-family: 'Pixelify Sans';
 	}
 
 	.name-row {
@@ -159,7 +167,7 @@
 		font-size: 17px;
 		letter-spacing: 2px;
 		text-transform: uppercase;
-		color: color-mix(in srgb, var(--accent) 35%, #ffffff);
+		color: color-mix(in srgb, var(--accent) 70%, #ffffff);
 		text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 55%, transparent);
 		white-space: nowrap;
 	}
@@ -213,6 +221,7 @@
 		white-space: nowrap;
 		color: color-mix(in srgb, var(--tint, var(--gold)) 60%, white);
 		background: color-mix(in srgb, var(--tint, var(--gold)) 18%, transparent);
+		background: transparent;
 		border: 1px solid color-mix(in srgb, var(--tint, var(--gold)) 45%, transparent);
 	}
 	.tag--secondary {
@@ -224,7 +233,7 @@
 		gap: 6px;
 	}
 	.hp-label {
-		font-family: "DePixel";
+		font-family: 'DePixel';
 		font-size: 8px;
 		letter-spacing: 0.5px;
 		background: #000000cc;
@@ -235,7 +244,7 @@
 	.hp-num {
 		font-size: 10px;
 		color: #fff;
-		font-family: "DePixel";
+		font-family: 'DePixel';
 		font-feature-settings: 'tnum';
 		text-shadow: 0 1px 2px #000;
 		white-space: nowrap;

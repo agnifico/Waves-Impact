@@ -18,6 +18,14 @@ export function applyEffect(entity: HasEffects, effectId: string, source: string
 		if (mode === 'block') return;
 		if (mode === 'add') existing.stacks += 1;
 		if (mode === 'replace') existing.stacks = 1;
+		if (mode === 'extend') {
+			// Add duration to whatever remains, instead of resetting the clock.
+			const remaining = existing.expiresAt === -1 ? 0 : Math.max(0, existing.expiresAt - now);
+			existing.expiresAt = durationMs === -1 ? -1 : now + remaining + durationMs;
+			existing.source = source;
+			publish('effect:applied', { target: entity.id, effectId, source, duration: durationMs });
+			return;
+		}
 		existing.expiresAt = expiresAt;
 		existing.appliedAt = now;
 		existing.source = source;
@@ -42,14 +50,94 @@ export function getEffect(entity: HasEffects, effectId: string): EffectInstance 
 
 // ── Stat modifiers ───────────────────────────────────────────────────────────
 
-/** Sum a stat modifier across active effects (× stacks). Read by the pipeline + mitigation. */
-export function getStatModifier(entity: HasEffects, stat: string): number {
+/** Does a StatMod's tag filter intersect this hit's tags? No filter = matches all. */
+function tagMatch(modTags: string[] | undefined, hitTags: readonly string[] | undefined): boolean {
+	if (!modTags || modTags.length === 0) return true;   // unfiltered buff → all damage
+	if (!hitTags || hitTags.length === 0) return false;  // tagged buff, untagged hit → no
+	return modTags.some((t) => hitTags.includes(t));
+}
+
+/**
+ * Sum a stat modifier across active effects (× stacks).
+ *
+ * `opts.tags` — when summing `damageBonus`, only count mods whose `appliesTo`
+ *   intersects these hit tags (the damage taxonomy). Omit for non-damage stats
+ *   (damageReduction, etc.) — those ignore tags.
+ * `opts.state` — lets `scalesWithSourceStacks` effects multiply by the source's
+ *   live stack count (used by Frosty's per-stack aura).
+ */
+export function getStatModifier(
+	entity: HasEffects,
+	stat: string,
+	opts?: { tags?: readonly string[]; state?: EngineState }
+): number {
 	let total = 0;
 	for (const id in entity.activeEffects) {
 		const inst = entity.activeEffects[id];
 		const def = getEffectDef(id);
 		if (!def) continue;
-		for (const mod of def.modifies) if (mod.stat === stat) total += mod.value * inst.stacks;
+
+		// per-stack-of-source scaling (e.g. Frosty's aura reads HER stacks live)
+		let scale = inst.stacks;
+		if (def.scalesWithSourceStacks && opts?.state) {
+			const src = findUnitById(opts.state, inst.source);
+			scale = src?.stacks?.current ?? inst.stacks;
+		}
+
+		for (const mod of def.modifies) {
+			if (mod.stat !== stat) continue;
+			// Outward auras (target other than 'self') reach OTHER units via
+			// getAuraModifier — they must not also self-apply (Frosty's BA aura
+			// must not buff her own BAs: "she can't help herself").
+			if (mod.target && mod.target !== 'self') continue;
+			if (stat === 'damageBonus' && !tagMatch(mod.appliesTo, opts?.tags)) continue;
+			total += mod.value * scale;
+		}
+	}
+	return total;
+}
+
+/** Resolve a unit by id across party (only stack-bearers matter for scaling). */
+function findUnitById(state: EngineState, id: string): { stacks?: { current: number } } | undefined {
+	return state.party.find((p) => p.id === id);
+}
+
+/**
+ * Cross-entity auras: sum a stat modifier broadcast TO the active unit from OTHER
+ * living party members (effects whose StatMod carries `target: 'active'`).
+ *
+ * This is how a benched character buffs whoever's on field (Frosty's per-stack BA
+ * aura). Self effects are handled by getStatModifier; this only adds the explicit
+ * outward auras, so 99% of effects stay local and a buff only reaches across when
+ * it opts in. Dead owners' auras wink out (only zones persist after death).
+ *
+ * `recipient` is the active unit. Returns 0 unless called for the active unit.
+ */
+export function getAuraModifier(
+	state: EngineState,
+	recipient: { id: string },
+	stat: string,
+	tags?: readonly string[]
+): number {
+	let total = 0;
+	for (const member of state.party) {
+		if (member.id === recipient.id) continue;   // self handled by getStatModifier
+		if (member.hp <= 0) continue;                // dead owners' buffs wink out
+		for (const id in member.activeEffects) {
+			const inst = member.activeEffects[id];
+			const def = getEffectDef(id);
+			if (!def) continue;
+			// aura scales with the broadcasting member's live stacks (Frosty)
+			const scale = def.scalesWithSourceStacks
+				? (member.stacks?.current ?? inst.stacks)
+				: inst.stacks;
+			for (const mod of def.modifies) {
+				if (mod.stat !== stat) continue;
+				if (mod.target !== 'active') continue;   // only outward-to-active auras
+				if (stat === 'damageBonus' && !tagMatch(mod.appliesTo, tags)) continue;
+				total += mod.value * scale;
+			}
+		}
 	}
 	return total;
 }

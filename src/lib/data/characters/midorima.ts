@@ -64,7 +64,7 @@ export const midorima: Character = {
 			],
 			charges: 2,
 			rechargeMs: 12_000,
-			delivery: { energyGain: 10, grantsStack: 'gale' },
+			delivery: { energyGain: 10, grantsStack: 'gale', },
 			fx: { shape: 'orb', colors: ['#eaf6ff', 'var(--frost)', '#00b4d8'] }
 		},
 
@@ -99,7 +99,7 @@ export const midorima: Character = {
 	art: {
 		gem: '/characters/gem-midorima.png',
 		profile: '/characters/avatars2/midorima.png',
-		poster: '/characters/midorima_poster.png',
+		poster: '/characters/midorima_v.png',
 		bannerPoster: '/characters/midorima_poster3.png'
 	},
 	theme: {

@@ -146,6 +146,8 @@ export interface Character {
 	traversal?: Terrain[];  // terrain override; default derived from stratum
 	guard?: Guard;          // default 'front'
 	footprint?: Position[]; // tile offsets for multi-tile; default 1×1
+	/** Unit can walk onto tiles occupied by same-stratum constructs. */
+	ignoresConstructs?: boolean;
 }
 
 export interface CharacterTheme {

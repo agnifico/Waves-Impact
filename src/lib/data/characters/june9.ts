@@ -95,7 +95,7 @@ export const june9: Character = {
 	art: {
 		gem: '/characters/gem-june9.png',
 		profile: '/characters/avatars2/june9.png',
-		poster: '/characters/june9_poster4.png',
+		poster: '/characters/june9_v.png',
 		bannerPoster: '/characters/june9_banner_full.png'
 	},
 

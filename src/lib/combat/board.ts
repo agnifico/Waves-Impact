@@ -35,14 +35,15 @@ export function clamp(board: Board, p: Position): Position {
 
 interface HasFootprint {
 	pos: Position;
-	def?: { footprint?: Position[] };
+	footprint?: Position[];           // runtime offsets (summons/constructs carry these)
+	def?: { footprint?: Position[] }; // def offsets (enemies/players read from here)
 }
 
-/** Tiles an entity occupies. 1×1 today; a real footprint makes it multi-tile. */
+/** Tiles an entity occupies. 1×1 today; a footprint (offsets) makes it multi-tile. */
 export function occupiedTiles(entity: HasFootprint): Position[] {
-	const fp = entity.def?.footprint;
-	if (!fp || fp.length === 0) return [entity.pos];
-	return fp.map((o) => ({ x: entity.pos.x + o.x, y: entity.pos.y + o.y }));
+	const offs = entity.footprint ?? entity.def?.footprint;
+	if (!offs || offs.length === 0) return [entity.pos];
+	return offs.map((o) => ({ x: entity.pos.x + o.x, y: entity.pos.y + o.y }));
 }
 
 /** Does any tile of `entity` sit on `pos`? */
@@ -56,6 +57,7 @@ export function isBlocked(state: EngineState, pos: Position): boolean {
 	const active = state.party[state.activeSlot];
 	if (active && occupies(active, pos)) return true;
 	if (state.summons.some((s) => occupies(s, pos))) return true;
+	if (state.constructs.some((c) => occupies(c, pos))) return true;
 	return false;
 }
 
