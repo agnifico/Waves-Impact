@@ -28,36 +28,37 @@ export const carla: Character = {
 			name: 'Boot Sequence',
 			range: 10,
 			omniTarget: true,
-			delivery: { damage: 6, energyGain: 12, shape: 'melee', windUpMs: 150, windUpStyle: 'bow', },
-			fx: { strike: 'bullet', colors: ['#9b5de5', '#e63946'] }
+			delivery: { damage: 10, energyGain: 12, shape: 'melee', windUpMs: 150, windUpStyle: 'bow', },
+			fx: { strike: 'bullet', trail: true, colors: ['#da627d', '#f48498'] }
 		},
-		// {
-		// 	name: 'Process Spawn',
-		// 	range: 8,
-		// 	omniTarget: true,
-		// 	delivery: { damage: 8, energyGain: 12, shape: 'melee', windUpMs: 150, windUpStyle: 'pistol', },
-		// 	fx: { strike: 'bullet', colors: ['#9b5de5', '#e63946'] }
-		// },
-		// {
-		// 	name: 'Thread Execution',
-		// 	range: 8,
-		// 	omniTarget: true,
-		// 	delivery: { damage: 10, energyGain: 12, shape: 'melee', windUpMs: 100, windUpStyle: 'pistol', },
-		// 	fx: { strike: 'bullet', colors: ['#a86fe8', '#e63946'] }
-		// },
-		// {
-		// 	name: 'Buffer Overflow',
-		// 	range: 8,
-		// 	omniTarget: true,
-		// 	delivery: { damage: 12, energyGain: 12, shape: 'melee', windUpMs: 200, windUpStyle: 'bow', },
-		// 	fx: { strike: 'bullet', colors: ['#a86fe8', '#e63946'] }
-		// },
+		{
+		name: 'Process Spawn',
+			range: 8,
+			omniTarget: true,
+			delivery: { damage: 15, energyGain: 12, shape: 'melee', windUpMs: 150, windUpStyle: 'pistol', },
+			fx: { strike: 'bullet', trail: true, colors: ['#da627d', '#f48498'] }
+		},
+		{
+			name: 'Thread Execution',
+			range: 8,
+			omniTarget: true,
+			delivery: { damage: 15, energyGain: 12, shape: 'melee', windUpMs: 100, windUpStyle: 'pistol', },
+			fx: { strike: 'bullet', trail: true, colors: ['#da627d', '#f48498'] }
+		},
+		{
+			name: 'Buffer Overflow',
+			range: 8,
+			omniTarget: true,
+			delivery: { damage: 20, energyGain: 12, shape: 'melee', windUpMs: 200, windUpStyle: 'bow', },
+			fx: { strike: 'beam', volley: 'single', colors: ['#f48498', '#e63946'] }
+		},
 		{
 			name: 'Kernel Panic',
-			range: 10,
+			range: 8,
 			omniTarget: true,
-			delivery: { damage: 16, energyGain: 14, shape: 'melee', grantsStack: 'memory', windUpMs: 300, windUpStyle: 'bow', },
-			fx: { strike: 'bullet', gashes: 5, colors: ['#e63946', '#ff003c'] }
+			delivery: { damage: 30, energyGain: 14, shape: 'melee', grantsStack: 'memory', windUpMs: 300, windUpStyle: 'bow', },
+			fx: { strike: 'beam', volley: 'double', colors: ['#f48498', '#e63946'] }
+			// fx: { strike: 'laserarc', gashes: 5, colors: ['#e63946', '#ff003c'] }
 		}
 	],
 
@@ -120,7 +121,7 @@ export const carla: Character = {
 			energyCost: 40,
 			delivery: { windUpMs: 1000, windUpStyle: 'melee' }, // gem charges 500ms, then the barrage
 			onHit: {},
-			fx: { strike: 'stream', colors: ['#c084fc', '#ff003c'] } // beam to each marked enemy
+			fx: { strike: 'laserarc', colors: ['#c084fc', '#ff003c'] } // beam to each marked enemy
 		}
 	},
 
@@ -136,14 +137,14 @@ export const carla: Character = {
 		gem: '/characters/gem-carla.png',
 		profile: '/characters/avatars2/carla.png',
 		poster: '/characters/carla_v.png',
-		bannerPoster: '/characters/carla4.png'
+		bannerPoster: '/characters/carla6.png'
 	},
 	theme: {
-		primary: '#9b5de5',
-		secondary: '#ff003c',
-		glow: { ready: '#c084fc' },
+		primary: '#02c39a',
+		secondary: '#ffd500',
+		glow: { ready: '#9ef01a' },
 		signatureFx: 'sig-threads',
-		hp: 'linear-gradient(-90deg, #1f1135 0%, #4c1d95 50%, #ff003c 100%);',
+		hp: 'linear-gradient(90deg, #05668d 0%, #00a896 50%, #f0f3bd 100%);',
 		energy: 'linear-gradient(to right, #2e1065, #7c3aed);',
 		resources: [{ id: 'memory', fill: 'linear-gradient(180deg,#c084fc,#7c3aed)', label: 'Memory' }]
 	},

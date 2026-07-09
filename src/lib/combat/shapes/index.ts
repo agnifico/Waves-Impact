@@ -6,6 +6,7 @@ import { pconeFrom } from './pcone';
 import { tconeFrom } from './tcone';
 import { circleAt } from './circle';
 import { meleeFrom } from './melee';
+import { wideLineFrom } from './wide_line';
 import type { ShapeParams } from '$lib/types/ability';
 
 
@@ -31,7 +32,9 @@ const registry: Record<string, ShapeFn> = {
 	circle: (_from, _dir, params, targetPoint) =>
 		circleAt(targetPoint ?? _from, params.radius ?? 1),
 
-	melee: (from, _dir, params) => meleeFrom(from, params.range ?? 1)
+	melee: (from, _dir, params) => meleeFrom(from, params.range ?? 1),
+
+	wide_line: wideLineFrom
 };
 
 /**

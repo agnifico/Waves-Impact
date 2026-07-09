@@ -1,6 +1,6 @@
-import type { CharacterState, EnemyState, EngineState, SummonState } from '$lib/types/state';
+import type { EnemyState, EngineState, SummonState } from '$lib/types/state';
 import { tickEffects } from './effects';
-import { reconcileStackBuffs } from './stacks';
+import { reconcileStackBuffs, tickStackDecay } from './stacks';
 import { fireEnemyAttacks, tickEnemyAi } from './ai';
 import { tileBlockedByConstruct } from './ai/utils';
 import { chebyshev, samePos, clamp, step8Toward, occupies } from './board';
@@ -14,22 +14,10 @@ import { getCreationDef } from '$lib/data/creations';
 import { applyOnHit, canHitStratum, type ResolveSource } from './resolve';
 import { tickChannel } from './channel';
 import { fireWindUpCasts } from './ability-resolver';
+import { checkWaveAdvance, onWaveCleared } from './wave';
 
 /** Fallback movement step interval (ms) when a character omits moveMs. */
 const DEFAULT_MOVE_MS = 150;
-
-let lastEnergyRegenAt = 0;
-
-/** Last player movement timestamp (module-level, reset on new fight). */
-let lastMoveAt = 0;
-
-/**
- * Reset engine-local state. Call when starting a new fight.
- */
-export function resetEngine(): void {
-	lastMoveAt = 0;
-	lastEnergyRegenAt = 0;
-}
 
 /**
  * Run one engine tick. Called every requestAnimationFrame by the orchestrator.
@@ -50,7 +38,7 @@ export function tick(
 
 	// 1. Player movement
 	const moveMs = active.def.moveMs ?? DEFAULT_MOVE_MS;
-	if (active.stunnedUntil <= now && moveDir && now - lastMoveAt >= moveMs) {
+	if (active.stunnedUntil <= now && moveDir && now - state.lastMoveAt >= moveMs) {
 		const next = clamp(state.board, {
 			x: active.pos.x + Math.sign(moveDir.x),
 			y: active.pos.y + Math.sign(moveDir.y)
@@ -64,7 +52,7 @@ export function tick(
 		if (!blocked && passable && !samePos(next, active.pos)) {
 			const from = { ...active.pos };
 			active.pos = next;
-			lastMoveAt = now;
+			state.lastMoveAt = now;
 			publish('movement:player', { characterId: active.id, from, to: next });
 		}
 
@@ -91,57 +79,42 @@ export function tick(
 	tickZones(state, now);
 
 	// Off-field energy regen (rules in energy.ts)
-	if (now - lastEnergyRegenAt >= OFF_FIELD_REGEN_MS) {
-		lastEnergyRegenAt = now;
+	if (now - state.lastEnergyRegenAt >= OFF_FIELD_REGEN_MS) {
+		state.lastEnergyRegenAt = now;
 		regenOffField(state);
 	}
 
 	// 5. Effect expiry / tick hooks for all entities
 	for (const pc of state.party) tickEffects(state, pc, now);
 	for (const enemy of state.enemies) tickEffects(state, enemy, now);
-	// Stack-gated persistent buffs (e.g. Frosty's per-stack aura / 5-stack creation buff)
+	// Stack-gated persistent buffs (e.g. Frosty's per-stack aura / creation buff)
 	for (const pc of state.party) reconcileStackBuffs(pc, now);
+	// Expire stacks for characters with a decay timer (e.g. Frosty's eclipse stacks)
+	tickStackDecay(state, now);
 
-	// 6. Death checks
+	// 6. Wave advance (intermission countdown + time-limit check) — before death checks.
+	if (state.wave) {
+		checkWaveAdvance(state, now);
+		if (state.over) return;
+	}
+
+	// 7. Death checks
 	if (!checkAutoSwap(state)) {
 		state.over = true;
 		state.outcome = 'defeat';
 	}
 
-	if (state.enemies.every((e) => e.hp <= 0)) {
-		state.over = true;
-		state.outcome = 'victory';
+	// Victory: all enemies dead. In wave mode, delegate to the wave system
+	// (which either starts the next wave's intermission or ends the challenge).
+	// Guard with length > 0 to avoid vacuous true on an empty array during intermission.
+	if (state.enemies.length > 0 && state.enemies.every((e) => e.hp <= 0)) {
+		if (state.wave && state.wave.phase === 'fighting') {
+			onWaveCleared(state, now);
+		} else if (!state.wave) {
+			state.over = true;
+			state.outcome = 'victory';
+		}
 	}
-}
-
-// ─── Off-field energy regen ─────────────────────────────────────────────────
-
-/**
- * Benched (non-active), living party members trickle energy over time.
- * The active character does not — it charges through its own actions.
- */
-function tickOffFieldEnergy(state: EngineState, now: number): void {
-	if (now - lastEnergyRegenAt < OFF_FIELD_REGEN_MS) return;
-	lastEnergyRegenAt = now;
-
-	for (let i = 0; i < state.party.length; i++) {
-		if (i === state.activeSlot) continue;
-		const pc = state.party[i];
-		if (pc.hp <= 0) continue;
-		pc.energy = Math.min(
-			pc.def.maxEnergy,
-			pc.energy + OFF_FIELD_REGEN_MS * offFieldEnergyMultiplier(pc)
-		);
-	}
-}
-
-/**
- * Per-character multiplier on off-field regen. Extension seam for passives —
- * Sefyra's "Advent of the Light" plugs in here: return 1.5 while she holds
- * Divinity (pc.stacks.current > 0). Defaults to 1 for everyone today.
- */
-function offFieldEnergyMultiplier(_pc: CharacterState): number {
-	return 1;
 }
 
 // ─── Summon tick ──────────────────────────────────────────────────────────────
@@ -437,30 +410,26 @@ function tickZones(state: EngineState, now: number): void {
 			if (zone.buff.dmgPerTick && zone.buff.dmgPerTick > 0) {
 				const owner = state.party.find((p) => p.id === zone.ownerId);
 				if (owner) {
-					// owner alive — full pipeline
+					// owner alive — route through the unified resolver, same as BAs/
+					// abilities/summons/constructs. This is what makes onHit.energyGain,
+					// grantsStack, splash, stun, lifesteal, etc. work on a zone tick.
+					const src: ResolveSource = {
+						owner,
+						abilityName: 'Zone tick',
+						element: owner.def.element,
+						originZoneId: zone.id,
+						sourcePos: zone.center
+					};
 					for (const enemy of state.enemies) {
 						if (enemy.hp <= 0) continue;
 						if (chebyshev(enemy.pos, zone.center) > zone.radius) continue;
-						const dmg = calculateDamage(zone.buff.dmgPerTick, {
-							source: owner,
-							target: enemy,
-							originZoneId: zone.id,
-							tags: ['ability', 'zone'],
-							state
-						});
-						enemy.hp = Math.max(0, enemy.hp - dmg);
-						publish('damage:dealt', {
-							source: zone.ownerId,
-							target: enemy.id,
-							amount: dmg,
-							abilityName: 'Zone tick'
-						});
-						if (enemy.hp <= 0) {
-							publish('enemy:defeated', { enemyId: enemy.id, killer: zone.ownerId });
-						}
+						applyOnHit(state, enemy, zone.buff.dmgPerTick, zone.buff.onHit, src, now);
 					}
 				} else if (zone.persistsAfterDeath) {
-					// owner dead, zone opted in — flat dmgPerTick, no pipeline
+					// owner dead, zone opted in — flat dmgPerTick, no pipeline, no owner
+					// resources (there's no owner to receive them). onHit's CC/splash
+					// still wouldn't make sense to skip here, but there's no owner for
+					// the resource half — keep this branch as plain damage.
 					for (const enemy of state.enemies) {
 						if (enemy.hp <= 0) continue;
 						if (chebyshev(enemy.pos, zone.center) > zone.radius) continue;

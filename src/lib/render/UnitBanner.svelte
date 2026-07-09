@@ -67,6 +67,8 @@
 	});
 	let ultReady = $derived(ultPct >= 99.5);
 
+	let pipShape = $derived(ally?.def.theme?.pip?.shape ?? '');
+
 	let effectChips = $derived.by(() => {
 		if (!ally) return [];
 		return Object.entries(ally.activeEffects ?? {})
@@ -113,7 +115,7 @@
 
 			<!-- HP + shield on one line -->
 			<div class="bar-row">
-				<HPBar current={ally.hp} max={ally.def.maxHp} type="hp" />
+				<HPBar current={ally.hp} max={ally.def.maxHp} type="hp" hpStyle={ally.def.theme?.hpStyle} />
 				{#if hasShield}
 					<span class="shield-pill" title="Shield">
 						<svg width="9" height="10" viewBox="0 0 10 11" fill="none">
@@ -137,7 +139,12 @@
 				<div class="pips" title="Stacks">
 					{#if stackLabel}<span class="pip-label">{stackLabel}</span>{/if}
 					{#each { length: ally.def.stackMax } as _, i}
-						<span class="pip" class:filled={i < ally.stacks.current}></span>
+						<span
+							class="pip"
+							class:pip-crystal={pipShape === 'crystal'}
+							class:pip-circuit={pipShape === 'circuit'}
+							class:filled={i < ally.stacks.current}
+						></span>
 					{/each}
 					<span class="pip-count">{ally.stacks.current}/{ally.def.stackMax}</span>
 				</div>
@@ -170,17 +177,13 @@
 		background:
 			linear-gradient(
 				135deg,
-				color-mix(in srgb, var(--char-primary, var(--coral)) 86%, transparent),
-				transparent 42%
+				color-mix(in srgb, var(--char-primary) 100%, transparent),
+				transparent 35%
 			),
 			linear-gradient(
 				315deg,
-				color-mix(
-					in srgb,
-					var(--char-secondary, var(--char-primary, var(--coral))) 84%,
-					transparent
-				),
-				transparent 46%
+				color-mix(in srgb, var(--char-secondary) 100%, transparent),
+				transparent 35%
 			);
 		/* backdrop-filter: blur(10px); */
 		/* -webkit-backdrop-filter: blur(10px); */
@@ -382,6 +385,49 @@
 	}
 	.fx-time {
 		font-feature-settings: 'tnum';
+	}
+
+	/* ── Frostbite (tall-diamond ice shard pips) ───────────────────── */
+	.pip.pip-crystal {
+		width: 16px;
+		height: 26px;
+		transform: none;
+		border-radius: 0;
+		clip-path: polygon(50% 0, 78% 50%, 50% 100%, 22% 50%);
+		background: radial-gradient(circle at 50% 32%, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.3));
+		box-shadow: none;
+	}
+	.pip.pip-crystal.filled {
+		background: linear-gradient(160deg, #eaffff, #7ad4ff 50%, #2f7fd6);
+		box-shadow: none;
+		filter: drop-shadow(0 0 5px rgba(122, 212, 255, 0.85));
+		animation: crystalGlow 2.6s ease-in-out infinite;
+	}
+
+	/* ── Circuit (vertical power-cell pips) ─────────────────────────── */
+	.pip.pip-circuit {
+		width: 14px;
+		height: 24px;
+		transform: none;
+		border-radius: 3px;
+		background: radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0.34));
+		box-shadow: inset 0 0 0 1px
+			color-mix(in srgb, var(--char-pip-color, var(--char-primary)) 40%, transparent);
+	}
+	.pip.pip-circuit.filled {
+		background: linear-gradient(180deg, #caff7a, #6fd83e 55%, #3f9e2a);
+		box-shadow: none;
+		filter: drop-shadow(0 0 5px rgba(111, 216, 62, 0.8));
+		animation: circuitGlow 2s ease-in-out infinite;
+	}
+
+	@keyframes crystalGlow {
+		0%, 100% { filter: drop-shadow(0 0 4px rgba(122, 212, 255, 0.7)); }
+		50%       { filter: drop-shadow(0 0 9px rgba(122, 212, 255, 1)); }
+	}
+	@keyframes circuitGlow {
+		0%, 100% { filter: drop-shadow(0 0 4px rgba(111, 216, 62, 0.7)); }
+		50%       { filter: drop-shadow(0 0 9px rgba(111, 216, 62, 1)); }
 	}
 
 	@keyframes ringPulse {

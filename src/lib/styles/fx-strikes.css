@@ -371,53 +371,41 @@
 	}
 }
 
-/* ── Flurry — rapid multi-hit tick (one spark per hit), ramp ─── */
+/* ── Flurry — rapid multi-hit. The engine spawns ONE .fx-tick PER hit
+      (fx.hits), each at a jittered offset, with its own --a angle and a
+      per-hit animation-delay (i*68ms). Each tick is a single sharp slash
+      that snaps in along --a, flashes (body --c → hot tip --c2), and
+      fades — so the engine's stagger reads as a fast, sequential burst
+      of distinct hits rather than one stacked spark. Slash life ~170ms.
+      Markup (per hit, set by the engine):
+        <div class="fx-tick" style="--a:..;animation-delay:..;--c:..;--c2:..;"></div> ─── */
 .fx-tick {
 	position: absolute;
-	width: 20px;
-	height: 20px;
-	margin: -10px 0 0 -10px;
+	left: 0;
+	top: 0;
+	width: 26px;
+	height: 5px;
+	margin: -2.5px 0 0 -13px;        /* slash centered on the spawn point */
+	transform-origin: 50% 50%;
 	z-index: 6;
-	transform: rotate(var(--a)) scale(0.4);
+	background: linear-gradient(to right,
+			transparent 0%,
+			color-mix(in srgb, transparent, var(--c)) 24%,
+			var(--c) 52%,
+			var(--c2, var(--c)) 86%,
+			transparent 100%);
+	clip-path: polygon(0 50%, 22% 8%, 100% 44%, 100% 56%, 22% 92%);
+	filter: drop-shadow(0 0 4px var(--c));
 	opacity: 0;
-	animation: fx-tick 0.22s ease-out forwards;
-}
-
-.fx-tick::before,
-.fx-tick::after {
-	content: '';
-	position: absolute;
-	left: 50%;
-	top: 50%;
-	width: 100%;
-	height: 2.5px;
-	margin: -1.25px 0 0 -50%;
-	border-radius: 2px;
-	background: linear-gradient(to right, transparent, color-mix(in srgb, transparent, var(--c)), transparent);
-	box-shadow: 0 0 5px var(--c);
-}
-
-.fx-tick::after {
-	transform: rotate(90deg);
-	background: linear-gradient(to right, transparent, color-mix(in srgb, transparent, var(--c2, var(--c))), transparent);
-	box-shadow: 0 0 5px var(--c2, var(--c));
+	transform: rotate(var(--a, 0deg)) translateX(-7px) scaleX(0.15);
+	animation: fx-tick 0.17s cubic-bezier(0.2, 0.85, 0.2, 1) forwards;
 }
 
 @keyframes fx-tick {
-	0% {
-		opacity: 0;
-		transform: rotate(var(--a)) scale(0.3);
-	}
-
-	40% {
-		opacity: 1;
-		transform: rotate(var(--a)) scale(1.05);
-	}
-
-	100% {
-		opacity: 0;
-		transform: rotate(var(--a)) scale(1.3);
-	}
+	0%   { opacity: 0; transform: rotate(var(--a, 0deg)) translateX(-7px) scaleX(0.15); }
+	38%  { opacity: 1; transform: rotate(var(--a, 0deg)) translateX(0) scaleX(1.1); }
+	62%  { opacity: 1; transform: rotate(var(--a, 0deg)) translateX(1px) scaleX(1); }
+	100% { opacity: 0; transform: rotate(var(--a, 0deg)) translateX(6px) scaleX(1.05); }
 }
 
 /* ── Crush / slam — heavy drop + crater ring + debris ──────── */
@@ -904,4 +892,544 @@
 @keyframes sig-threads-drift {
 	0%, 100% { opacity: 0.35; transform: scale(1) rotate(0deg); }
 	50%      { opacity: 0.6; transform: scale(1.06) rotate(2deg); }
+}
+
+/* ════════════════════════════════════════════════════════════
+   COORDINATED ATTACK & EXTRAS — Claude Design build
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Coordinated Attack hit — precise follow-up: 3 thin blades
+      converge on the point from slightly different angles, make
+      brief contact (--c2 flash), then dissolve. Subordinate weight,
+      no bloom. ~250ms total.
+      Markup: <div class="fx-ca-hit"><i class="blade"></i>×3</div> ── */
+.fx-ca-hit {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 0;
+	height: 0;
+	transform: rotate(var(--rot, 0deg));
+	z-index: 6;
+}
+
+.fx-ca-hit .blade {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 30px;
+	height: 3px;
+	margin: -1.5px 0 0 -30px;       /* sharp tip lands on center (0,0) */
+	transform-origin: 100% 50%;      /* pivot at the tip */
+	background: linear-gradient(to right,
+			transparent 0%,
+			color-mix(in srgb, transparent, var(--c)) 45%,
+			var(--c) 100%);
+	clip-path: polygon(0 50%, 70% 0, 100% 50%, 70% 100%);
+	filter: drop-shadow(0 0 3px var(--c));
+	opacity: 0;
+	transform: rotate(var(--a)) translateX(-16px) scaleX(0.5);
+	animation: fx-ca-blade 0.2s cubic-bezier(0.25, 0.9, 0.25, 1) forwards;
+}
+
+.fx-ca-hit .blade:nth-child(1) { --a: -26deg; }
+.fx-ca-hit .blade:nth-child(2) { --a: 12deg;  }
+.fx-ca-hit .blade:nth-child(3) { --a: 46deg;  }
+
+.fx-ca-hit::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 12px;
+	height: 12px;
+	margin: -6px 0 0 -6px;
+	border-radius: 50%;
+	background: radial-gradient(circle,
+			var(--c2, var(--c)) 0%,
+			color-mix(in srgb, var(--c2, var(--c)) 45%, transparent) 45%,
+			transparent 72%);
+	box-shadow: 0 0 6px 1px var(--c2, var(--c));
+	opacity: 0;
+	transform: scale(0.2);
+	animation: fx-ca-impact 0.16s ease-out 0.09s forwards;
+}
+
+@keyframes fx-ca-blade {
+	0%   { opacity: 0; transform: rotate(var(--a)) translateX(-16px) scaleX(0.5); }
+	50%  { opacity: 1; transform: rotate(var(--a)) translateX(0) scaleX(1); }
+	68%  { opacity: 1; transform: rotate(var(--a)) translateX(1px) scaleX(1); }
+	100% { opacity: 0; transform: rotate(var(--a)) translateX(4px) scaleX(0.7); }
+}
+
+@keyframes fx-ca-impact {
+	0%   { opacity: 0; transform: scale(0.2); }
+	35%  { opacity: 1; transform: scale(1); }
+	100% { opacity: 0; transform: scale(1.4); }
+}
+
+/* ── Heat-seeker bullets — comets sweep in from the flank on a
+      curved arc and converge on the target (--c body, --c2 leading
+      tip), small impact flash on arrival. Polar-arc: each .bullet is
+      a rotator that spins --a0 -> --a1 while its head shrinks radius
+      --r0 -> 0, tracing a true arc into center.
+      Markup: <div class="fx-seeker"><i class="bullet"></i>×3</div> ── */
+.fx-seeker {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 0;
+	height: 0;
+	transform: rotate(var(--rot, 0deg));
+	z-index: 5;
+}
+
+.fx-seeker .bullet {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 0;
+	height: 0;
+	transform: rotate(var(--a0));
+	animation: fx-seeker-spin 0.46s cubic-bezier(0.5, 0.05, 0.3, 1) forwards;
+	animation-delay: var(--d, 0ms);
+}
+
+.fx-seeker .bullet::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 11px;
+	height: 3px;
+	margin: -1.5px 0 0 -5.5px;        /* head centered on the radius point */
+	border-radius: 999px;
+	/* leading edge (inner, -x) hot in --c2, fading tail (outer, +x) */
+	background: linear-gradient(to left,
+			transparent 0%,
+			color-mix(in srgb, var(--c) 70%, transparent) 28%,
+			var(--c) 62%,
+			var(--c2, var(--c)) 100%);
+	box-shadow: 0 0 5px 1px var(--c), 0 0 9px 2px color-mix(in srgb, var(--c2, var(--c)) 55%, transparent);
+	transform: translateX(var(--r0));
+	opacity: 0;
+	animation: fx-seeker-radius 0.46s cubic-bezier(0.5, 0.05, 0.3, 1) forwards;
+	animation-delay: var(--d, 0ms);
+}
+
+.fx-seeker .bullet:nth-child(1) { --a0: 188deg; --a1: 86deg;  --r0: 56px; --d: 0ms;   }
+.fx-seeker .bullet:nth-child(2) { --a0: -16deg; --a1: 94deg;  --r0: 62px; --d: 55ms;  }
+.fx-seeker .bullet:nth-child(3) { --a0: 206deg; --a1: 70deg;  --r0: 50px; --d: 110ms; }
+
+.fx-seeker::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 14px;
+	height: 14px;
+	margin: -7px 0 0 -7px;
+	border-radius: 50%;
+	background: radial-gradient(circle, var(--c2, var(--c)) 0%, transparent 70%);
+	box-shadow: 0 0 9px 2px var(--c);
+	opacity: 0;
+	transform: scale(0.2);
+	animation: fx-ca-impact 0.22s ease-out 0.44s forwards;
+}
+
+@keyframes fx-seeker-spin {
+	from { transform: rotate(var(--a0)); }
+	to   { transform: rotate(var(--a1)); }
+}
+
+@keyframes fx-seeker-radius {
+	0%   { transform: translateX(var(--r0)); opacity: 0; }
+	14%  { opacity: 1; }
+	88%  { transform: translateX(0); opacity: 1; }
+	100% { transform: translateX(0); opacity: 0; }
+}
+
+/* From-caster variant — add class .from-caster (engine flag). Instead of
+   converging from the flank, all bullets launch from the caster's
+   direction (-x / "behind" in the rotated frame, since --rot points at the
+   target) and heat-seek-arc into the point. Launch radius follows the real
+   caster→target distance via --src-dist (engine sets it; falls back to
+   ~2 tiles). A slight per-bullet fan keeps them from overlapping. */
+.fx-seeker.from-caster .bullet:nth-child(1) { --a0: 187deg; --a1: 92deg; --r0: var(--src-dist, 70px);            --d: 0ms;   }
+.fx-seeker.from-caster .bullet:nth-child(2) { --a0: 178deg; --a1: 76deg; --r0: calc(var(--src-dist, 70px) + 9px); --d: 55ms;  }
+.fx-seeker.from-caster .bullet:nth-child(3) { --a0: 171deg; --a1: 66deg; --r0: calc(var(--src-dist, 70px) - 7px); --d: 110ms; }
+
+/* ── Paint splash — wet central splat + radial droplets fling out
+      and stick, then fade. Body --c, accent spatter --c2.
+      Optional incoming projectile: add class .from-caster (engine flag)
+      and an <i class="shot"></i> child — a paint glob flies in from the
+      caster and the splat fires on impact. Without the flag the splat
+      lands in place (the .shot stays hidden).
+      Markup: <div class="fx-splash"><i class="shot"></i><i class="blob"></i>
+              <i class="drop"></i>×9</div> ── */
+.fx-splash {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 0;
+	height: 0;
+	z-index: 6;
+}
+
+.fx-splash .blob {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 30px;
+	height: 30px;
+	margin: -15px 0 0 -15px;
+	border-radius: 42% 58% 63% 37% / 49% 41% 59% 51%;
+	background: radial-gradient(circle at 42% 38%,
+			color-mix(in srgb, var(--c2, var(--c)) 65%, var(--c)),
+			var(--c) 70%);
+	filter: drop-shadow(0 0 3px color-mix(in srgb, var(--c) 55%, transparent));
+	opacity: 0;
+	transform: scale(0.2);
+	animation: fx-splash-blob 0.42s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+.fx-splash .drop {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: var(--ds, 6px);
+	height: var(--ds, 6px);
+	margin: calc(var(--ds, 6px) / -2) 0 0 calc(var(--ds, 6px) / -2);
+	border-radius: 54% 46% 47% 53% / 50% 55% 45% 50%;
+	background: var(--dc, var(--c));
+	box-shadow: 0 0 3px color-mix(in srgb, var(--c) 45%, transparent);
+	opacity: 0;
+	animation: fx-splash-drop 0.44s cubic-bezier(0.15, 0.85, 0.25, 1) forwards;
+}
+
+.fx-splash .drop:nth-child(2)  { --dx: 26px;  --dy: -10px; --ds: 8px; --dc: var(--c); }
+.fx-splash .drop:nth-child(3)  { --dx: -22px; --dy: -16px; --ds: 6px; --dc: var(--c2, var(--c)); }
+.fx-splash .drop:nth-child(4)  { --dx: 14px;  --dy: 22px;  --ds: 7px; --dc: var(--c); }
+.fx-splash .drop:nth-child(5)  { --dx: -18px; --dy: 18px;  --ds: 5px; --dc: var(--c2, var(--c)); }
+.fx-splash .drop:nth-child(6)  { --dx: 31px;  --dy: 8px;   --ds: 5px; --dc: var(--c); }
+.fx-splash .drop:nth-child(7)  { --dx: -29px; --dy: -3px;  --ds: 7px; --dc: var(--c2, var(--c)); }
+.fx-splash .drop:nth-child(8)  { --dx: 7px;   --dy: -27px; --ds: 5px; --dc: var(--c); }
+.fx-splash .drop:nth-child(9)  { --dx: 21px;  --dy: -22px; --ds: 4px; --dc: var(--c2, var(--c)); }
+.fx-splash .drop:nth-child(10) { --dx: -11px; --dy: 28px;  --ds: 6px; --dc: var(--c); }
+
+@keyframes fx-splash-blob {
+	0%   { opacity: 0; transform: scale(0.2); }
+	35%  { opacity: 1; transform: scale(1.15); }
+	60%  { transform: scale(1); }
+	100% { opacity: 0; transform: scale(1.05); }
+}
+
+@keyframes fx-splash-drop {
+	0%   { opacity: 0; transform: translate(0, 0) scale(0.2); }
+	25%  { opacity: 1; }
+	70%  { opacity: 1; transform: translate(var(--dx), var(--dy)) scale(1); }
+	100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.85); }
+}
+
+/* Incoming paint shot — hidden by default; only flies when .from-caster
+   is set. The whole splash rotates to --rot so the shot arrives along the
+   cast axis; it travels in from -x (the caster) and bursts at the point. */
+.fx-splash .shot { display: none; }
+
+.fx-splash.from-caster {
+	transform: rotate(var(--rot, 0deg));
+}
+
+.fx-splash.from-caster .shot {
+	display: block;
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 15px;
+	height: 8px;
+	margin: -4px 0 0 -7.5px;
+	border-radius: 60% 40% 52% 48% / 55% 50% 50% 45%;
+	background: radial-gradient(circle at 64% 50%, var(--c2, var(--c)), var(--c) 72%);
+	box-shadow: 0 0 6px 1px color-mix(in srgb, var(--c) 60%, transparent);
+	opacity: 0;
+	transform: translateX(calc(-1 * var(--src-dist, 70px))) scaleX(1.1);
+	animation: fx-splash-shot 0.19s cubic-bezier(0.4, 0, 0.55, 1) forwards;
+}
+
+/* In from-caster mode hold the splat back until the shot lands (~0.18s). */
+.fx-splash.from-caster .blob { animation-delay: 0.18s; }
+.fx-splash.from-caster .drop { animation-delay: 0.18s; }
+
+@keyframes fx-splash-shot {
+	0%   { opacity: 0; transform: translateX(calc(-1 * var(--src-dist, 70px))) scaleX(0.8); }
+	22%  { opacity: 1; }
+	86%  { opacity: 1; transform: translateX(-2px) scaleX(1.25); }
+	100% { opacity: 0; transform: translateX(0) scaleX(1); }
+}
+
+/* ── Bloom — flower petals unfurl from the point, --c2 pistil core.
+      Petal bases pinned to center; they fan out by --a and scale up.
+      Markup: <div class="fx-bloom"><i class="petal"></i>×6</div> ── */
+.fx-bloom {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 0;
+	height: 0;
+	transform: rotate(var(--rot, 0deg));
+	z-index: 5;
+}
+
+.fx-bloom .petal {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 11px;
+	height: 22px;
+	margin: -22px 0 0 -5.5px;        /* base sits on center, petal points up */
+	transform-origin: 50% 100%;       /* pivot at the base */
+	background: linear-gradient(to top,
+			var(--c) 0%,
+			color-mix(in srgb, var(--c2, var(--c)) 60%, var(--c)) 100%);
+	clip-path: polygon(50% 0, 88% 42%, 50% 100%, 12% 42%);
+	box-shadow: 0 0 4px color-mix(in srgb, var(--c) 50%, transparent);
+	opacity: 0;
+	transform: rotate(var(--a)) scale(0);
+	animation: fx-bloom-petal 0.5s cubic-bezier(0.2, 0.8, 0.25, 1) forwards;
+	animation-delay: var(--d, 0ms);
+}
+
+.fx-bloom .petal:nth-child(1) { --a: 0deg;   --d: 0ms;  }
+.fx-bloom .petal:nth-child(2) { --a: 60deg;  --d: 30ms; }
+.fx-bloom .petal:nth-child(3) { --a: 120deg; --d: 60ms; }
+.fx-bloom .petal:nth-child(4) { --a: 180deg; --d: 30ms; }
+.fx-bloom .petal:nth-child(5) { --a: 240deg; --d: 60ms; }
+.fx-bloom .petal:nth-child(6) { --a: 300deg; --d: 90ms; }
+
+.fx-bloom::after {
+	content: '';
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 11px;
+	height: 11px;
+	margin: -5.5px 0 0 -5.5px;
+	border-radius: 50%;
+	background: radial-gradient(circle,
+			color-mix(in srgb, var(--c2, var(--c)) 80%, white),
+			var(--c2, var(--c)) 70%);
+	box-shadow: 0 0 6px 1px var(--c2, var(--c));
+	opacity: 0;
+	transform: scale(0);
+	animation: fx-charge 0.5s ease-out 0.12s forwards;
+}
+
+@keyframes fx-bloom-petal {
+	0%   { opacity: 0; transform: rotate(var(--a)) scale(0); }
+	40%  { opacity: 1; transform: rotate(var(--a)) scale(1.04); }
+	72%  { opacity: 1; transform: rotate(var(--a)) scale(1); }
+	100% { opacity: 0; transform: rotate(var(--a)) scale(1.08); }
+}
+
+/* ════════════════════════════════════════════════════════════
+   NEW STRIKES — smite (from above), mortar (lobbed), laserarc
+   (energy beam that swings in on the seeker arc)
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Lightning smite — a jagged bolt falls onto the target from above,
+      then an impact flash + ground ring. The bolt path is generated per
+      cast (JS) so no two smites are identical. Anchored so the bolt BASE
+      sits on the target; SVG is tall and reaches up off-screen.
+      Markup (engine):
+        <svg class="fx-smite" viewBox="0 0 W H" ...>
+          <g class="bolt"><path class="glow" d=../><path class="core" d=../></g>
+          <circle class="flash" .. /><circle class="ring" .. />
+        </svg> ── */
+.fx-smite {
+	position: absolute;
+	overflow: visible;
+	pointer-events: none;
+	z-index: 6;
+	opacity: 0;
+	animation: fx-smite-life 0.5s ease-out forwards;
+}
+@keyframes fx-smite-life {
+	0%   { opacity: 0; }
+	7%   { opacity: 1; }
+	22%  { opacity: 0.45; }
+	36%  { opacity: 1; }
+	62%  { opacity: 0.7; }
+	100% { opacity: 0; }
+}
+.fx-smite .bolt path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.fx-smite .bolt .glow {
+	stroke: var(--c);
+	stroke-width: 5;
+	filter: drop-shadow(0 0 4px var(--c)) drop-shadow(0 0 10px var(--c2, var(--c)));
+}
+.fx-smite .bolt .core { stroke: #fff; stroke-width: 2; }
+.fx-smite .flash {
+	fill: #fff;
+	transform-box: fill-box;
+	transform-origin: center;
+	opacity: 0;
+	animation: fx-smite-flash 0.4s ease-out 0.16s forwards;
+}
+@keyframes fx-smite-flash {
+	0%   { opacity: 0; transform: scale(0.2); }
+	22%  { opacity: 0.95; transform: scale(1); }
+	100% { opacity: 0; transform: scale(1.7); }
+}
+.fx-smite .ring {
+	fill: none;
+	stroke: var(--c2, var(--c));
+	stroke-width: 3;
+	transform-box: fill-box;
+	transform-origin: center;
+	opacity: 0;
+	filter: drop-shadow(0 0 5px color-mix(in srgb, var(--c) 60%, transparent));
+	animation: fx-smite-ring 0.5s ease-out 0.2s forwards;
+}
+@keyframes fx-smite-ring {
+	0%   { opacity: 0.9; transform: scale(0.2); stroke-width: 5; }
+	100% { opacity: 0; transform: scale(1.7); stroke-width: 1; }
+}
+
+/* ── Mortar — a shell is lobbed in, falls from above onto a shrinking
+      telegraph, and detonates: shockwave ring + randomized fragments
+      (the engine sets per-frag --ex/--ey/--fs/--fc, so the blast scatters
+      differently each time).
+      Markup (engine):
+        <div class="fx-mortar"><i class="tele"></i><i class="shell"></i>
+          <i class="wave"></i><i class="frag" style="--ex;--ey;--fs;--fc">×N</i></div> ── */
+.fx-mortar {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 0;
+	height: 0;
+	pointer-events: none;
+	z-index: 6;
+}
+.fx-mortar .tele {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 54px;
+	height: 54px;
+	margin: -27px 0 0 -27px;
+	border-radius: 50%;
+	border: 2px dashed var(--c2, var(--c));
+	box-shadow: 0 0 8px color-mix(in srgb, var(--c) 50%, transparent);
+	opacity: 0;
+	animation: fx-mortar-tele 0.46s ease-out forwards;
+}
+@keyframes fx-mortar-tele {
+	0%   { opacity: 0; transform: scale(1.7) rotate(0deg); }
+	25%  { opacity: 0.9; }
+	100% { opacity: 0.25; transform: scale(0.66) rotate(90deg); }
+}
+.fx-mortar .shell {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 9px;
+	height: 20px;
+	margin: -10px 0 0 -4.5px;
+	border-radius: 50% 50% 50% 50% / 62% 62% 40% 40%;
+	background: radial-gradient(circle at 50% 28%, #fff, var(--c) 58%, var(--c2, var(--c)));
+	box-shadow: 0 0 8px var(--c);
+	opacity: 0;
+	animation: fx-mortar-shell 0.36s cubic-bezier(0.5, 0, 0.9, 0.55) 0.1s forwards;
+}
+@keyframes fx-mortar-shell {
+	0%   { opacity: 0; transform: translateY(-190px) scaleY(1.5); }
+	28%  { opacity: 1; }
+	90%  { opacity: 1; transform: translateY(0) scaleY(1); }
+	100% { opacity: 0; transform: translateY(0) scale(1.25); }
+}
+.fx-mortar .wave {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 64px;
+	height: 28px;
+	margin: -14px 0 0 -32px;
+	border-radius: 50%;
+	border: 3px solid var(--c2, var(--c));
+	box-shadow: 0 0 14px color-mix(in srgb, var(--c) 60%, transparent);
+	opacity: 0;
+	transform: scale(0.2);
+	animation: fx-crater 0.5s ease-out 0.44s forwards;
+}
+.fx-mortar .frag {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: var(--fs, 6px);
+	height: var(--fs, 6px);
+	margin: calc(var(--fs, 6px) / -2) 0 0 calc(var(--fs, 6px) / -2);
+	border-radius: 50%;
+	background: var(--fc, var(--c));
+	box-shadow: 0 0 5px var(--fc, var(--c));
+	opacity: 0;
+	animation: fx-mortar-frag 0.5s cubic-bezier(0.2, 0.7, 0.3, 1) 0.44s forwards;
+}
+@keyframes fx-mortar-frag {
+	0%   { opacity: 0; transform: translate(0, 0) scale(1); }
+	18%  { opacity: 1; }
+	100% { opacity: 0; transform: translate(var(--ex, 0px), var(--ey, 0px)) scale(0.4); }
+}
+
+/* ── Laser-arc — same launch-from-caster swing as the seeker, but a single
+      clean energy line that swings onto the target line and flashes. Anchored
+      at the caster, rotated --rot (toward target); --swing is the side it
+      swings in from (+ right / − left), --len the caster→target distance.
+      Markup: <div class="fx-laserarc"><i class="ray"></i></div> ── */
+.fx-laserarc {
+	position: absolute;
+	left: 0;
+	top: 0;
+	width: 0;
+	height: 0;
+	transform: rotate(var(--rot, 0deg));
+	transform-origin: 0 50%;
+	pointer-events: none;
+	z-index: 5;
+}
+.fx-laserarc .ray {
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 5px;
+	width: var(--len, 100px);
+	margin-top: -2.5px;
+	transform-origin: 0 50%;
+	border-radius: 3px;
+	background: linear-gradient(to right,
+			color-mix(in srgb, var(--c) 65%, transparent) 0%,
+			var(--c) 28%,
+			#fff 62%,
+			var(--c2, var(--c)) 100%);
+	box-shadow: 0 0 8px var(--c), 0 0 18px color-mix(in srgb, var(--c2, var(--c)) 60%, transparent);
+	opacity: 0;
+	animation: fx-laserarc 0.52s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
+}
+.fx-laserarc .ray::after {
+	content: '';
+	position: absolute;
+	right: -3px;
+	top: 50%;
+	width: 11px;
+	height: 11px;
+	margin-top: -5.5px;
+	border-radius: 50%;
+	background: radial-gradient(circle, #fff 0%, var(--c2, var(--c)) 52%, transparent 76%);
+	box-shadow: 0 0 9px var(--c2, var(--c));
+}
+@keyframes fx-laserarc {
+	0%   { opacity: 0; transform: rotate(var(--swing, 38deg)) scaleX(0.12); }
+	22%  { opacity: 1; transform: rotate(calc(var(--swing, 38deg) * 0.55)) scaleX(1); }
+	55%  { opacity: 1; transform: rotate(0deg) scaleX(1); }
+	100% { opacity: 0; transform: rotate(0deg) scaleX(1.03); }
 }

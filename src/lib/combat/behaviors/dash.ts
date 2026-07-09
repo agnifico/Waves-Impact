@@ -1,5 +1,5 @@
 import type { EngineState, CharacterState, EnemyState } from '$lib/types/state';
-import type { Ability } from '$lib/types/ability';
+import type { Ability, AbilityOpts } from '$lib/types/ability';
 import { chebyshev, step8Toward, step8Away, samePos, clamp } from '../board';
 import { nearestEnemy } from '../query';
 import { publish } from '../events';
@@ -7,13 +7,6 @@ import { applyDelivery, applyOnHit, canHitStratum, type ResolveSource } from '..
 import { walk } from '../movement';
 
 type Vec = { x: number; y: number };
-
-export interface DashOpts {
-	chargedRange?: number; // holdBehavior 'charge'
-	reticle?: Vec | null; // holdBehavior 'aim' release point → sets travel direction
-	aimDir?: Vec; // optional explicit travel direction (input layer may supply)
-	lockedTargetId?: string;
-}
 
 /**
  * dash: caster repositions; optional damage / displacement (Data Contract §6).
@@ -37,7 +30,7 @@ export function resolve(
 	caster: CharacterState,
 	ability: Ability,
 	now: number,
-	opts: DashOpts = {}
+	opts: AbilityOpts = {}
 ): boolean {
 	const sp = (ability.delivery?.shapeParams ?? {}) as Record<string, unknown>;
 	const dir = (sp.dir as string | undefined) ?? 'toward';
@@ -163,7 +156,7 @@ function runGather(state: EngineState, caster: CharacterState, ability: Ability,
 }
 
 /** Resolve a travel direction: explicit aimDir → reticle → facing → toward nearest → +x. */
-function resolveAim(state: EngineState, caster: CharacterState, opts: DashOpts): Vec {
+function resolveAim(state: EngineState, caster: CharacterState, opts: AbilityOpts): Vec {
 	if (opts.aimDir && (opts.aimDir.x !== 0 || opts.aimDir.y !== 0)) return opts.aimDir;
 	if (opts.reticle && !samePos(opts.reticle, caster.pos)) {
 		return { x: opts.reticle.x - caster.pos.x, y: opts.reticle.y - caster.pos.y };

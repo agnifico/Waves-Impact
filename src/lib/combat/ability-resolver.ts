@@ -1,19 +1,23 @@
-import type { CharacterState, EnemyState, EngineState } from '$lib/types/state';
-import type { AbilitySlot } from '$lib/types/ability';
+import type { EngineState } from '$lib/types/state';
+import type { AbilitySlot, AbilityOpts } from '$lib/types/ability';
 import { resolveBehavior } from './behaviors';
 import { hasEffect, removeEffect } from './effects';
 import { publish } from './events';
-import type { Vector } from '$lib/types';
-import { applyBasicHit } from './basic-attack';
+import { applyBasicHit, applyBasicHitAoe } from './basic-attack';
 import { fireEnemyAttacks } from './ai/utils';
 
-export interface AbilityOpts {
-	reticle?: { x: number; y: number } | null;
-	selfTarget?: boolean;
-	chargedRange?: number;
-	tier?: number;
-	lockedTargetId?: string;
-	aimDir?: Vector;
+export type { AbilityOpts };
+
+/** Increment caPendingStacks for any party member that opts into the mechanic. */
+function maybeGrantCaPendingStacks(state: EngineState): void {
+	for (const pc of state.party) {
+		const stackMax = pc.def.caPendingStackMax ?? 0;
+		if (!pc.def.caPendingStackOnPartyV || stackMax <= 0) continue;
+		const current = pc.caPendingStacks ?? 0;
+		if (current >= stackMax) continue;
+		pc.caPendingStacks = current + 1;
+		if (pc.caPendingStacks >= stackMax) pc.caPendingMaxReached = true;
+	}
 }
 
 /** Lazily regenerate charges: one per rechargeMs, chaining until full. */
@@ -89,18 +93,20 @@ export function tryAbility(
 		char.pendingCast = {
 			slot,
 			firesAt: now + windUpMs,
-			opts: opts as Record<string, unknown>
+			opts
 		};
 		publish('cast:windup', { caster: char.id, slot, durationMs: windUpMs });
 		return;
 	}
 
 	// Dispatch to the behavior handler (instant cast).
-	const fired = resolveBehavior(state, char, abilityWithBonus, now, opts as Record<string, unknown>);
+	const fired = resolveBehavior(state, char, abilityWithBonus, now, opts);
 	if (!fired) return;
 
 	commitCast(state, char, slot, ability, isCharge, maxCharges, rechargeMs, now);
 	publish('ability:cast', { caster: char.id, abilityId: ability.id, slot });
+
+	if (slot === 'V') maybeGrantCaPendingStacks(state);
 }
 
 /** Spend energy cost + start cooldown/charge clock + timestamp. Shared by instant
@@ -146,6 +152,7 @@ export function fireWindUpCasts(state: EngineState, now: number): void {
 				if (ability) {
 					resolveBehavior(state, char, ability, now, pending.opts);
 					publish('ability:cast', { caster: char.id, abilityId: ability.id, slot: pending.slot });
+					if (pending.slot === 'V') maybeGrantCaPendingStacks(state);
 				}
 			}
 		}
@@ -155,8 +162,15 @@ export function fireWindUpCasts(state: EngineState, now: number): void {
 		if (pb && now >= pb.firesAt) {
 			char.pendingBasic = undefined;
 			if (char.hp > 0) {
-				const enemy = state.enemies.find((e) => e.id === pb.enemyId && e.hp > 0);
-				if (enemy) applyBasicHit(state, char, pb.ba as any, enemy, now);
+				const ba = pb.ba as any;
+				const isAoe = !ba.omniTarget && !!ba.delivery?.shape && ba.delivery.shape !== 'melee';
+				if (isAoe) {
+					const dir = { x: pb.dirX ?? char.facing.x, y: pb.dirY ?? char.facing.y };
+					applyBasicHitAoe(state, char, ba, dir, now);
+				} else {
+					const enemy = state.enemies.find((e) => e.id === pb.enemyId && e.hp > 0);
+					if (enemy) applyBasicHit(state, char, ba, enemy, now);
+				}
 			}
 		}
 	}

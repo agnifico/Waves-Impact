@@ -99,6 +99,12 @@ export interface Character {
 	stackMax: number;
 	onStackFull: string; // EffectId to apply when stacks reach max
 	onStackFullTarget?: 'self' | 'party'; // who receives the effect (default: 'self')
+	/** Own-cast stack cap (self-grants stop here; external grants can still reach stackMax). */
+	selfStackCap?: number;
+	/** Per-stack threshold effects: each entry applies effectId while stacks >= minStacks. */
+	stackEffects?: { effectId: string; minStacks: number }[];
+	/** If set, stacks decay to 0 when this many ms pass without a new stack being granted. */
+	stackDecayMs?: number;
 
 	// Poise (Data Contract §15.6)
 	maxPoise?: number;
@@ -131,8 +137,12 @@ export interface Character {
 		fx?: FxSpec;
 	};
 
-	// in Character
 	offFieldStackBonus?: number; // ×multiplier on off-field energy while holding stacks - Sefyra
+
+	/** Arch 3 CA: this character gains 1 pending CA stack whenever any party member uses V. */
+	caPendingStackOnPartyV?: boolean;
+	/** Maximum pending CA stacks that can be buffered (reaching max sets the 50% dmg bonus). */
+	caPendingStackMax?: number;
 
 	art?: {
 		gem: string;
@@ -164,4 +174,16 @@ export interface CharacterTheme {
 	/** CSS class for this character's signature ambient gem effect (applied to the
 	 *  player gem while on field). One bespoke flourish per unit; fill in over time. */
 	signatureFx?: string;
+	/** CSS class suffix applied to the HP bar fill for character-specific visual treatments.
+	 *  e.g. 'cryo' → crystalline facet overlay, 'solar' → leading-edge bloom pulse. */
+	hpStyle?: string;
+	/** Custom pip shape + colors for the stack tracker in the Unit Banner. */
+	pip?: {
+		/** CSS class suffix: 'crystal' (ice shard), 'circuit' (power cell), etc. */
+		shape?: string;
+		/** Fill color for filled pips. Defaults to --char-primary. */
+		color?: string;
+		/** Glow color for filled pips. Defaults to --char-glow. */
+		glow?: string;
+	};
 }

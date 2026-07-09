@@ -1,15 +1,10 @@
 import type { EngineState, CharacterState } from '$lib/types/state';
-import type { Ability } from '$lib/types/ability';
+import type { Ability, AbilityOpts } from '$lib/types/ability';
 import { resolveTiles } from '../shapes';
 import { samePos } from '../board';
 import { focusTarget } from '../query';
 import { applyDelivery, applyOnHit, canHitStratum, type ResolveSource } from '../resolve';
 import { publish } from '../events';
-
-export interface AoeOpts {
-	reticle?: { x: number; y: number } | null;
-	selfTarget?: boolean;
-}
 
 /**
  * damage_aoe: resolve shape tiles, damage every enemy standing in them.
@@ -25,7 +20,7 @@ export function resolve(
 	caster: CharacterState,
 	ability: Ability,
 	now: number,
-	opts: AoeOpts = {}
+	opts: AbilityOpts = {}
 ): boolean {
 	let targetPoint = caster.pos;
 	if (opts.reticle) {
@@ -55,6 +50,7 @@ export function resolve(
 		facing: { ...caster.facing },
 		range: sp.range,
 		radius: sp.radius,
+		fxCls: ability.fx?.castCls,
 		color: caster.def.theme?.primary
 	});
 

@@ -86,10 +86,17 @@ export function getStatModifier(
 
 		for (const mod of def.modifies) {
 			if (mod.stat !== stat) continue;
-			// Outward auras (target other than 'self') reach OTHER units via
-			// getAuraModifier — they must not also self-apply (Frosty's BA aura
-			// must not buff her own BAs: "she can't help herself").
-			if (mod.target && mod.target !== 'self') continue;
+			// 'self' mods apply directly. 'active' mods apply when THIS entity is
+			// the active unit (so Frosty's BA aura buffs her own BAs when she's on
+			// field). Other outward targets reach OTHER units via getAuraModifier only.
+			if (mod.target && mod.target !== 'self') {
+				if (mod.target === 'active' && opts?.state) {
+					const active = opts.state.party[opts.state.activeSlot];
+					if (!active || active.id !== entity.id) continue;
+				} else {
+					continue;
+				}
+			}
 			if (stat === 'damageBonus' && !tagMatch(mod.appliesTo, opts?.tags)) continue;
 			total += mod.value * scale;
 		}

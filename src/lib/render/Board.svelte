@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { CharacterState, EngineState } from '$lib/types/state';
+	import type { BasicAttack } from '$lib/types/character';
 	import type { Position } from '$lib/types/common';
 	import { samePos, chebyshev, step8Toward, occupies, inBounds } from '$lib/combat/board';
 	import { resolveTiles } from '$lib/combat/shapes';
@@ -267,14 +268,15 @@
 		return tiles;
 	}
 
-	// Unified BA range: the LIVE basic's reach as a Chebyshev disk, themed + faint.
+	// Unified BA range: the LIVE basic's reach, themed + faint.
+	// Directional-shaped BAs show their actual shape tiles; omniTarget BAs show a Chebyshev disk.
 	// Hidden while aiming an ability so the preview owns the board.
 	let baRange = $derived.by(() => {
 		void now;
 		const active = gs.party[gs.activeSlot];
 		if (!active || gs.over || holdState.holdingSlot) return null;
 
-		let ba: { range?: number } | null = null;
+		let ba: BasicAttack | null = null;
 		if (active.def.basicChain) {
 			ba = active.def.basicChain[active.baChainIndex] ?? null;
 		} else if (active.def.contextualBasic) {
@@ -284,6 +286,14 @@
 		if (!ba) return null;
 
 		const range = ba.range ?? 1;
+
+		// Directional BA: show the actual shape tiles so the player sees their arc.
+		if (!ba.omniTarget && ba.delivery?.shape) {
+			const tiles = resolveTiles(ba.delivery.shape, active.pos, active.facing, { range }, gs.board);
+			return new Set(tiles.map((t) => `${t.x},${t.y}`));
+		}
+
+		// OmniTarget: Chebyshev disk (existing behavior).
 		const keys = new Set<string>();
 		for (let dy = -range; dy <= range; dy++) {
 			for (let dx = -range; dx <= range; dx++) {
@@ -295,6 +305,29 @@
 			}
 		}
 		return keys;
+	});
+
+	// Reticle for directional BAs: marks the focused enemy's tile when they're inside the shape.
+	let baReticle = $derived.by(() => {
+		void now;
+		const active = gs.party[gs.activeSlot];
+		if (!active || gs.over || holdState.holdingSlot) return null;
+
+		let ba: BasicAttack | null = null;
+		if (active.def.basicChain) {
+			ba = active.def.basicChain[active.baChainIndex] ?? null;
+		} else if (active.def.contextualBasic) {
+			const cb = active.def.contextualBasic;
+			ba = active.stacks.current > 0 ? cb.withStack : cb.base;
+		}
+		if (!ba || ba.omniTarget || !ba.delivery?.shape) return null;
+
+		const enemy = pickTarget(active.pos);
+		if (!enemy) return null;
+
+		const tiles = resolveTiles(ba.delivery.shape, active.pos, active.facing, { range: ba.range ?? 1 }, gs.board);
+		if (!tiles.some((t) => samePos(t, enemy.pos))) return null;
+		return { x: enemy.pos.x, y: enemy.pos.y };
 	});
 
 	/** Perimeter outline for a tile set, in the active char's tint. pct = outline strength. */
@@ -319,6 +352,8 @@
 		id: number;
 		x: number;
 		y: number;
+		ox: number;
+		oy: number;
 		text: string;
 		kind: string;
 		color: string;
@@ -394,7 +429,9 @@
 
 	function addFloat(pos: Position, text: string, kind: string, color = '', big = false) {
 		const id = floatId++;
-		floats.push({ id, x: pos.x, y: pos.y, text, kind, color, big });
+		const ox = Math.round((Math.random() - 0.5) * 22);
+		const oy = Math.round((Math.random() - 0.5) * 8);
+		floats.push({ id, x: pos.x, y: pos.y, ox, oy, text, kind, color, big });
 		setTimeout(
 			() => {
 				floats = floats.filter((f) => f.id !== id);
@@ -523,6 +560,9 @@
 				{#if reticle && reticle.x === x && reticle.y === y}
 					<div class="reticle-cursor"></div>
 				{/if}
+				{#if baReticle && baReticle.x === x && baReticle.y === y}
+					<div class="reticle-cursor ba-reticle"></div>
+				{/if}
 				{#if trackCrosshair && trackCrosshair.x === x && trackCrosshair.y === y}
 					<div class="track-crosshair"></div>
 				{/if}
@@ -602,8 +642,8 @@
 
 	<!-- Floating text layer -->
 	{#each floats as f (f.id)}
-		{@const left = f.x * 36 + 18}
-		{@const top = f.y * 36}
+		{@const left = f.x * 36 + 18 + f.ox}
+		{@const top = f.y * 36 + f.oy}
 		<div
 			class="float-text {f.kind}"
 			class:big={f.big}

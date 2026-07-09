@@ -6,7 +6,7 @@ export const midorima: Character = {
 	element: 'wind',
 	maxHp: 200,
 	maxEnergy: 100,
-	baCooldownMs: [160, 160, 350],
+	baCooldownMs: [160, 160, 50, 50],
 	baChainResetMs: 1600,
 
 	basicStyle: 'chain',
@@ -16,21 +16,28 @@ export const midorima: Character = {
 			range: 3,
 			omniTarget: true,
 			delivery: { damage: 15, energyGain: 10, shape: 'line' },
-			fx: { strike: 'swipe', colors: ['#48cae4', '#a8e0ec'] }
+			fx: { strike: 'projectile', shape: 'wave', colors: ['#48cae4', '#a8e0ec'] }
 		},
 		{
 			name: 'Whirlwind Cut (2)',
 			range: 3,
 			omniTarget: true,
 			delivery: { damage: 25, energyGain: 15, shape: 'pcone' },
-			fx: { strike: 'swipe', colors: ['#48cae4', '#6be9e3'] }
+			fx: { strike: 'projectile', shape: 'wave', colors: ['#48cae4', '#6be9e3'] }
 		},
 		{
 			name: 'Zephyr Dash-Strike (3)',
 			range: 3,
 			omniTarget: true,
 			delivery: { damage: 30, energyGain: 15, shape: 'line', grantsStack: 'gale' },
-			fx: { strike: 'projectile', shape: 'wave', colors: ['#6be9e3', '#fff8ec'] }
+			fx: { strike: 'swipe', colors: ['#6be9e3', '#fff8ec'] }
+		},
+		{
+			name: 'Zephyr Dash-Strike (4)',
+			range: 3,
+			omniTarget: true,
+			delivery: { damage: 30, energyGain: 15, shape: 'line', grantsStack: 'gale' },
+			fx: { strike: 'reverseswipe', colors: ['#fff8ec', '#6be9e3'] }
 		}
 	],
 
@@ -57,10 +64,11 @@ export const midorima: Character = {
 			behavior: 'multi_construct',
 			creationId: 'wind_tower',
 			multiConstructOffsets: [
-				{ x: -1, y: -1 },
-				{ x: 1, y: -1 },
-				{ x: -1, y: 1 },
-				{ x: 1, y: 1 }
+				{ x: 0, y: -2 },
+				{ x: 2, y: -1 },
+				{ x: 1, y: 1 },
+				{ x: -1, y: 2 },
+				{ x: -2, y: 0 }
 			],
 			charges: 2,
 			rechargeMs: 12_000,
@@ -84,7 +92,7 @@ export const midorima: Character = {
 				shapeParams: { radius: 2 },
 				hitsStrata: ['ground', 'flying']
 			},
-			fx: { zone: 'slashes' }
+			fx: { zone: 'slashes', colors: ['#fff8ec', '#6be9e3'] }
 		}
 	},
 
@@ -103,8 +111,8 @@ export const midorima: Character = {
 		bannerPoster: '/characters/midorima_poster3.png'
 	},
 	theme: {
-		primary: '#3c6e71',
-		secondary: '#ffecd1',
+		primary: '#17c3b2',
+		secondary: '#006d77',
 		glow: { ready: '#6be9e3', cyclone_veil: '#ffe9a8' },
 		hp: 'linear-gradient(-90deg, #114b4f 0%, #2a6f6d 50%, #86e89a 100%);',
 		energy: 'linear-gradient(to left, #205072, #329d9c);',

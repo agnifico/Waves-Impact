@@ -31,6 +31,29 @@
 		for (let i = 1; i <= n; i++) out.push({ tx: i * d.dx * TILE, ty: i * d.dy * TILE, d: (i - 1) * 70 });
 		return out;
 	}
+	/** Rectangle tiles (wide_line): width × range. Must match wideLineFrom exactly.
+	 *  Cardinal: symmetric rectangle via 90° CCW perp.
+	 *  Diagonal: step-back L-corner bands — no holes, 3 tiles per depth. */
+	function rectTiles(d: { dx: number; dy: number }, range: number, width = 3): TilePart[] {
+		const out: TilePart[] = [];
+		const hw = Math.floor(width / 2);
+		if (d.dx === 0 || d.dy === 0) {
+			const px = -d.dy, py = d.dx;
+			for (let r = 1; r <= range; r++)
+				for (let k = -hw; k <= hw; k++)
+					out.push({ tx: (r * d.dx + k * px) * TILE, ty: (r * d.dy + k * py) * TILE, d: (r - 1) * 70 });
+		} else {
+			for (let r = 1; r <= range; r++) {
+				const tx = r * d.dx, ty = r * d.dy;
+				out.push({ tx: tx * TILE, ty: ty * TILE, d: (r - 1) * 70 });
+				for (let k = 1; k <= hw; k++) {
+					out.push({ tx: (tx - d.dx * k) * TILE, ty: ty * TILE, d: (r - 1) * 70 });
+					out.push({ tx: tx * TILE, ty: (ty - d.dy * k) * TILE, d: (r - 1) * 70 });
+				}
+			}
+		}
+		return out;
+	}
 	/** Cone tiles: orthogonal → Pascal fan (1·3·5), diagonal → filled square quadrant.
 	 *  Must match pconeFrom in combat/shapes/pcone.ts exactly. */
 	function coneTiles(d: { dx: number; dy: number }, range: number): TilePart[] {
@@ -167,6 +190,32 @@
 
 	function elementColor(el: string | undefined): string {
 		return elementRamp(el)[0];
+	}
+
+	/** One heat-seeker bullet arc for fromCaster left/right. side +1 bulges to the
+	 *  target's right (screen-down), −1 to the left (screen-up). Polar a0→a1 sweep
+	 *  launches from the caster (~180°) and converges on centre. */
+	function seekerArc(side: number, i: number, n: number, srcDist: number) {
+		const fan = i - (n - 1) / 2;
+		const r0 = srcDist + fan * 9;
+		const d = i * 55;
+		const a0 = side > 0 ? 166 + fan * 4 : 194 - fan * 4;
+		const a1 = side > 0 ? 8 + fan * 11 : 352 - fan * 11;
+		return { a0, a1, r0, d };
+	}
+
+	/** Mostly-vertical jagged bolt for the smite strike — base at (W/2, baseY),
+	 *  reaching up to y=0. Regenerated per cast so no two bolts match. */
+	function smitePath(W: number, baseY: number): string {
+		const cxp = W / 2;
+		let d = `M ${(cxp + (Math.random() - 0.5) * 10).toFixed(1)} 0`;
+		const segs = 7;
+		for (let i = 1; i <= segs; i++) {
+			const t = i / segs, y = t * baseY, amp = 14 * (1 - t) + 3;
+			const x = i === segs ? cxp : cxp + (Math.random() - 0.5) * 2 * amp;
+			d += ` L ${x.toFixed(1)} ${y.toFixed(1)}`;
+		}
+		return d;
 	}
 
 	type ConstructRing = {
@@ -320,7 +369,7 @@
 	type CastFlash = { id: number; kind: 'castflash'; x: number; y: number; color: string; color2?: string; ttl: number };
 	type CastAoe = { id: number; kind: 'castaoe'; x: number; y: number; d: number; color: string; color2?: string; ttl: number };
 	type CastTiles = {
-		id: number; kind: 'casttiles'; cls: 'fx-cast-line' | 'fx-cast-pcone' | 'fx-cast-circle';
+		id: number; kind: 'casttiles'; cls: string;
 		x: number; y: number; ttl: number;
 		tiles: { tx: number; ty: number; d: number; color: string }[];
 	};
@@ -334,6 +383,13 @@
 	};
 	type StatusFx = { id: number; kind: 'stun' | 'slow'; x: number; y: number; color: string; color2?: string; ttl: number };
 	type Knockback = { id: number; kind: 'knockback'; x: number; y: number; rot: number; color: string; color2?: string; ttl: number };
+	type CaHit  = { id: number; kind: 'ca_hit';  x: number; y: number; rot: number; color: string; color2?: string; ttl: number };
+	type Seeker = { id: number; kind: 'seeker';  x: number; y: number; rot: number; fromCaster?: boolean; srcDist?: number; n?: number; bullets?: { a0: number; a1: number; r0: number; d: number }[] | null; color: string; color2?: string; ttl: number };
+	type Splash = { id: number; kind: 'splash';  x: number; y: number; rot: number; fromCaster?: boolean; srcDist?: number; drops?: { dx: number; dy: number; ds: number; dc: string }[]; color: string; color2?: string; ttl: number };
+	type Bloom  = { id: number; kind: 'bloom';   x: number; y: number; rot: number; color: string; color2?: string; ttl: number };
+	type Smite  = { id: number; kind: 'smite';   x: number; y: number; w: number; h: number; baseY: number; d: string; color: string; color2?: string; ttl: number };
+	type Mortar = { id: number; kind: 'mortar';  x: number; y: number; frags: { ex: number; ey: number; fs: number; fc: string }[]; color: string; color2?: string; ttl: number };
+	type LaserArc = { id: number; kind: 'laserarc'; x: number; y: number; rot: number; len: number; swing: number; color: string; color2?: string; ttl: number };
 	type Fx =
 		| Burst
 		| Wave
@@ -358,7 +414,14 @@
 		| TeamHeal
 		| StatusFx
 		| Knockback
-		| ConstructRing;
+		| ConstructRing
+		| CaHit
+		| Seeker
+		| Splash
+		| Bloom
+		| Smite
+		| Mortar
+		| LaserArc;
 
 	let fx = $state<Fx[]>([]);
 	let fxId = 0;
@@ -395,13 +458,25 @@
 			const fromX = cx(from), fromY = cy(from);
 			const dx = cx(to) - fromX, dy = cy(to) - fromY;
 			const dur = Math.min(360, Math.max(90, chebyshev(from, to) * (fx?.speed ?? 40)));
-			spawn({
-				kind: 'projectile', x: fromX, y: fromY, dx, dy,
-				rot: (Math.atan2(dy, dx) * 180) / Math.PI, dur,
-				shape: fx?.shape ?? 'bolt', size: fx?.size ?? 'm', trail: !!fx?.trail,
-				color: head, color2: tail, tail, ttl: dur + 40
-			});
-			setTimeout(() => spawnBurst(to, head, tail), dur);
+			// Volley: 'single' (1) | 'double' (2, one leads) | 'flurry' (~5). Copies
+			// fan out perpendicular to the travel line and stagger in time.
+			const A = Math.atan2(dy, dx), px = -Math.sin(A), py = Math.cos(A);
+			const volley = fx?.volley;
+			const count = volley === 'flurry' ? 5 : volley === 'double' ? 2 : 1;
+			for (let i = 0; i < count; i++) {
+				const sn = count > 1 ? i - (count - 1) / 2 : 0;
+				const perp = count > 1 ? sn * (volley === 'flurry' ? 11 : 3) : 0;
+				const delay = volley === 'flurry' ? i * 50 : volley === 'double' ? i * 75 : 0;
+				setTimeout(() => {
+					spawn({
+						kind: 'projectile', x: fromX + perp * px, y: fromY + perp * py, dx, dy,
+						rot: (Math.atan2(dy, dx) * 180) / Math.PI, dur,
+						shape: fx?.shape ?? 'bolt', size: fx?.size ?? 'm', trail: !!fx?.trail,
+						color: head, color2: tail, tail, ttl: dur + 40
+					});
+					setTimeout(() => spawnBurst(to, head, tail), dur);
+				}, delay);
+			}
 		} else if (strike === 'swipe' || strike === 'reverseswipe') {
 			spawn({ kind: strike, x: to.x, y: to.y, rot, color: head, color2: tail, ttl: 240 });
 			spawnBurst(to, head, tail);
@@ -413,7 +488,12 @@
 			spawn({ kind: 'claw', x: cx(to), y: cy(to), rot, gashes, color: head, color2: tail, ttl: 460 });
 			setTimeout(() => spawnBurst(to, head, tail), 120);
 		} else if (strike === 'stab') {
-			spawn({ kind: 'stab', x: cx(from), y: cy(from), rot, len: distPx(from, to) + 14, color: head, color2: tail, ttl: 320 });
+			// Small perpendicular origin jitter so repeated stabs don't all start from
+			// the exact same point (applicable to any caster-anchored strike).
+			const A = (rot * Math.PI) / 180;
+			const j = (Math.random() < 0.5 ? -1 : 1) * (7 + Math.random() * 7);
+			const ox = -Math.sin(A) * j, oy = Math.cos(A) * j;
+			spawn({ kind: 'stab', x: cx(from) + ox, y: cy(from) + oy, rot, len: distPx(from, to) + 14, color: head, color2: tail, ttl: 320 });
 			setTimeout(() => spawnBurst(to, head, tail), 135);
 		} else if (strike === 'flurry') {
 			const N = fx?.hits ?? 6;
@@ -438,7 +518,17 @@
 			spawn({ kind: 'bullet', x: cx(from), y: cy(from), rot, len: distPx(from, to), color: head, color2: tail, ttl: 240 });
 			setTimeout(() => spawnBurst(to, head, tail), 110);
 		} else if (strike === 'beam') {
-			spawn({ kind: 'beam', x: cx(from), y: cy(from), rot, len: distPx(from, to), color: head, color2: tail, ttl: 480 });
+			// Volley: 'double' fires two parallel beams together; 'flurry' fires ~5
+			// staggered. Copies offset perpendicular to the beam line.
+			const A = (rot * Math.PI) / 180, px = -Math.sin(A), py = Math.cos(A);
+			const volley = fx?.volley;
+			const count = volley === 'flurry' ? 5 : volley === 'double' ? 2 : 1;
+			for (let i = 0; i < count; i++) {
+				const sn = count > 1 ? i - (count - 1) / 2 : 0;
+				const perp = count > 1 ? sn * (volley === 'flurry' ? 9 : 7) : 0;
+				const delay = volley === 'flurry' ? i * 55 : 0;
+				setTimeout(() => spawn({ kind: 'beam', x: cx(from) + perp * px, y: cy(from) + perp * py, rot, len: distPx(from, to), color: head, color2: tail, ttl: 480 }), delay);
+			}
 			setTimeout(() => spawnBurst(to, head, tail), 110);
 			setTimeout(() => spawnBurst(to, head, tail), 280);
 		} else if (strike === 'stream') {
@@ -450,6 +540,59 @@
 			const w = layerEl?.clientWidth ?? 600, h = layerEl?.clientHeight ?? 400;
 			spawn({ kind: 'chain', d: jagged(cx(from), cy(from), cx(to), cy(to), 8, 11), w, h, color: head, color2: tail, ttl: 420 });
 			setTimeout(() => spawnBurst(to, head, tail), 120);
+		} else if (strike === 'seeker') {
+			// fx.fromCaster: 'left' | 'right' | 'both' (launch from caster, arc in from
+			// that side) | true (legacy, = right) | false (flank converge + a random
+			// whole-frame rotation so repeated hits don't all read the same).
+			const mode = fx?.fromCaster;
+			const n = fx?.bullets ?? 3;
+			const srcDist = Math.min(150, Math.max(48, distPx(from, to)));
+			let useRot = rot, fromCaster = false;
+			let bullets: { a0: number; a1: number; r0: number; d: number }[] | null = null;
+			if (mode === 'left' || mode === 'right' || mode === 'both' || mode === true) {
+				fromCaster = true;
+				const sideFor = (i: number) => mode === 'both' ? (i % 2 ? -1 : 1) : (mode === 'left' ? -1 : 1);
+				bullets = Array.from({ length: n }, (_, i) => seekerArc(sideFor(i), i, n, srcDist));
+			} else {
+				useRot = Math.random() * 360;
+			}
+			spawn({ kind: 'seeker', x: cx(to), y: cy(to), rot: useRot, fromCaster, srcDist, n, bullets, color: head, color2: tail, ttl: 700 });
+			setTimeout(() => spawnBurst(to, head, tail), 490);
+		} else if (strike === 'splash') {
+			// fx.fromCaster: an incoming paint shot flies in from the caster and
+			// bursts on impact (vs. splatting in place). Droplets scatter randomly
+			// each cast (engine-generated --dx/--dy/--ds/--dc).
+			const fromCaster = !!fx?.fromCaster;
+			const srcDist = Math.min(150, Math.max(48, distPx(from, to)));
+			const N = 9 + Math.floor(Math.random() * 4);
+			const drops = Array.from({ length: N }, () => {
+				const a = Math.random() * Math.PI * 2, r = 13 + Math.random() * 25;
+				return { dx: Math.cos(a) * r, dy: Math.sin(a) * r, ds: 4 + Math.random() * 5, dc: Math.random() < 0.5 ? head : tail };
+			});
+			spawn({ kind: 'splash', x: cx(to), y: cy(to), rot, fromCaster, srcDist, drops, color: head, color2: tail, ttl: fromCaster ? 700 : 500 });
+			setTimeout(() => spawnBurst(to, head, tail), fromCaster ? 190 : 0);
+		} else if (strike === 'bloom') {
+			spawn({ kind: 'bloom', x: cx(to), y: cy(to), rot, color: head, color2: tail, ttl: 620 });
+			setTimeout(() => spawnBurst(to, head, tail), 130);
+		} else if (strike === 'smite') {
+			// Lightning from above: a jagged bolt drops onto the target + impact flash/ring.
+			const W = 70, H = 210, baseY = H - 8;
+			spawn({ kind: 'smite', x: cx(to), y: cy(to), w: W, h: H, baseY, d: smitePath(W, baseY), color: head, color2: tail, ttl: 560 });
+			setTimeout(() => spawnBurst(to, head, tail), 180);
+		} else if (strike === 'mortar') {
+			// Lobbed shell falls onto a shrinking telegraph, then a shockwave + random shrapnel.
+			const N = 8 + Math.floor(Math.random() * 4);
+			const frags = Array.from({ length: N }, () => {
+				const a = Math.random() * Math.PI * 2, r = 18 + Math.random() * 26;
+				return { ex: Math.cos(a) * r, ey: Math.sin(a) * r - 8 - Math.random() * 6, fs: 4 + Math.random() * 5, fc: Math.random() < 0.5 ? head : tail };
+			});
+			spawn({ kind: 'mortar', x: cx(to), y: cy(to), frags, color: head, color2: tail, ttl: 1000 });
+			setTimeout(() => spawnBurst(to, head, tail), 440);
+		} else if (strike === 'laserarc') {
+			// Same launch-swing as the seeker, but a single energy line. fx.side L/R, else random.
+			const side = fx?.side === 'left' ? -1 : fx?.side === 'right' ? 1 : (Math.random() < 0.5 ? -1 : 1);
+			spawn({ kind: 'laserarc', x: cx(from), y: cy(from), rot, len: distPx(from, to), swing: side * 38, color: head, color2: tail, ttl: 560 });
+			setTimeout(() => spawnBurst(to, head, tail), 360);
 		} else {
 			// no strike specified → plain impact spark
 			spawnBurst(to, head, tail);
@@ -474,6 +617,12 @@
 				const tgt = gs.enemies.find((en) => en.id === e.target);
 				if (!tgt) return;
 				const src = gs.party.find((p) => p.id === e.source);
+				if (e.abilityName === 'Coordinated Attack') {
+					const [head, tail] = colorsFor(null, e.source);
+					const rot = angleDeg(src?.pos ?? tgt.pos, tgt.pos);
+					spawn({ kind: 'ca_hit', x: cx(tgt.pos), y: cy(tgt.pos), rot, color: head, color2: tail, ttl: 300 });
+					return;
+				}
 				const f = fxFor(e.source, e.abilityName);
 				const [head, tail] = colorsFor(f, e.source);
 				renderStrike(src?.pos ?? tgt.pos, tgt.pos, f, head, tail);
@@ -600,19 +749,24 @@
 						tx: t.tx, ty: t.ty, d: t.d,
 						color: mix(ramp, t.maxRing > 0 ? t.ring / t.maxRing : 0)
 					}));
-					spawn({ kind: 'casttiles', cls: 'fx-cast-circle', x: ox, y: oy, ttl: 520, tiles });
+					spawn({ kind: 'casttiles', cls: e.fxCls ?? 'fx-cast-circle', x: ox, y: oy, ttl: 520, tiles });
 					const diameter = ((e.radius ?? 1) * 2 + 1) * TILE;
 					spawn({ kind: 'castaoe', x: ox, y: oy, d: diameter, color: ramp[0], color2: ramp[1], ttl: 420 });
 				} else if (e.shape === 'pcone') {
 					const ct = coneTiles(dir, e.range ?? 3);
 					const maxR = ct.reduce((m, t) => Math.max(m, t.d), 0) || 1;
 					const tiles = ct.map((t) => ({ ...t, color: mix(ramp, t.d / maxR) }));
-					spawn({ kind: 'casttiles', cls: 'fx-cast-pcone', x: ox, y: oy, ttl: 700, tiles });
+					spawn({ kind: 'casttiles', cls: e.fxCls ?? 'fx-cast-pcone', x: ox, y: oy, ttl: 700, tiles });
+				} else if (e.shape === 'wide_line') {
+					const rt = rectTiles(dir, e.range ?? 4, e.width ?? 3);
+					const maxR = rt.reduce((m, t) => Math.max(m, t.d), 0) || 1;
+					const tiles = rt.map((t) => ({ ...t, color: mix(ramp, t.d / maxR) }));
+					spawn({ kind: 'casttiles', cls: e.fxCls ?? 'fx-cast-wave', x: ox, y: oy, ttl: 700, tiles });
 				} else {
 					const lt = castLineTiles(dir, e.range ?? 4);
 					const maxD = lt.reduce((m, t) => Math.max(m, t.d), 0) || 1;
 					const tiles = lt.map((t) => ({ ...t, color: mix(ramp, t.d / maxD) }));
-					spawn({ kind: 'casttiles', cls: 'fx-cast-line', x: ox, y: oy, ttl: 650, tiles });
+					spawn({ kind: 'casttiles', cls: e.fxCls ?? 'fx-cast-line', x: ox, y: oy, ttl: 650, tiles });
 				}
 			}),
 			// ── Status: stun (real event — stun is stunnedUntil, not an effect) ─
@@ -831,6 +985,48 @@
 				style="left:{f.x}px;top:{f.y}px;width:{d}px;height:{d}px;margin:{-d / 2}px 0 0 {-d /
 					2}px;--c:{f.color};--c2:{f.color2 ?? f.color};"
 			></div>
+		{:else if f.kind === 'ca_hit'}
+			<div class="fx-ca-hit" style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--c:{f.color};--c2:{f.color2 ?? f.color};">
+				<i class="blade"></i>
+				<i class="blade"></i>
+				<i class="blade"></i>
+			</div>
+		{:else if f.kind === 'seeker'}
+			<div class="fx-seeker" class:from-caster={f.fromCaster} style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--src-dist:{f.srcDist}px;--c:{f.color};--c2:{f.color2 ?? f.color};">
+				{#each Array(f.n ?? 3) as _, i}
+					<i class="bullet" style={f.bullets ? `--a0:${f.bullets[i].a0}deg;--a1:${f.bullets[i].a1}deg;--r0:${f.bullets[i].r0}px;--d:${f.bullets[i].d}ms;` : ''}></i>
+				{/each}
+			</div>
+		{:else if f.kind === 'splash'}
+			<div class="fx-splash" class:from-caster={f.fromCaster} style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--src-dist:{f.srcDist}px;--c:{f.color};--c2:{f.color2 ?? f.color};">
+				<i class="shot"></i>
+				<i class="blob"></i>
+				{#each f.drops ?? [] as d}
+					<i class="drop" style="--dx:{d.dx}px;--dy:{d.dy}px;--ds:{d.ds}px;--dc:{d.dc};"></i>
+				{/each}
+			</div>
+		{:else if f.kind === 'bloom'}
+			<div class="fx-bloom" style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--c:{f.color};--c2:{f.color2 ?? f.color};">
+				<i class="petal"></i><i class="petal"></i><i class="petal"></i>
+				<i class="petal"></i><i class="petal"></i><i class="petal"></i>
+			</div>
+		{:else if f.kind === 'smite'}
+			<svg class="fx-smite" viewBox="0 0 {f.w} {f.h}" width={f.w} height={f.h} style="left:{f.x - f.w / 2}px;top:{f.y - f.baseY}px;--c:{f.color};--c2:{f.color2 ?? f.color};">
+				<g class="bolt"><path class="glow" d={f.d}></path><path class="core" d={f.d}></path></g>
+				<circle class="flash" cx={f.w / 2} cy={f.baseY} r="13"></circle>
+				<circle class="ring" cx={f.w / 2} cy={f.baseY} r="16"></circle>
+			</svg>
+		{:else if f.kind === 'mortar'}
+			<div class="fx-mortar" style="left:{f.x}px;top:{f.y}px;--c:{f.color};--c2:{f.color2 ?? f.color};">
+				<i class="tele"></i><i class="shell"></i><i class="wave"></i>
+				{#each f.frags as fr}
+					<i class="frag" style="--ex:{fr.ex}px;--ey:{fr.ey}px;--fs:{fr.fs}px;--fc:{fr.fc};"></i>
+				{/each}
+			</div>
+		{:else if f.kind === 'laserarc'}
+			<div class="fx-laserarc" style="left:{f.x}px;top:{f.y}px;--rot:{f.rot}deg;--len:{f.len}px;--swing:{f.swing}deg;--c:{f.color};--c2:{f.color2 ?? f.color};">
+				<i class="ray"></i>
+			</div>
 		{/if}
 	{/each}
 </div>

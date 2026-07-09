@@ -46,6 +46,27 @@ export interface Delivery extends ResourcePayload {
 	 *  charge/pull-back telegraph during this window; the behavior fires when it
 	 *  elapses. Cannot be cancelled. Omit = instant. For heavy/nuke abilities. */
 	windUpMs?: number;
-	/** Which fx-wu-* gem animation plays during the wind-up. Default 'charge'. */
-	windUpStyle?: 'charge' | 'melee' | 'ranged' | 'pistol' | 'bow' | 'fire';
+	/** Which fx-wu-* gem animation plays during the wind-up. Default 'charge'.
+	 *  All values map to .fx-wu-<name> in fx-casts.css. */
+	windUpStyle?:
+		// ── charge / pull-back ──────────────────────────────────────────────────
+		| 'charge'       // glowing orb implodes onto caster
+		| 'melee'        // pull-back + forward lunge
+		| 'recoil'       // sharp kick away from target then snap
+		| 'pounce'       // squat then leap toward target
+		| 'heavy-drag'   // slow drag back then slam forward with rotation
+		// ── footwork ────────────────────────────────────────────────────────────
+		| 'sidestep-l'   // quick dash left
+		| 'sidestep-r'   // quick dash right
+		| 'shuffle'      // rapid left–right shuffle
+		| 'back-circle'  // arc step back-and-around
+		// ── ranged / aim ────────────────────────────────────────────────────────
+		| 'ranged'       // aim-up pulse with brightness flash
+		| 'pistol'       // micro pull then snap forward
+		| 'bow'          // draw back, hold, release
+		// ── elemental / supernatural ─────────────────────────────────────────────
+		| 'fire'         // quick flair (uses fx-grid-fade)
+		| 'levitate'     // rise off ground + brightness surge, drop on fire
+		| 'tremor'       // rapid vibration shake
+		| 'spin';        // full rotation
 }

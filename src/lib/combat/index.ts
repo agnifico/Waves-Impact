@@ -1,7 +1,7 @@
 // Re-export the public API of the combat engine.
 // Consumers import from '$lib/combat' instead of reaching into submodules.
 
-export { tick, resetEngine } from './engine';
+export { tick } from './engine';
 export { newEngineState, newCharacterState, newEnemyState } from './state';
 export { tryBasicAttack } from './basic-attack';
 export { tryAbility } from './ability-resolver';

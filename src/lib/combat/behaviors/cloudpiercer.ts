@@ -1,5 +1,5 @@
 import type { EngineState, CharacterState } from '$lib/types/state';
-import type { Ability } from '$lib/types/ability';
+import type { Ability, AbilityOpts } from '$lib/types/ability';
 import { chebyshev } from '../board';
 import { calculateDamage } from '../pipeline';
 import { publish } from '../events';
@@ -42,13 +42,13 @@ export function resolve(
 	caster: CharacterState,
 	ability: Ability,
 	_now: number,
-	opts: Record<string, unknown> = {}
+	opts: AbilityOpts = {}
 ): boolean {
-	const target = pickTarget(state, caster.pos, opts.lockedTargetId as string | undefined);
+	const target = pickTarget(state, caster.pos, opts.lockedTargetId);
 	if (!target) return false;
 	if (!coversStratum(ability.delivery?.hitsStrata, target.stratum)) return false;
 
-	const timeTier = Math.max(0, Math.min(4, (opts.tier as number) ?? 0));
+	const timeTier = Math.max(0, Math.min(4, opts.tier ?? 0));
 	const stacks = caster.stacks.current;
 	let tier = timeTier;
 	while (tier > 0 && stacks < TIER_STACK_COST[tier]) tier--; // cap to affordable

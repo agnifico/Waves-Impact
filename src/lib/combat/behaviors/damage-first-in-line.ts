@@ -34,6 +34,7 @@ export function resolve(
 		center: { ...caster.pos },
 		facing: { ...caster.facing },
 		range: ability.delivery?.shapeParams?.range ?? 5,
+		fxCls: ability.fx?.castCls,
 		color: caster.def.theme?.primary
 	});
 

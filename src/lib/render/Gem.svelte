@@ -166,7 +166,7 @@
 			class="body square {enemyWindUp?.motion ? `fx-wu-${enemyWindUp.style}` : ''}"
 			style="background-image: url({enemy?.def?.profileImage}); border: none; {enemyWindUp?.motion ? enemyWindUpVars : ''}"
 		></div>
-		<div
+		<!-- <div
 			class="facing"
 			style="transform:translateY({lift}px) rotate({facingDeg(enemy.facing)}deg);"
 		>
@@ -179,7 +179,7 @@
 					stroke-linejoin="round"
 				/></svg
 			>
-		</div>
+		</div> -->
 		{#if locked}
 			<div class="nameplate">
 				<div class="np-bar"><i style="width:{hpPct}%; background:{rim};"></i></div>

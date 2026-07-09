@@ -20,7 +20,7 @@ export const maria_elena: Character = {
 			range: 1,
 			omniTarget: true,
 			advanceOnlyIfMelee: true,
-			delivery: { damage: 18, energyGain: 2, shape: 'melee', hitsStrata: ['ground'], windUpMs: 150, windUpStyle: 'bow' },
+			delivery: { damage: 10, energyGain: 2, shape: 'melee', hitsStrata: ['ground'], windUpMs: 150, windUpStyle: 'bow' },
             onHit: {
                 splash: {radius: 1},
             },
@@ -32,7 +32,7 @@ export const maria_elena: Character = {
 			range: 1,
 			omniTarget: true,
 			advanceOnlyIfMelee: true,
-			delivery: { damage: 22, energyGain: 2, shape: 'melee', hitsStrata: ['ground'], windUpMs: 150, },
+			delivery: { damage: 20, energyGain: 2, shape: 'melee', hitsStrata: ['ground'], windUpMs: 150, },
             onHit: {
                 splash: {radius: 1},
             },
@@ -43,7 +43,7 @@ export const maria_elena: Character = {
 			range: 1,
 			omniTarget: true,
 			advanceOnlyIfMelee: true,
-			delivery: { damage: 22, energyGain: 3, shape: 'melee', hitsStrata: ['ground'], windUpMs: 200,},
+			delivery: { damage: 30, energyGain: 3, shape: 'melee', hitsStrata: ['ground'], windUpMs: 200,},
             onHit: {
                 splash: {radius: 1},
             },
@@ -53,7 +53,7 @@ export const maria_elena: Character = {
 			name: 'Flash Fire (4)',
 			range: 1,
 			omniTarget: true,
-			delivery: { damage: 45, energyGain: 3, shape: 'melee', grantsStack: 'immortal_flame', hitsStrata: ['ground'], windUpMs: 350, windUpStyle: 'pistol' },
+			delivery: { damage: 40, energyGain: 3, shape: 'melee', grantsStack: 'immortal_flame', hitsStrata: ['ground'], windUpMs: 350, windUpStyle: 'pistol' },
             onHit: {
                 splash: {radius: 1},
             },
@@ -68,7 +68,7 @@ export const maria_elena: Character = {
 			omniTarget: true,
 			consumesStack: 'immortal_flame',
 			gapClose: true,
-			delivery: { damage: 60, energyGain: 10, shape: 'melee',windUpMs: 500, windUpStyle: 'bow' },
+			delivery: { damage: 70, energyGain: 5, shape: 'melee',windUpMs: 500, windUpStyle: 'bow' },
             onHit: {
                 splash: {radius: 1},
             },
@@ -89,7 +89,7 @@ export const maria_elena: Character = {
 			charges: 2,
 			delivery: {
 				damage: 100,
-				energyGain: 10,
+				energyGain: 7,
 				grantsStack: 'immortal_flame',
 				shield: { amount: 20, target: 'self' },     // cast-time self shield
 				shape: 'line',
@@ -100,7 +100,7 @@ export const maria_elena: Character = {
 				windUpMs: 200, windUpStyle: 'levitate'
 			},
 			onHit: { knockback: 4, poiseDamage: 30, stunMs: 1000 },
-			fx: { strike: 'stab', colors: ['#ee9b00', '#bb3e03'] },
+			fx: { strike: 'flurry', colors: ['#ee9b00', '#bb3e03'] },
 			description: 'Maria Elena dashes to the nearest/locked-on enemy and knocks them back 4 tiles, while dealing damage. Hold X to charge up the dash range, up to 7 tiles. Grants one stack of Immortal Flame. 2 charges.'
 		},
 
@@ -129,7 +129,7 @@ export const maria_elena: Character = {
 				holdBehavior: 'track',
 				windUpMs: 100, windUpStyle: 'back-circle'
 			},
-			fx: { strike: 'uppercut', colors: ['#ee9b00', '#bb3e03'] },
+			fx: { strike: 'smite', colors: ['#ee9b00', '#bb3e03'] },
 			description: 'Maria Elena dashes in a line, dealing DMG to all enemies in path, with enemies at the end taking an additional blast. Hold Shift + WASD to aim in place. 3 charges.'
 		},
 
@@ -148,16 +148,17 @@ export const maria_elena: Character = {
 				dmgPerTick: 50,
 				ownerEnergyDrainPerTick: 10,
 				upkeepReductionPerStack: 0.1,
-				tickMs: 1000
+				tickMs: 1000,
+				onHit: { energyGain: 1 },
 			},
 			delivery: {
 				damage: 20,                 // one-time cast burst
 				grantsStack: 'immortal_flame',
 				shape: 'circle',
-				shapeParams: { radius: 1 },
+				shapeParams: { radius: 2 },
 				windUpMs: 300, windUpStyle: 'tremor'
 			},
-			fx: { zone: 'flame' },
+			fx: { zone: 'poison' },
 			description: 'A 1-tile ring that follows the active unit, dealing damage per second, with a cast-time burst. Costs energy per second to upkeep, reduced 5% per Immortal Flame stack.'
 		}
 	},
@@ -174,14 +175,14 @@ export const maria_elena: Character = {
 	poiseRegenPerSec: 25,
 
 	art: {
-		gem: '/characters/gem-maria_elena.png',
-		profile: '/characters/avatars2/maria_elena.png',
-		poster: '/characters/maria_v.png',
-		bannerPoster: '/characters/maria_poster2.png'
+		gem: '/characters/elena5.png',
+		profile: '/characters/avatars2/elena.png',
+		poster: '/characters/elena25.png',
+		bannerPoster: '/characters/elena6.png'
 	},
 	theme: {
 		primary: '#f83600',
-		secondary: '#22223b',
+		secondary: '#621708',
 		glow: { ready: '#e9c46a' },
 		hp: 'linear-gradient(to left, #f83600 0%, #f9d423 100%);',
 		energy: 'linear-gradient(to top, #ff0844 0%, #ffb199 100%);',

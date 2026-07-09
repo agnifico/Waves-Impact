@@ -29,6 +29,7 @@ export function grantStack(
 	if (char.stacks.current >= cap) return;
 
 	char.stacks.current = Math.min(char.def.stackMax, char.stacks.current + 1);
+	char.stackLastGainedAt = now;
 
 	publish('stack:gained', {
 		characterId: char.id,
@@ -79,6 +80,22 @@ export function consumeStack(
 	if (char.stacks.current < n) return false;
 	char.stacks.current -= n;
 	return true;
+}
+
+/**
+ * Expire stacks for any character whose stackDecayMs has elapsed since their
+ * last gain. Called each engine tick; resets stacks and reconciles buffs.
+ */
+export function tickStackDecay(state: EngineState, now: number): void {
+	for (const char of state.party) {
+		if (!char.def.stackDecayMs) continue;
+		if (char.stacks.current === 0) continue;
+		if (char.stackLastGainedAt === undefined) continue;
+		if (now - char.stackLastGainedAt < char.def.stackDecayMs) continue;
+		char.stacks.current = 0;
+		char.stackLastGainedAt = undefined;
+		reconcileStackBuffs(char, now);
+	}
 }
 
 /**

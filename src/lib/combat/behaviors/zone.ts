@@ -1,5 +1,5 @@
 import type { EngineState, CharacterState } from '$lib/types/state';
-import type { Ability } from '$lib/types/ability';
+import type { Ability, AbilityOpts } from '$lib/types/ability';
 import { chebyshev } from '../board';
 import { applyDelivery, applyOnHit, canHitStratum, type ResolveSource } from '../resolve';
 import { publish } from '../events';
@@ -18,7 +18,7 @@ export function resolve(
 	caster: CharacterState,
 	ability: Ability,
 	now: number,
-	opts: Record<string, unknown> = {}
+	opts: AbilityOpts = {}
 ): boolean {
 	if (!ability.zoneBuff) return false;
 
@@ -27,11 +27,11 @@ export function resolve(
 	state.zones = state.zones.filter((z) => !(z.ownerId === caster.id && z.id.startsWith(prefix)));
 
 	// Center: aimed reticle → caster pos
-	const reticle = opts.reticle as { x: number; y: number } | null | undefined;
+	const reticle = opts.reticle;
 	const center = reticle ? { ...reticle } : { ...caster.pos };
 
 	const zoneId = `${ability.id}-${now}`;
-	state.zones.push({
+	const newZone = {
 		id: zoneId,
 		center,
 		follows: ability.zoneFollows ?? 'fixed',
@@ -40,8 +40,12 @@ export function resolve(
 		expiresAt: now + (ability.durationMs ?? 8000),
 		lastTickAt: now,
 		buff: ability.zoneBuff,
-		persistsAfterDeath: ability.persistsAfterDeath ?? false
-	});
+		persistsAfterDeath: ability.persistsAfterDeath ?? false,
+		reactive: ability.zoneBuff.reactive
+			? { ...ability.zoneBuff.reactive, abilityName: ability.name, lastFiredAt: {} as Record<string, number> }
+			: undefined
+	};
+	state.zones.push(newZone);
 	publish('zone:created', { zoneId, ownerId: caster.id });
 
 	// Guaranteed cast-time floor (heal/shield/energy/stack that lands regardless of hits).

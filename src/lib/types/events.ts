@@ -126,6 +126,8 @@ export type CombatEventMap = {
 	'detonate:thread': { caster: string; casterPos: Position; targetPos: Position; index: number; total: number; color?: string };
 	/** Cast-time shape telegraph. Published by damaging behaviors at resolve with the
 	 *  geometry they computed, so FxLayer can erupt the affected area in its shape. */
+	'wave:start': { waveIndex: number; total: number };
+	'wave:cleared': { waveIndex: number; total: number };
 	'cast:shape': {
 		caster: string;
 		shape: 'circle' | 'line' | 'wide_line' | 'pcone' | string;
@@ -133,6 +135,8 @@ export type CombatEventMap = {
 		facing: Position;          // direction unit vector (for line/cone orientation)
 		range?: number;            // tiles outward (line/cone length)
 		radius?: number;           // tiles (circle)
+		width?: number;            // tiles wide (wide_line)
+		fxCls?: string;            // override the default casttiles CSS class
 		color?: string;
 	};
 };

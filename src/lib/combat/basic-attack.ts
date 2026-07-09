@@ -145,10 +145,18 @@ function acquireTarget(state: EngineState, char: CharacterState, ba: BasicAttack
 		return { ok: true, enemy };
 	}
 
-	// Shaped: directional gate — focus enemy must lie inside the shape tiles.
+	// Shaped AoE gate — fires if ANY live enemy is inside the shape, regardless
+	// of which enemy happens to be the focus target.  The focus target is preferred
+	// for the nominal return value (wind-up direction, events), but the actual hit
+	// list is re-resolved at fire time by applyBasicHitAoe.
 	const tiles = resolveTiles(shape, char.pos, char.facing, { range: ba.range }, state.board);
-	if (!inStratum || !tiles.some((t) => samePos(t, enemy.pos))) return { ok: false };
-	return { ok: true, enemy };
+	const inShape = state.enemies.find(
+		(e) => e.hp > 0 && coversStratum(ba.delivery?.hitsStrata, e.stratum) && tiles.some((t) => samePos(t, e.pos))
+	);
+	if (!inShape) return { ok: false };
+	// Prefer the current focus target if it's in the shape; otherwise use whoever is.
+	const primary = (inStratum && tiles.some((t) => samePos(t, enemy.pos))) ? enemy : inShape;
+	return { ok: true, enemy: primary };
 }
 
 // ─── Shared hit application ──────────────────────────────────────────────────
@@ -212,6 +220,51 @@ export function applyBasicHit(
 }
 
 /**
+ * AoE variant: hit ALL enemies whose tile falls inside the BA's shape.
+ * applyDelivery fires ONCE (guaranteed floor); applyOnHit fires per enemy struck.
+ * Used for non-omniTarget shaped BAs where every enemy in the arc gets hit.
+ */
+export function applyBasicHitAoe(
+	state: EngineState,
+	char: CharacterState,
+	ba: BasicAttackData,
+	dir: { x: number; y: number },
+	now: number
+): void {
+	const consumed = !!ba.consumesStack && char.stacks.current > 0;
+	if (consumed) consumeStack(char, ba.consumesStack!, 1);
+
+	const src: ResolveSource = {
+		owner: char,
+		abilityName: ba.name,
+		element: char.def.element,
+		tags: ['ba']
+	};
+
+	applyDelivery(state, ba.delivery, src, now);
+
+	const shape = ba.delivery?.shape;
+	if (!shape) return;
+	const tiles = resolveTiles(shape, char.pos, dir, { range: ba.range }, state.board);
+
+	// Telegraph the shape eruption so FxLayer can play the wave/erupt animation.
+	publish('cast:shape', { caster: char.id, shape, center: char.pos, facing: dir, range: ba.range });
+
+	const base = (ba.delivery?.damage ?? 0) + (consumed ? (ba.consumeBonus ?? 0) : 0);
+	const shots = Math.max(1, ba.delivery?.hits ?? 1);
+
+	for (const enemy of state.enemies) {
+		if (enemy.hp <= 0) continue;
+		if (!coversStratum(ba.delivery?.hitsStrata, enemy.stratum)) continue;
+		if (!tiles.some((t) => samePos(t, enemy.pos))) continue;
+		for (let i = 0; i < shots; i++) {
+			applyOnHit(state, enemy, base, ba.onHit, src, now);
+			if (enemy.hp <= 0) break;
+		}
+	}
+}
+
+/**
  * Rhythmic wind-up: if this BA declares delivery.windUpMs, defer the hit by that
  * long and play the gem wind-up telegraph; the swing pacing IS the wind-up (the
  * next swing is gated on pendingBasic). Otherwise hit immediately. Returns true
@@ -225,16 +278,24 @@ function maybeDeferBasic(
 	now: number
 ): boolean {
 	const wu = ba.delivery?.windUpMs ?? 0;
+	// AoE check: any non-omniTarget shaped BA hits all enemies in the shape, not just the locked one.
+	const isAoe = !ba.omniTarget && !!ba.delivery?.shape && ba.delivery.shape !== 'melee';
 	if (wu <= 0) {
-		applyBasicHit(state, char, ba, enemy, now);
+		if (isAoe) {
+			applyBasicHitAoe(state, char, ba, char.facing, now);
+		} else {
+			applyBasicHit(state, char, ba, enemy, now);
+		}
 		return false;
 	}
 	char.pendingBasic = {
 		enemyId: enemy.id,
 		firesAt: now + wu,
 		ba,
-		dirX: Math.sign(enemy.pos.x - char.pos.x),
-		dirY: Math.sign(enemy.pos.y - char.pos.y)
+		// AoE shaped BAs lock to the current facing (what the visual arc shows).
+		// Single-target BAs lock to the direction toward the specific enemy.
+		dirX: isAoe ? char.facing.x : (Math.sign(enemy.pos.x - char.pos.x) || char.facing.x),
+		dirY: isAoe ? char.facing.y : (Math.sign(enemy.pos.y - char.pos.y) || char.facing.y)
 	};
 	publish('cast:windup', { caster: char.id, slot: 'BA' as never, durationMs: wu });
 	return true;

@@ -18,6 +18,8 @@ export const KEYBINDS: Record<string, string[]> = {
 	swap5: ['5'],
 	swap6: ['6'],
 	swap7: ['7'],
+	swap8: ['8'],
+	swap9: ['9'],
 	lockOn: ['f', 'mouse2'],
 	autoLook: ['mouse1'],
 	manualLook: ['shift'],

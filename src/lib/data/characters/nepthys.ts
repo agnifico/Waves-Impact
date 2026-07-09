@@ -13,23 +13,20 @@ export const nepthys: Character = {
 	basicChain: [
 		{
 			name: 'Dark Waves (1)',
-			range: 4,
-			// omniTarget: true,
-			delivery: { damage: 5, energyGain: 20, shape: 'pcone', windUpMs:150, windUpStyle: 'pistol'},
+			range: 5,
+			delivery: { damage: 5, energyGain: 20, shape: 'wide_line', windUpMs: 150, windUpStyle: 'pistol' },
 			fx: { strike: 'projectile', shape: 'orb', size: 'l', colors: ['#06d6a0', '#00a7e1'] }
 		},
 		{
 			name: 'Dark Waves (2)',
-			range: 4,
-			omniTarget: true,
-			delivery: { damage: 25, energyGain: 30, shape: 'pcone', windUpMs:250, windUpStyle: 'pistol' },
+			range: 5,
+			delivery: { damage: 25, energyGain: 30, shape: 'wide_line', windUpMs: 250, windUpStyle: 'pistol' },
 			fx: { strike: 'projectile', shape: 'orb', size: 'l', colors: ['#06d6a0', '#00a7e1'] }
 		},
 		{
 			name: 'Dark Waves (3)',
-			range: 4,
-			omniTarget: true,
-			delivery: { damage: 30, energyGain:  40, shape: 'pcone', windUpMs:350, windUpStyle: 'melee' },
+			range: 5,
+			delivery: { damage: 30, energyGain: 40, shape: 'wide_line', windUpMs: 350, windUpStyle: 'melee' },
 			fx: { strike: 'projectile', shape: 'bolt', size: 'l', colors: ['#4361ee', '#3a0ca3'] }
 		}
 	],
@@ -51,14 +48,15 @@ export const nepthys: Character = {
 			},
 			onHit: { knockback: 4, poiseDamage: 30 },
 			energyCost: 10,
+			fx: { castCls: 'fx-cast-wave' }
 		},
-		
+
 		// C — Wind Tower: 4-tower diagonal multi-construct
 		C: {
 			id: 'captains_call', name: 'Captain\'s Call',
 			behavior: 'summon',
 			creationId: 'spectral_ship',
-			cooldownMs: 20_000, 
+			cooldownMs: 20_000,
 			energyCost: 50,
 			delivery: {
 				grantsStack: 'eclipse',
@@ -67,13 +65,13 @@ export const nepthys: Character = {
 				shape: 'footprint',
 			}
 		},
-		
+
 		// V — Sakura Monsoon: personal following storm zone
 		V: {
 			id: 'summoner_deep', name: 'Summoner of the Deep',
 			behavior: 'summon',
 			creationId: 'leviathan',
-			cooldownMs: 15_000, 
+			cooldownMs: 15_000,
 			energyCost: 40,
 			delivery: {
 				grantsStack: 'eclipse',
@@ -82,7 +80,7 @@ export const nepthys: Character = {
 			}
 		}
 	},
-	
+
 	stackType: 'gale',
 	stackName: 'Gale Stance',
 	stackMax: 3,
@@ -92,15 +90,15 @@ export const nepthys: Character = {
 	stratum: 'ground',
 
 	art: {
-		gem: '/characters/gem-nepthys.png',
-		profile: '/characters/avatars2/nepthys.png',
-		poster: '/characters/nepthys_v.png',
-		bannerPoster: '/characters/nepthys4.png'
+		gem: '/nepthys/avatar.png',
+		profile: '/nepthys/avatar.png',
+		poster: '/nepthys/1.png',
+		bannerPoster: '/nepthys/3.png'
 	},
 	theme: {
-		primary: '#22d3ee',
-		secondary: '#4f39f6',
-		// glow: { ready: '#6be9e3', cyclone_veil: '#ffe9a8' },
+		primary: '#0466c8',
+		secondary: '#9a031e',
+		glow: { ready: '#90e0ef', cyclone_veil: '#ffe9a8' },
 		hp: 'linear-gradient( -90deg,  #22d3ee 11.2%, #4f39f6 100.2% );',
 		// energy: 'linear-gradient(to left, #205072, #329d9c);',
 	}

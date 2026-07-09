@@ -16,21 +16,21 @@ export const frosty: Character = {
 			range: 5,
 			omniTarget: true,
 			delivery: { damage: 5, energyGain: 10, shape: 'melee', windUpMs: 200, windUpStyle: 'pistol' },
-			fx: { strike: 'projectile', shape: 'bolt', colors: ['#ade8f4', '#ffffff'] }
+			fx: { strike: 'projectile', shape: 'bolt', volley: 'single', colors: ['#ade8f4', '#90e0ef'] }
 		},
 		{
 			name: 'Snowball (2)',
 			range: 5,
 			omniTarget: true,
 			delivery: { damage: 10, energyGain: 10, shape: 'melee', windUpMs: 200, windUpStyle: 'pistol' },
-			fx: { strike: 'projectile', shape: 'bolt', colors: ['#ade8f4', '#ffffff'] }
+			fx: { strike: 'projectile', shape: 'bolt', volley: 'double', colors: ['#ade8f4', '#90e0ef'] }
 		},
 		{
 			name: 'Giant Snowball',
 			range: 5,
 			omniTarget: true,
-			delivery: { damage: 15, energyGain: 10, shape: 'melee', grantsStack: 'eclipse', windUpMs: 200, windUpStyle: 'recoil' },
-			fx: { strike: 'projectile', shape: 'bolt', size: 'l', colors: ['#00b4d8', '#ffffff'] }
+			delivery: { damage: 15, energyGain: 10, shape: 'melee', windUpMs: 200, windUpStyle: 'recoil' },
+			fx: { strike: 'projectile', shape: 'bolt', volley: 'flurry', colors: ['#00b4d8', '#90e0ef'] }
 		}
 	],
 
@@ -50,7 +50,7 @@ export const frosty: Character = {
 				hitsStrata: ['ground', 'flying'],
 				windUpMs: 200, windUpStyle: 'levitate'
 			},
-			fx: { strike: 'projectile', shape: 'wave', size: 'l', colors: ['#219ebc', '#ffffff'] }
+			fx: { strike: 'uppercut', colors: ['#219ebc', '#ffffff'], }
 		},
 
 		// ── C: Glacial Pylon ───────────────────────────────────────────────────────
@@ -96,23 +96,26 @@ export const frosty: Character = {
 	stackType: 'eclipse',
 	stackName: 'Eclipse',
 	stackMax: 5,
-	selfStackCap: 5,          // 3 from her own casts; the last 2 need teammate grants
+	selfStackCap: 5,
 	onStackFull: 'none',      // hold-and-express — stacks drive persistent buffs, no convert
+	stackDecayMs: 13_000,     // stacks wink out 13 s after the last ability cast
 	stackEffects: [
-		{ effectId: 'frost_aura', minStacks: 1 },        // +10% BA to active unit, per stack
-		{ effectId: 'glacial_resonance', minStacks: 5 }  // +20% creation dmg to self, at full
+		{ effectId: 'frost_aura', minStacks: 1 },       // +10% BA per stack to active unit (incl. Frosty)
+		{ effectId: 'glacial_resonance', minStacks: 1 } // +20% creation dmg to self
 	],
 	art: {
 		gem: '/characters/gem-frosty.png',
 		profile: '/characters/avatars2/frosty.png',
 		poster: '/characters/frosty_v.png',
-		bannerPoster: '/characters/frosty_poster101.png',
+		bannerPoster: '/characters/frosty_poster100.png',
 	},
 	theme: {
-		primary: '#00b4d8',
-		secondary: '#023e8a',
-		glow: { ready: 'var(--frost-bright)', unchained: 'var(--unchained)' },
-		hp: 'linear-gradient( -90deg,  rgba(75,228,255,1) 11.2%, rgba(188,204,251,1) 100.6% );',
-		energy: 'linear-gradient(to left, #26a0da, #314755);',
+		primary: '#caf0f8',
+		secondary: '#ced4da',
+		// glow: { ready: 'var(--frost-bright)', unchained: 'var(--unchained)' },
+		hp: 'linear-gradient(180deg,#eaffff,#7ad4ff 50%,#2f7fd6)',
+		energy: 'linear-gradient(to left, #26a0da, #314755)',
+		hpStyle: 'cryo',
+		pip: { shape: 'crystal', color: '#90e0ef', glow: '#caf0f8' },
 	},
 };

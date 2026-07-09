@@ -55,5 +55,7 @@ export function themeVars(def: Character): string {
 		`--char-energy:${t.energy}`
 	];
 	for (const [k, v] of Object.entries(t.glow)) parts.push(`--char-glow-${k}:${v}`);
+	if (def.theme?.pip?.color) parts.push(`--char-pip-color:${def.theme.pip.color}`);
+	if (def.theme?.pip?.glow) parts.push(`--char-pip-glow:${def.theme.pip.glow}`);
 	return parts.join(';');
 }

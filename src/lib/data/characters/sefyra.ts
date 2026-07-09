@@ -86,7 +86,7 @@ export const sefyra: Character = {
             zoneBuff: {
                 tickMs: 600,
                 dmgPerTick: 8,
-                damageBonus: 0.2,
+                damageBonus: 0.25,
                 gatherPerTick: { steps: 1 }
             },
             delivery: {
@@ -95,7 +95,7 @@ export const sefyra: Character = {
                 holdBehavior: 'aim',
                 shapeParams: { radius: 5 }
             },
-            fx: { zone: 'holy' }
+            fx: { zone: 'wind' }
         }
     },
 
@@ -112,7 +112,7 @@ export const sefyra: Character = {
         gem: '/characters/gem-sefyra.png',
         profile: '/characters/avatars2/sefyra.png',
         poster: '/characters/sefyra_v.png',
-        bannerPoster: '/characters/sefyra100.png'
+        bannerPoster: '/characters/sefyra99.png'
     },
     theme: {
         primary: '#fcbf49',

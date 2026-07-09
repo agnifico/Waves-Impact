@@ -3,12 +3,14 @@
 		current = 0,
 		max = 100,
 		type = 'hp',
-		label = undefined
+		label = undefined,
+		hpStyle = ''
 	}: {
 		current?: number;
 		max?: number;
 		type?: 'hp' | 'energy' | 'enemy';
 		label?: string;
+		hpStyle?: string;
 	} = $props();
 
 	let pct = $derived(max > 0 ? Math.min(100, Math.max(0, (current / max) * 100)) : 0);
@@ -22,7 +24,7 @@
 		{displayLabel}
 	</span>
 	<div class="bar-track" class:thin={type === 'energy'}>
-		<div class="bar-fill {type}" class:low style="width: {pct}%"></div>
+		<div class="bar-fill {type}" class:low class:cryo={hpStyle === 'cryo'} class:solar={hpStyle === 'solar'} style="width: {pct}%"></div>
 		<span class="bar-text">{Math.max(0, Math.round(current))}/{Math.round(max)}</span>
 	</div>
 </div>
@@ -133,5 +135,42 @@
 	}
 	.bar-track.thin .bar-text {
 		font-size: 0.5rem;
+	}
+
+	/* ── Cryo Core (Frosty) — crystal facet texture + shimmer sweep ──── */
+	.bar-fill.cryo {
+		background:
+			repeating-linear-gradient(118deg, rgba(255, 255, 255, 0.18) 0 2px, transparent 2px 15px),
+			var(--char-hp, var(--hp));
+	}
+	.bar-fill.cryo::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(100deg, transparent 34%, rgba(255, 255, 255, 0.6) 50%, transparent 66%);
+		animation: barShimmer 3.8s ease-in-out infinite;
+		pointer-events: none;
+	}
+
+	/* ── Solar Bloom (June 9) — dappled light spots + shimmer sweep ─── */
+	.bar-fill.solar {
+		background:
+			radial-gradient(circle at 18% 32%, rgba(255, 255, 255, 0.3), transparent 22%),
+			radial-gradient(circle at 62% 64%, rgba(255, 255, 255, 0.22), transparent 20%),
+			radial-gradient(circle at 88% 40%, rgba(255, 255, 255, 0.18), transparent 18%),
+			var(--char-hp, var(--hp));
+	}
+	.bar-fill.solar::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(100deg, transparent 34%, rgba(255, 255, 255, 0.5) 50%, transparent 66%);
+		animation: barShimmer 4.4s ease-in-out infinite;
+		pointer-events: none;
+	}
+
+	@keyframes barShimmer {
+		0%   { transform: translateX(-130%) skewX(-18deg); }
+		100% { transform: translateX(360%)  skewX(-18deg); }
 	}
 </style>

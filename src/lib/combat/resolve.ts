@@ -55,6 +55,16 @@ export interface ResolveSource {
 	/** Damage taxonomy tags for hits from this source. The pipeline filters buffs on
 	 *  these. e.g. ['ba'], ['ability'], ['ability','ult'], ['creation'], ['creation','reaction']. */
 	tags?: DamageTag[];
+	/** Prevents Coordinated Attack procs from this hit (used by CA hits themselves). */
+	skipCa?: boolean;
+	/** Prevents reactive zone procs from this hit (used by reactive zone hits themselves). */
+	skipReactiveZone?: boolean;
+	/**
+	 * Opaque id shared by all applyOnHit calls from the same cast/swing event.
+	 * Used by triggerPer:'cast' to fire the CA only once per trigger even when
+	 * an AoE hits multiple enemies in the same tick. Defaults to String(now).
+	 */
+	caTriggerId?: string;
 }
 
 // ─── heal resolution ───────────────────────────────────────────────────────────
@@ -175,6 +185,35 @@ export function applyOnHit(
 	// ── primary damage ──────────────────────────────────────────────
 	if (baseDmg > 0) {
 		totalDealt += dealDamageTo(state, primary, baseDmg, src);
+	}
+
+	// ── Coordinated Attack procs (BA + ability hits only; creation/zone excluded) ──
+	if (!src.skipCa) {
+		const isTrigger = src.tags?.includes('ba') || src.tags?.includes('ability');
+		if (isTrigger) tryFireCoordAttack(state, src.owner, primary, src, now);
+	}
+
+	// ── Reactive zone: any damage to an enemy in the zone fires a fixed hit ──
+	if (!src.skipReactiveZone) {
+		for (const zone of state.zones) {
+			if (!zone.reactive) continue;
+			if (chebyshev(primary.pos, zone.center) > zone.radius) continue;
+			const zoneOwner = state.party.find((p) => p.id === zone.ownerId);
+			if (!zoneOwner) continue;
+			const lastFired = zone.reactive.lastFiredAt[primary.id] ?? 0;
+			if (now - lastFired < zone.reactive.cooldownMs) continue;
+			zone.reactive.lastFiredAt[primary.id] = now;
+			const reactSrc: ResolveSource = {
+				owner: zoneOwner,
+				abilityName: zone.reactive.abilityName,
+				element: zoneOwner.def.element,
+				flatDamage: true,
+				skipReactiveZone: true,
+				skipCa: true,
+				tags: ['ability']
+			};
+			applyOnHit(state, primary, zone.reactive.dmg, undefined, reactSrc, now);
+		}
 	}
 
 	if (!onHit) {
@@ -320,4 +359,89 @@ function applyKnockbackTo(
 /** Stratum gate convenience — re-exported so callers don't import spatial directly. */
 export function canHitStratum(hitsStrata: Stratum[] | undefined, enemyStratum: Stratum): boolean {
 	return coversStratum(hitsStrata, enemyStratum);
+}
+
+// ─── Coordinated Attack ───────────────────────────────────────────────────────
+
+/**
+ * Fire Coordinated Attack procs for any active caConfig effects on the owner.
+ * Called at the end of applyOnHit for BA and ability hits (not creation/zone).
+ * CA hits themselves set skipCa:true so they never recurse.
+ */
+export function tryFireCoordAttack(
+	state: EngineState,
+	owner: CharacterState,
+	primary: EnemyState,
+	src: ResolveSource,
+	now: number
+): void {
+	const isBa = src.tags?.includes('ba') ?? false;
+	const isAbility = src.tags?.includes('ability') ?? false;
+	if (!isBa && !isAbility) return;
+
+	const triggerType: 'ba' | 'ability' = isBa ? 'ba' : 'ability';
+	const triggerId = src.caTriggerId ?? String(now);
+
+	for (const instId in owner.activeEffects) {
+		const inst = owner.activeEffects[instId];
+		const cfg = inst.caConfig;
+		if (!cfg) continue;
+
+		if (cfg.trigger !== triggerType && cfg.trigger !== 'both') continue;
+
+		// 'cast' mode: fire at most once per trigger event
+		if (cfg.triggerPer === 'cast') {
+			if (inst.caLastTriggerId === triggerId) continue;
+			inst.caLastTriggerId = triggerId;
+		}
+
+		// Internal cooldown
+		if (now - (inst.caLastFiredAt ?? 0) < cfg.internalCooldownMs) continue;
+		inst.caLastFiredAt = now;
+
+		const targets = resolveCATargets(state, owner, primary, cfg);
+		const dmg = Math.round(cfg.dmgPerHit * (cfg.dmgMultiplier ?? 1));
+		const caOnHit = cfg.energyPerHit ? { energyGain: cfg.energyPerHit } : undefined;
+
+		// Attribute the CA to whoever GRANTED the effect (e.g. Luna for party_ca),
+		// not necessarily the active character who triggered it. inst.source is the
+		// caster.id set by applyEffect when the buff was applied.
+		const granter = state.party.find((p) => p.id === inst.source) ?? owner;
+		const caSrc: ResolveSource = {
+			owner: granter,
+			abilityName: cfg.grantingAbilityName ?? 'Coordinated Attack',
+			element: granter.def.element,
+			flatDamage: true,
+			skipCa: true,
+			skipReactiveZone: true,
+			tags: ['ability']
+		};
+
+		targets.forEach((t, i) => {
+			setTimeout(() => {
+				if (t.hp <= 0) return;
+				applyOnHit(state, t, dmg, caOnHit, caSrc, Date.now());
+			}, 220 + i * 80);
+		});
+	}
+}
+
+function resolveCATargets(
+	state: EngineState,
+	owner: CharacterState,
+	locked: EnemyState,
+	cfg: import('$lib/types/effect').CoordAttackConfig
+): EnemyState[] {
+	if (cfg.targeting === 'locked' || cfg.hitCount === 1) {
+		return Array.from({ length: cfg.hitCount }, () => locked);
+	}
+	const nearby = state.enemies.filter(
+		(e) => e.hp > 0 && e.id !== locked.id && chebyshev(e.pos, owner.pos) <= (cfg.splitRange ?? 3)
+	);
+	const halfMain = Math.ceil(cfg.hitCount / 2);
+	const out: EnemyState[] = Array.from({ length: halfMain }, () => locked);
+	for (let i = halfMain; i < cfg.hitCount; i++) {
+		out.push(nearby.length > 0 ? nearby[Math.floor(Math.random() * nearby.length)] : locked);
+	}
+	return out;
 }

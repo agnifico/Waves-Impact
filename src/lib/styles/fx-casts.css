@@ -216,3 +216,114 @@
       Center-out stagger + per-tile --c ramp set inline by FxLayer; rim picks
       up --c2 from the container. */
    .fx-cast-circle { position: absolute; animation: fx-grid-fade .52s ease-in forwards; }
+
+/* fx-cast-wave — water surge (wide_line AoE BA) */
+.fx-cast-wave {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  animation: fx-wave-cluster-fade 0.72s ease-in forwards;
+}
+
+/* main water body: translucent crest, cyan leading edge -> teal trailing edge,
+   horizontal ripple streaks, surging forward from the caster */
+.fx-cast-wave .fx-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 42% 42% 26% 26% / 58% 58% 38% 38%;
+  /* background:
+    repeating-linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0.14) 0 1px,
+      rgba(255, 255, 255, 0) 1px 5px
+    ),
+    linear-gradient(
+      to top,
+      color-mix(in srgb, var(--c) 36%, transparent) 0%,
+      color-mix(in srgb, var(--c) 44%, transparent) 42%,
+      color-mix(in srgb, var(--c2, var(--c)) 56%, transparent) 100%
+    ); */
+  box-shadow:
+    0 0 8px color-mix(in srgb, var(--c2, var(--c)) 38%, transparent),
+    inset 0 5px 7px color-mix(in srgb, white 34%, transparent);
+  opacity: 0;
+  transform-origin: 50% 100%;
+  animation: fx-wave-surge 0.6s cubic-bezier(0.22, 0.61, 0.3, 1) var(--d, 0ms) both;
+}
+
+/* foam / spray accent: a thin bright crest line on the leading (top) edge */
+.fx-cast-wave .fx-tile::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: 12%;
+  right: 12%;
+  height: 5px;
+  border-radius: 50%;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in srgb, var(--c2, var(--c)) 50%, transparent) 30%,
+    transparent 50%,
+    color-mix(in srgb, var(--c2, var(--c)) 50%, transparent) 70%,
+    transparent 100%
+  );
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--c2, var(--c)) 70%, white));
+  opacity: 0;
+  animation: fx-wave-foam 0.52s ease-out var(--d, 0ms) both;
+}
+
+/* body rises from the caster side, crests, then dissolves into spray */
+@keyframes fx-wave-surge {
+  0% {
+    opacity: 0;
+    transform: translateY(9px) scale(0.78, 0.42);
+    filter: brightness(1.5);
+  }
+  22% {
+    opacity: 0.7;
+    transform: translateY(2px) scale(1.04, 1.08);
+    filter: brightness(1.4);
+  }
+  55% {
+    opacity: 0.62;
+    transform: translateY(-3px) scale(1, 1.02);
+    filter: brightness(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-12px) scale(1.12, 1.3);
+    filter: brightness(1) blur(1.4px);
+  }
+}
+
+/* foam flashes white at the crest, then sprays forward and fades fast */
+@keyframes fx-wave-foam {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scaleX(0.6);
+  }
+  18% {
+    opacity: 0.85;
+    transform: translateY(0) scaleX(1.05);
+  }
+  46% {
+    opacity: 0.6;
+    transform: translateY(-4px) scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px) scaleX(0.7);
+  }
+}
+
+/* whole cluster clears once the surge has passed */
+@keyframes fx-wave-cluster-fade {
+  0%, 64% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

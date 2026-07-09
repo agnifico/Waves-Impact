@@ -1,10 +1,11 @@
 import type { EngineState, CharacterState } from '$lib/types/state';
-import type { Ability } from '$lib/types/ability';
+import type { Ability, AbilityOpts } from '$lib/types/ability';
 import { step8Toward, samePos, clamp } from '../board';
 import { nearestEnemy } from '../query';
 import { publish } from '../events';
 import { shoveEnemiesOff } from '../spatial';
 import { getCreationDef } from '$lib/data/creations';
+import { applyDelivery, type ResolveSource } from '../resolve';
 
 /**
  * summon: spawn a summon entity adjacent to the caster, biased toward
@@ -19,7 +20,7 @@ export function resolve(
     caster: CharacterState,
     ability: Ability,
     now: number,
-    opts: { reticle?: { x: number; y: number } | null } = {}
+    opts: AbilityOpts = {}
 ): boolean {
     const creationId = ability.creationId;
     if (!creationId) return false;
@@ -69,6 +70,9 @@ export function resolve(
     const sstratum = def.stratum ?? 'ground';
     const sTiles = (def.footprint ?? [{ x: 0, y: 0 }]).map((o) => ({ x: pos.x + o.x, y: pos.y + o.y }));
     shoveEnemiesOff(state, sTiles, sstratum, publish);
+
+    const src: ResolveSource = { owner: caster, abilityName: ability.name ?? ability.id, element: caster.def.element, ability, tags: ['ability'] };
+    applyDelivery(state, ability.delivery, src, now);
 
     publish('summon:spawned', { summonId: `${creationId}-${now}`, owner: caster.id, pos: { ...pos } });
     return true;

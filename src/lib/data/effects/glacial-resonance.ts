@@ -7,6 +7,7 @@ export const glacial_resonance: Effect = {
     onApply: [],
     onTick: [],
     onExpire: [],
+    scalesWithSourceStacks: true,
     modifies: [
         { stat: 'damageBonus', value: 0.20, appliesTo: ['creation'], target: 'self' }
     ]

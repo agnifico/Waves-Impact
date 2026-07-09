@@ -30,7 +30,7 @@ export const CREATIONS: Record<string, CreationDef> = {
         gapClose: true,
         gapCloseRange: 5,        // lurks until within 5 tiles, then pounces
         receiveBuffs: true,
-        onHit: { energyGain: 5, grantsStack: 'eclipse' },
+        onHit: { energyGain: 5 },
     },
     spectral_ship: {
         id: 'spectral_ship', name: 'Paris', kind: 'summon',
@@ -85,16 +85,15 @@ export const CREATIONS: Record<string, CreationDef> = {
         durationMs: 12_000,
         constructType: 'source',
         targetingType: 'pulse',
-        pulseDmg: 25,
         pulseMs: 2_000,
         pulseRadius: 3,
+        pulseDmg: 25,
         // footprint: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }, { x: 1, y: 1 }],
         // footprintRender: 'scaled',
         receiveBuffs: true,
         onHit: {
             stunMs: 1000,
             energyGain: 5,
-            grantsStack: 'eclipse',
             // knockback: 1,            // pulse shoves enemies off the pylon
         },
     },
@@ -113,7 +112,7 @@ export const CREATIONS: Record<string, CreationDef> = {
         hitsStrata: ['ground', 'flying'], // pulse damages both strata (was the dead `hits` field)
         onHit: {
             energyGain: 8,
-            knockback: 2,            // gusts push hard
+            // knockback: 2,            // gusts push hard
         },
     },
 

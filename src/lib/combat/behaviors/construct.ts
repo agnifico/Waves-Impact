@@ -1,9 +1,10 @@
 import type { EngineState, CharacterState } from '$lib/types/state';
-import type { Ability } from '$lib/types/ability';
+import type { Ability, AbilityOpts } from '$lib/types/ability';
 import { samePos, clamp } from '../board';
 import { publish } from '../events';
 import { shoveEnemiesOff } from '../spatial';
 import { getCreationDef } from '$lib/data/creations';
+import { applyDelivery, type ResolveSource } from '../resolve';
 
 /**
  * construct: place a stationary construct on the board.
@@ -23,7 +24,7 @@ export function resolve(
     caster: CharacterState,
     ability: Ability,
     now: number,
-    opts: Record<string, unknown> = {}
+    opts: AbilityOpts = {}
 ): boolean {
     const creationId = ability.creationId;
     if (!creationId) return false;
@@ -31,7 +32,7 @@ export function resolve(
     const def = getCreationDef(creationId);
     if (!def || def.kind !== 'construct') return false;
 
-    const reticle = opts.reticle as { x: number; y: number } | null | undefined;
+    const reticle = opts.reticle;
     const pos = reticle
         ? clamp(state.board, { ...reticle })
         : clamp(state.board, {
@@ -71,6 +72,9 @@ export function resolve(
     const cstratum = def.stratum ?? 'ground';
     const cTiles = (def.footprint ?? [{ x: 0, y: 0 }]).map((o) => ({ x: pos.x + o.x, y: pos.y + o.y }));
     shoveEnemiesOff(state, cTiles, cstratum, publish);
+
+    const src: ResolveSource = { owner: caster, abilityName: ability.name ?? ability.id, element: caster.def.element, ability, tags: ['ability'] };
+    applyDelivery(state, ability.delivery, src, now);
 
     publish('construct:placed', { constructId: `${creationId}-${now}`, ownerId: caster.id, pos: { ...pos } });
     return true;

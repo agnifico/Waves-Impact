@@ -40,6 +40,43 @@ export interface StatMod {
 }
 
 
+/**
+ * Config for a Coordinated Attack effect — embedded on EffectInstance.
+ * Set by the granting behavior (coord_attack_grant / coord_attack_stance)
+ * immediately after applyEffect; never stored in the registry Effect def.
+ */
+export interface CoordAttackConfig {
+	/** Which hit type fires the CA. */
+	trigger: 'ba' | 'ability' | 'both';
+	/** Total CA hits per proc. hitCount === 1 always goes to the locked enemy. */
+	hitCount: number;
+	/** Flat damage per CA hit (used with flatDamage:true — bypasses pipeline). */
+	dmgPerHit: number;
+	/** 'locked' = all hits to the locked enemy. 'split' = ceil(half) locked, rest random nearby. */
+	targeting: 'locked' | 'split';
+	/** Chebyshev radius for "nearby" enemies in split mode (from the owner). Default 3. */
+	splitRange?: number;
+	/** Minimum ms between procs from this effect (shared across all hits in one proc). */
+	internalCooldownMs: number;
+	/**
+	 * 'hit' = can proc each applyOnHit call, subject to internalCooldownMs.
+	 * 'cast' = only the first hit per tick procs (same-tick AoE hits share a trigger id).
+	 */
+	triggerPer: 'cast' | 'hit';
+	/** Energy granted to the owner per CA hit. */
+	energyPerHit?: number;
+	/** Damage multiplier applied at fire time (e.g. 1.5 for the Arch 3 max-stack bonus). */
+	dmgMultiplier?: number;
+	/**
+	 * The name of the ability that granted this CA (e.g. "Chain Resonance").
+	 * Set by the granting behavior so tryFireCoordAttack can:
+	 *   • attribute DPS to the granter (via inst.source)
+	 *   • look up the granting ability's fx spec via fxFor() in FxLayer
+	 * Defaults to 'Coordinated Attack' when absent (fallback ca_hit visual).
+	 */
+	grantingAbilityName?: string;
+}
+
 export interface EffectInstance {
 	id: string;
 	appliedAt: number;
@@ -49,6 +86,12 @@ export interface EffectInstance {
 	lastTickAt?: number;
 	/** Shield absorb pool — set by grantShield, drained by absorbDamage. */
 	absorbRemaining?: number;
+	/** Present on Coordinated Attack effects. Set by the granting behavior after applyEffect. */
+	caConfig?: CoordAttackConfig;
+	/** Timestamp of the last CA proc (enforces internalCooldownMs). */
+	caLastFiredAt?: number;
+	/** Last trigger id processed — used by triggerPer:'cast' to deduplicate same-tick procs. */
+	caLastTriggerId?: string;
 }
 /**
  * A hook that fires at a lifecycle point (onApply, onTick, onExpire).

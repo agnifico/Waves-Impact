@@ -1,5 +1,5 @@
 import type { EngineState, CharacterState } from '$lib/types/state';
-import type { Ability } from '$lib/types/ability';
+import type { Ability, AbilityOpts } from '$lib/types/ability';
 import { clamp, samePos } from '../board';
 import { getCreationDef } from '$lib/data/creations';
 import { publish } from '../events';
@@ -9,7 +9,7 @@ export function resolve(
     caster: CharacterState,
     ability: Ability,
     now: number,
-    _opts: Record<string, unknown> = {}
+    _opts: AbilityOpts = {}
 ): boolean {
     const creationId = ability.creationId;
     if (!creationId) return false;

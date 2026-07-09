@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { tick as engineTick, resetEngine } from '$lib/combat/engine';
+	import { tick as engineTick } from '$lib/combat/engine';
 	import { newEngineState } from '$lib/combat/state';
 	import { clear as clearEvents } from '$lib/combat/events';
 	import { bindInputEvents } from '$lib/input/input-handler';
@@ -23,6 +23,8 @@
 	import { tryAbility } from '$lib/combat/ability-resolver';
 	import { tryBasicAttack } from '$lib/combat/basic-attack';
 	import { getAllCharacters, getEnemy } from '$lib/data/registry';
+	import { CHALLENGES } from '$lib/data/challenges';
+	import { newChallengeEngineState } from '$lib/combat/state';
 	import type { AbilitySlot } from '$lib/types/ability';
 	import Board from '$lib/render/Board.svelte';
 	import PartyRow from '$lib/render/PartyRow.svelte';
@@ -44,6 +46,9 @@
 		'frosty',
 		'june9',
 		'sefyra',
+		'midorima',
+		'luna',
+		'jamilya',
 		'nepthys'
 	];
 
@@ -75,8 +80,14 @@
 		wall: 'The Wall',
 		gauntlet: 'The Gauntlet',
 		old_duo: 'Bear + Dragon',
-		all: 'All'
+		all: 'All',
+		...Object.fromEntries(Object.entries(CHALLENGES).map(([k, c]) => [k, c.label]))
 	};
+
+	const ALL_ENCOUNTER_KEYS = [
+		...Object.keys(ENEMY_OPTIONS),
+		...Object.keys(CHALLENGES)
+	];
 
 	const SKINS = [
 		{ label: 'Default', url: 'none' },
@@ -107,6 +118,16 @@
 		)
 	);
 	let activeThemeVars = $derived(themeVars(gs.party[gs.activeSlot].def));
+	let waveCountdown = $derived(
+		gs.wave?.phase === 'intermission' && gs.wave.intermissionEndsAt
+			? Math.max(0, Math.ceil((gs.wave.intermissionEndsAt - now) / 1000))
+			: null
+	);
+	let waveTimerLeft = $derived(
+		gs.wave?.phase === 'fighting' && gs.wave.waves[gs.wave.current]?.timeLimitMs
+			? Math.max(0, Math.ceil((gs.wave.waves[gs.wave.current].timeLimitMs! - (now - gs.wave.waveStartedAt)) / 1000))
+			: null
+	);
 	let now = $state(performance.now());
 	let boardComponent: Board;
 	let logComponent: CombatLog;
@@ -119,11 +140,16 @@
 
 	function loadFight() {
 		clearInput();
-		resetEngine();
 		resetLock();
 		resetClock();
-		const enemies = ENEMY_OPTIONS[selectedEnemy as keyof typeof ENEMY_OPTIONS];
-		const fresh = newEngineState(buildParty(), enemies, gameNow(), 15);
+		let fresh;
+		if (selectedEnemy in CHALLENGES) {
+			const ch = CHALLENGES[selectedEnemy as keyof typeof CHALLENGES];
+			fresh = newChallengeEngineState(buildParty(), ch.waves, gameNow(), 15);
+		} else {
+			const enemies = ENEMY_OPTIONS[selectedEnemy as keyof typeof ENEMY_OPTIONS];
+			fresh = newEngineState(buildParty(), enemies, gameNow(), 15);
+		}
 		Object.assign(gs, fresh);
 	}
 
@@ -251,10 +277,31 @@
 					</div>
 					<Board bind:this={boardComponent} {gs} {now} />
 					{#if gs.over && gs.outcome === 'victory'}
-						<div class="overlay victory"><h1>VICTORY</h1></div>
+						<div class="overlay victory">
+							<h1>VICTORY</h1>
+							{#if gs.wave}
+								<p class="wave-result">All {gs.wave.waves.length} waves cleared</p>
+							{/if}
+						</div>
 					{/if}
 					{#if gs.over && gs.outcome === 'defeat'}
 						<div class="overlay defeat"><h1>DEFEAT</h1></div>
+					{/if}
+					{#if gs.wave && !gs.over}
+						{#if gs.wave.phase === 'intermission'}
+							<div class="overlay wave-incoming">
+								<div class="wave-incoming-label">WAVE {gs.wave.current + 1} / {gs.wave.waves.length}</div>
+								<div class="wave-incoming-sub">INCOMING</div>
+								<div class="wave-incoming-count">{(waveCountdown ?? 0) > 0 ? waveCountdown : 'GO!'}</div>
+							</div>
+						{:else}
+							<div class="wave-badge">
+								WAVE {gs.wave.current + 1} / {gs.wave.waves.length}
+								{#if waveTimerLeft !== null}
+									<span class="wave-timer" class:urgent={waveTimerLeft <= 10}>{waveTimerLeft}s</span>
+								{/if}
+							</div>
+						{/if}
 					{/if}
 					{#if paused && !gs.over}
 						<div class="overlay paused">
@@ -314,7 +361,7 @@
 			</div>
 			<div class="top-controls">
 				<select bind:value={selectedEnemy} onchange={resetFight}>
-					{#each Object.keys(ENEMY_OPTIONS) as key}
+					{#each ALL_ENCOUNTER_KEYS as key}
 						<option value={key}>{ENCOUNTER_LABELS[key] ?? key}</option>
 					{/each}
 				</select>
@@ -330,7 +377,7 @@
 			roster={ROSTER}
 			bind:selected={selectedIds}
 			bind:enemyKey={selectedEnemy}
-			enemyOptions={Object.keys(ENEMY_OPTIONS)}
+			enemyOptions={ALL_ENCOUNTER_KEYS}
 			onbegin={beginCombat}
 			onopencodex={() => (isCodexOpen = true)}
 		/>
@@ -612,5 +659,71 @@
 		letter-spacing: 4px;
 		text-transform: uppercase;
 		animation: pulse 0.5s infinite;
+	}
+
+	/* ─── Wave HUD ────────────────────────────────────── */
+	.wave-result {
+		color: var(--text-dim);
+		font-size: 13px;
+		letter-spacing: 2px;
+		margin-top: 8px;
+		font-family: 'Andale Mono';
+	}
+
+	.overlay.wave-incoming {
+		background: rgba(0, 0, 0, 0.72);
+		pointer-events: none;
+		z-index: 90;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+	}
+	.wave-incoming-label {
+		color: var(--gold);
+		font-size: 18px;
+		letter-spacing: 5px;
+		font-family: 'DePixel';
+	}
+	.wave-incoming-sub {
+		color: var(--text-dim);
+		font-size: 11px;
+		letter-spacing: 4px;
+		font-family: 'Andale Mono';
+		text-transform: uppercase;
+	}
+	.wave-incoming-count {
+		color: var(--text);
+		font-size: 36px;
+		letter-spacing: 2px;
+		font-family: 'Jersey 10';
+		margin-top: 8px;
+	}
+
+	.wave-badge {
+		position: absolute;
+		top: 6px;
+		left: 50%;
+		transform: translateX(-50%);
+		z-index: 80;
+		background: rgba(0, 0, 0, 0.55);
+		border: 1px solid rgba(255, 255, 255, 0.1);
+		border-radius: 6px;
+		padding: 3px 10px;
+		font-family: 'Andale Mono';
+		font-size: 11px;
+		letter-spacing: 2px;
+		color: var(--gold);
+		pointer-events: none;
+		white-space: nowrap;
+	}
+	.wave-timer {
+		margin-left: 8px;
+		color: var(--text-dim);
+	}
+	.wave-timer.urgent {
+		color: var(--hp-low);
+		animation: pulse 0.6s infinite;
 	}
 </style>

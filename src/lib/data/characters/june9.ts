@@ -1,6 +1,5 @@
 import type { Character } from '$lib/types/character';
 
-// Export symbol stays `june9` so imports don't break. id/display are 'june9' / 'June 9'.
 export const june9: Character = {
 	id: 'june9',
 	name: 'June 9',
@@ -60,7 +59,7 @@ export const june9: Character = {
 				damage: 10,
 				energyGain: 15,
 				grantsStack: 'verdance',
-				shield: { amount: 600, target: 'party' },   // cast-time party shield
+				shield: { amount: 100, target: 'party' },   // cast-time party shield
 				shapeParams: { range: 3 },
 				holdBehavior: 'charge',
 				chargeMaxRange: 7,
@@ -103,7 +102,9 @@ export const june9: Character = {
 		primary: '#2eb872',
 		secondary: '#f5c04a',
 		glow: { ready: '#b5e48c', bloomstride: '#ffd66b' },
-		energy: 'linear-gradient(180deg,#f5c04a 0%, #e0a020 100%);',
-		hp: 'linear-gradient(180deg,#74f0a8 0%, #2eb872 100%);',
+		energy: 'linear-gradient(180deg,#f5c04a 0%, #e0a020 100%)',
+		hp: 'linear-gradient(180deg,#eaff9b,#9be03e 45%,#d9a13c)',
+		hpStyle: 'solar',
+		pip: { shape: 'circuit', color: '#6fd83e', glow: '#caff7a' },
 	}
 };

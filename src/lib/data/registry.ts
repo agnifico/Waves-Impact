@@ -9,8 +9,10 @@ import { maria_elena } from './characters/maria_elena';
 import { sefyra } from './characters/sefyra';
 import { ryoma } from './characters/ryoma';
 import { carla } from './characters/carla';
+import { jamilya } from './characters/jamilya';
 import { midorima } from './characters/midorima';
 import { nepthys } from './characters/nepthys';
+import { luna } from './characters/luna';
 
 import { bear } from './enemies/bear';
 import { dragon } from './enemies/dragon';
@@ -18,8 +20,9 @@ import { unchained } from './effects/unchained';
 import { bloomstride } from './effects/bloomstride';
 import { glacial_resonance } from './effects/glacial-resonance';
 import { frost_aura } from "./effects/frost-aura";
-
 import { shield } from './effects/shield';
+import { party_ca } from './effects/party_ca';
+import { ca_stance } from './effects/ca_stance';
 import { forest_prowler } from './enemies/forest-prowler';
 import { punching_tortoise } from './enemies/punching-tortoise';
 import { vanguard_siren } from './enemies/vanguard-siren';
@@ -29,7 +32,7 @@ import { bob } from './enemies/bob';
 // ─── Character registry ──────────────────────────────────────────────────────
 
 const characters: Record<string, Character> = {
-	frosty, june9, maria_elena, sefyra, carla, midorima, nepthys
+	nepthys, luna, frosty, jamilya, maria_elena, june9, sefyra, carla, midorima,
 };
 
 export function getCharacter(id: string): Character | undefined {
@@ -67,7 +70,9 @@ const effects: Record<string, Effect> = {
 	bloomstride,
 	shield,
 	frost_aura,
-	glacial_resonance
+	glacial_resonance,
+	party_ca,
+	ca_stance
 };
 
 export function getEffectDef(id: string): Effect | undefined {

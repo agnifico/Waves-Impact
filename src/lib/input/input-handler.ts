@@ -98,6 +98,8 @@ export function bindInputEvents(
 		if (intent === 'swap5') trySwap(state, 4, now);
 		if (intent === 'swap6') trySwap(state, 5, now);
 		if (intent === 'swap7') trySwap(state, 6, now);
+		if (intent === 'swap8') trySwap(state, 7, now);
+		if (intent === 'swap9') trySwap(state, 8, now);
 
 		// Basic attack
 		if (intent === 'basicAttack') {

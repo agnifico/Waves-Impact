@@ -1,5 +1,5 @@
 import type { EngineState, CharacterState } from '$lib/types/state';
-import type { Ability } from '$lib/types/ability';
+import type { Ability, AbilityOpts } from '$lib/types/ability';
 
 import * as damageAoe from './damage-aoe';
 import * as damageFirstInLine from './damage-first-in-line';
@@ -10,6 +10,8 @@ import * as cloudpiercer from './cloudpiercer';
 import * as construct from './construct';
 import * as multiConstruct from './multi_construct';
 import * as tacticalDetonate from './tactical_detonate';
+import * as coordAttackGrant from './coord_attack_grant';
+import * as coordAttackStance from './coord_attack_stance';
 
 /** Generic resolve signature every behavior handler must implement. */
 export type BehaviorResolveFn = (
@@ -17,7 +19,7 @@ export type BehaviorResolveFn = (
 	caster: CharacterState,
 	ability: Ability,
 	now: number,
-	opts?: Record<string, unknown>
+	opts?: AbilityOpts
 ) => boolean;
 
 /**
@@ -34,6 +36,8 @@ const registry: Record<string, BehaviorResolveFn> = {
 	dash: dash.resolve as BehaviorResolveFn,
 	zone: zone.resolve as BehaviorResolveFn,
 	cloudpiercer: cloudpiercer.resolve as BehaviorResolveFn,
+	coord_attack_grant: coordAttackGrant.resolve as BehaviorResolveFn,
+	coord_attack_stance: coordAttackStance.resolve as BehaviorResolveFn,
 };
 
 /**
@@ -45,7 +49,7 @@ export function resolveBehavior(
 	caster: CharacterState,
 	ability: Ability,
 	now: number,
-	opts: Record<string, unknown> = {}
+	opts: AbilityOpts = {}
 ): boolean {
 	const fn = registry[ability.behavior];
 	if (!fn) {

@@ -412,7 +412,7 @@
 	border-radius: var(--zr, 50%);
 	pointer-events: none;
 	background: radial-gradient(circle,
-		color-mix(in srgb, #fff 30%, var(--c)) 0%,
+		color-mix(in srgb, transparent 70%, var(--c)) 0%,
 		color-mix(in srgb, var(--c) 22%, transparent) 35%,
 		transparent 68%);
 	box-shadow: 0 0 22px 2px color-mix(in srgb, var(--c2, var(--c)) 45%, transparent);

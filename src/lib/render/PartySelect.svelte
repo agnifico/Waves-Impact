@@ -113,7 +113,7 @@
 
 	.roster {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
 		gap: 12px;
 		overflow-y: auto;
 		padding: 4px;
@@ -145,10 +145,12 @@
 	}
 	.char.on {
 		opacity: 1;
-		filter: none;
-		box-shadow:
+		filter: grayscale(0) brightness(1.1);
+		background-color: var(--accent);
+		/* box-shadow:
 			0 0 0 2px var(--accent) inset,
-			0 0 14px -2px var(--accent);
+			0 0 14px -2px var(--accent); */
+		box-shadow: none;
 	}
 	.portrait {
 		aspect-ratio: 1;
@@ -162,6 +164,7 @@
 		letter-spacing: -1px;
 		text-align: center;
 		color: var(--text, #e7ecf3);
+		color: rgba(10, 7, 16, 0.605);
 	}
 	.check {
 		position: absolute;

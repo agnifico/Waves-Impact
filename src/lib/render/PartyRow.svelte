@@ -130,6 +130,7 @@
 		/* filter: grayscale(0.7) brightness(0.6); */
 		/* background-size: cover; */
 		/* background-position: left 80%; */
+		transition: all 0.1s ease-in-out;
 	}
 	.party-card.active {
 		/* filter: grayscale(0) brightness(1); */
@@ -139,8 +140,13 @@
 			0 -1px 0 2px rgba(0, 0, 0, 0.37) inset;
 		/* transform: translateX(6px); */
 		background-color: color-mix(in srgb, black 0%, var(--char-secondary));
+		/* background-color: #4f4f4f; */
+		border: none;
+		/* box-shadow: 0 3px 0px 2px rgba(0, 0, 0, 0.7), 0 -1px 0px 2px rgba(0, 0, 0, 0.7); */
+		/* margin-block: 6px; */
 		background-size: cover;
 		background-position: center 20%;
+		/* height: 100px; */
 
 		.pc-name {
 			visibility: hidden;

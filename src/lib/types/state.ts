@@ -2,7 +2,7 @@ import type { Position, Vector, EntityId, Stratum } from './common';
 import type { Character } from './character';
 import type { Enemy } from './enemy';
 import type { EffectInstance } from './effect';
-import type { ZoneBuff, AbilitySlot, FxSpec } from './ability';
+import type { ZoneBuff, AbilitySlot, AbilityOpts, FxSpec } from './ability';
 
 /**
  * The combat board. Obstacles block movement, dashes, and knockback. (Data Contract §14)
@@ -25,6 +25,8 @@ export interface CharacterState {
 	facing: Vector;
 
 	stacks: { current: number };
+	/** Timestamp of the last stack gain — used for decay timers (stackDecayMs on Character). */
+	stackLastGainedAt?: number;
 	activeEffects: Record<string, EffectInstance>;
 
 	baChainIndex: number;
@@ -36,10 +38,23 @@ export interface CharacterState {
 	cooldowns: Record<AbilitySlot, number>;
 
 	poise: number;
+
+	/**
+	 * Arch 3 CA stack buffer — stacks granted by party V casts before the stance
+	 * activates. Consumed on the next coord_attack_stance activation.
+	 */
+	caPendingStacks?: number;
+	/** True once caPendingStacks has reached the character's caPendingStackMax. */
+	caPendingMaxReached?: boolean;
 	stratum: Stratum;
 	lastAction?: { tag: string; at: number };
 	charges: Partial<Record<AbilitySlot, { count: number; rechargeAt: number }>>;
 	lastHitAt?: number;
+	pendingCast?: {
+		slot: AbilitySlot;
+		firesAt: number;
+		opts: AbilityOpts;
+	};
 	pendingBasic?: {
 		enemyId: string;
 		firesAt: number;
@@ -97,6 +112,17 @@ export interface ZoneState {
 	lastTickAt: number;
 	buff: ZoneBuff;
 	persistsAfterDeath?: boolean;
+	/**
+	 * Albedo-style reactive field: any damage dealt to an enemy inside this zone
+	 * also fires a fixed-damage hit from the zone owner. Per-enemy cooldown prevents
+	 * burst chains from cascading infinitely.
+	 */
+	reactive?: {
+		dmg: number;
+		cooldownMs: number;
+		abilityName: string;
+		lastFiredAt: Record<string, number>;
+	};
 }
 
 /**
@@ -155,6 +181,33 @@ export interface ConstructState {
 }
 
 
+/** One enemy entry in a wave definition. */
+export interface WaveEnemy {
+	enemyId: string;
+	spawnPos?: Position;
+}
+
+/** Definition of a single wave of enemies. */
+export interface WaveDef {
+	enemies: WaveEnemy[];
+	/** Pause before this wave spawns (ms). Default 3000. */
+	intermissionMs?: number;
+	/** Optional hard limit to clear this wave; defeat if exceeded. */
+	timeLimitMs?: number;
+}
+
+/** Runtime wave context — present only in challenge mode. */
+export interface WaveContext {
+	waves: WaveDef[];
+	/** 0-based index of the current/incoming wave. */
+	current: number;
+	phase: 'fighting' | 'intermission';
+	/** When the current fighting phase began (for time-limit checks). */
+	waveStartedAt: number;
+	/** Absolute timestamp when the intermission ends and next wave spawns. */
+	intermissionEndsAt?: number;
+}
+
 /**
  * Top-level engine state. Everything the combat engine reads and writes. (Data Contract §16)
  * This object is wrapped in Svelte 5's $state at the route level.
@@ -179,4 +232,10 @@ export interface EngineState {
 	over: boolean;
 	outcome: 'victory' | 'defeat' | null;
 	focusTargetId: string | null;
+
+	lastMoveAt: number;
+	lastEnergyRegenAt: number;
+
+	/** Present only in challenge (wave) mode. Absent in sandbox. */
+	wave?: WaveContext;
 }
