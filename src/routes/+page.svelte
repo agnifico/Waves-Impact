@@ -40,16 +40,16 @@
 	const ROSTER = getAllCharacters();
 
 	const DEFAULT_PARTY = [
-		'carla',
+		// 'carla',
 		'maria_elena',
 		'midorima',
 		'frosty',
 		'june9',
 		'sefyra',
-		'midorima',
-		'luna',
-		'jamilya',
-		'nepthys'
+		// 'midorima',
+		// 'luna',
+		// 'jamilya',
+		// 'nepthys'
 	];
 
 	const ENEMY_OPTIONS = {
